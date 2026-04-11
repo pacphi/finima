@@ -1,0 +1,76 @@
+{
+  "title": "Finima - Security & Compliance",
+  "description": "Auth attempts, rate limiting, error rates, and CORS violations for security monitoring.",
+  "tags": ["security", "compliance", "finima"],
+  "layout": [
+    {
+      "id": "magic-links-sent",
+      "title": "Magic Links Sent",
+      "type": "timeseries",
+      "query": "rate(finima_auth_magic_links_sent_total[5m])",
+      "description": "Rate of magic link emails dispatched for authentication.",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "id": "magic-links-verified",
+      "title": "Magic Links Verified",
+      "type": "timeseries",
+      "query": "rate(finima_auth_magic_links_verified_total[5m])",
+      "description": "Rate of magic links successfully verified (login completions).",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "id": "auth-failure-rate",
+      "title": "Auth Failure Rate",
+      "type": "gauge",
+      "query": "1 - (rate(finima_auth_magic_links_verified_total[1h]) / rate(finima_auth_magic_links_sent_total[1h]))",
+      "description": "Proportion of magic links that were never verified. High values may indicate phishing or brute-force attempts.",
+      "thresholds": [
+        { "value": 0.3, "color": "green" },
+        { "value": 0.6, "color": "yellow" },
+        { "value": 0.8, "color": "red" }
+      ],
+      "gridPos": { "x": 0, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "session-revocations",
+      "title": "Session Revocations",
+      "type": "timeseries",
+      "query": "rate(finima_auth_sessions_revoked_total[5m])",
+      "description": "Rate of explicit session revocations (logout or forced invalidation).",
+      "gridPos": { "x": 4, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "rate-limit-hits",
+      "title": "Rate Limit Hits",
+      "type": "timeseries",
+      "query": "rate(finima_http_rate_limited_total[5m])",
+      "description": "Requests rejected by rate limiting. Spikes may indicate abuse.",
+      "gridPos": { "x": 8, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "4xx-by-endpoint",
+      "title": "4xx Errors by Endpoint",
+      "type": "timeseries",
+      "query": "sum by (endpoint) (rate(finima_http_requests_total{status=~\"4..\"}[5m]))",
+      "description": "Client error rate broken down by API endpoint.",
+      "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 }
+    },
+    {
+      "id": "5xx-by-endpoint",
+      "title": "5xx Errors by Endpoint",
+      "type": "timeseries",
+      "query": "sum by (endpoint) (rate(finima_http_requests_total{status=~\"5..\"}[5m]))",
+      "description": "Server error rate broken down by API endpoint.",
+      "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 }
+    },
+    {
+      "id": "cors-violations",
+      "title": "CORS Violations",
+      "type": "timeseries",
+      "query": "rate(finima_http_cors_violations_total[5m])",
+      "description": "Requests rejected due to CORS policy violations.",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 4 }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+// markdownlint-cli2 configuration
+// Ignore patterns for directories that should not be linted
+{
+  "ignores": [
+    ".claude/**",
+    ".claude-flow/**",
+    "**/node_modules/**",
+    "**/target/**",
+    ".claude/worktrees/**"
+  ]
+}

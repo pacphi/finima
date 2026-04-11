@@ -1,0 +1,257 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ── Documentation Quality Gates ──────────────────────────────
+  validate-markdown:
+    name: Validate Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "**/*.md"
+
+  validate-yaml:
+    name: Validate YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: Lint YAML files
+        run: |
+          find . \( -name node_modules -o -name target -o -name .claude -o -name .claude-flow \) \
+            -prune -o \( -name '*.yaml' -o -name '*.yml' \) ! -name 'pnpm-lock.yaml' -print | \
+            xargs yamllint -c .yamllint.yaml
+
+  # ── Backend Quality Gates ────────────────────────────────────
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: backend-lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: finima
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: finima_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://finima:test@localhost:5432/finima_test
+      TEST_DATABASE_URL: postgres://finima:test@localhost:5432/finima_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run all tests (unit + integration)
+        run: cargo test --workspace
+
+  llm-test:
+    name: LLM Integration Tests
+    if: vars.LLM_TESTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    needs: backend-lint
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+        options: >-
+          --health-cmd "curl -sf http://localhost:11434/api/version || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 15s
+    env:
+      OLLAMA_URL: http://localhost:11434
+      OLLAMA_TEST_MODEL: gemma4:e4b-it-q4_K_M
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Pull test model
+        run: |
+          curl -sf http://localhost:11434/api/pull \
+            -d "{\"name\":\"$OLLAMA_TEST_MODEL\"}" \
+            | while read -r line; do echo "$line"; done
+      - name: Run LLM integration tests
+        run: cargo test -p finima-llm --features ollama -- --ignored
+
+  backend-audit:
+    name: Backend Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Frontend Quality Gates ───────────────────────────────────
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm exec tsc --noEmit
+      - name: Check formatting
+        run: pnpm exec prettier --check 'src/**/*.{ts,tsx,css}'
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: frontend-lint
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test -- --run
+
+  # ── E2E Tests ────────────────────────────���───────────────────
+  e2e-test:
+    name: E2E Tests
+    if: vars.E2E_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: finima
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: finima_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://finima:test@localhost:5432/finima_test
+      E2E_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Start Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
+          ollama pull gemma4:e4b-it-q4_K_M || true
+
+      - name: Build backend
+        run: cargo build --release -p finima-api
+
+      - name: Start backend
+        run: |
+          APP_ENV=test \
+          APP__AUTH__JWT_SECRET=test-secret \
+          APP__RESEND__API_KEY=re_test \
+          APP__LLM__OLLAMA__URL=http://localhost:11434 \
+          APP__S3__ENDPOINT=http://localhost:9000 \
+          APP__S3__ACCESS_KEY=minioadmin \
+          APP__S3__SECRET_KEY=minioadmin \
+          ./target/release/finima-api &
+          sleep 3
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Run E2E tests
+        working-directory: frontend
+        env:
+          E2E_SKIP_SERVER: "true"
+          E2E_BASE_URL: http://localhost:5173
+        run: |
+          pnpm exec vite preview --port 5173 &
+          sleep 2
+          pnpm exec playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results/

@@ -1,0 +1,25 @@
+# Production overrides
+# Secrets are injected via environment variables (APP__AUTH__JWT_SECRET, etc.)
+
+database:
+  max_connections: 25
+
+logging:
+  level: "info"
+  format: "json"
+
+s3:
+  # All values injected via environment variables:
+  # APP__S3__ENDPOINT_URL, APP__S3__REGION, APP__S3__BUCKET,
+  # APP__S3__ACCESS_KEY_ID, APP__S3__SECRET_ACCESS_KEY,
+  # APP__S3__FORCE_PATH_STYLE
+  endpoint_url: ""
+  region: "us-east-1"
+  bucket: "finima-uploads"
+  access_key_id: ""
+  secret_access_key: ""
+  force_path_style: true
+
+cors:
+  allowed_origins: []
+  # Set via APP__CORS__ALLOWED_ORIGINS env var in production

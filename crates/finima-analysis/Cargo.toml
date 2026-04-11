@@ -1,0 +1,17 @@
+[package]
+name = "finima-analysis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+finima-core = { path = "../finima-core" }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+rust_decimal_macros = "1"

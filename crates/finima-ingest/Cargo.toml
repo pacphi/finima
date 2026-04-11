@@ -1,0 +1,21 @@
+[package]
+name = "finima-ingest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+finima-core = { path = "../finima-core" }
+calamine = { workspace = true }
+csv = { workspace = true }
+quick-xml = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rust_decimal = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rust_decimal_macros = "1"

@@ -1,0 +1,70 @@
+# docker-compose.observability.yml
+# SigNoz observability stack with OpenTelemetry collector.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#
+# This adds an OTel collector that scrapes the backend /metrics endpoint
+# and forwards telemetry data to SigNoz for visualization.
+
+version: "3.9"
+
+services:
+  otel-collector:
+    image: signoz/signoz-otel-collector:latest
+    container_name: finima-otel-collector
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    environment:
+      SIGNOZ_ENDPOINT: ${SIGNOZ_ENDPOINT:-http://signoz:4317}
+    depends_on:
+      signoz:
+        condition: service_healthy
+    restart: unless-stopped
+
+  signoz:
+    image: signoz/signoz:latest
+    container_name: finima-signoz
+    ports:
+      - "3301:3301" # SigNoz UI
+    volumes:
+      - signoz_data:/var/lib/signoz
+      - ./config/signoz/dashboards:/var/lib/signoz/dashboards:ro
+    environment:
+      SIGNOZ_DATA_SOURCE: clickhouse
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3301/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: finima-clickhouse
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  signoz_data:
+  clickhouse_data:

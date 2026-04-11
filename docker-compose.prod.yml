@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-finima}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models_prod:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/pacphi/finima-backend:latest
+    environment:
+      APP_ENV: production
+      APP__DATABASE__URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-finima}
+      APP__LLM__OLLAMA__URL: http://ollama:11434
+      APP__RESEND__API_KEY: ${RESEND_API_KEY}
+      APP__AUTH__JWT_SECRET: ${JWT_SECRET}
+      APP__S3__ENDPOINT_URL: http://minio:9000
+      APP__S3__REGION: ${S3_REGION:-us-east-1}
+      APP__S3__BUCKET: ${S3_BUCKET:-finima-uploads}
+      APP__S3__ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      APP__S3__SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      APP__S3__FORCE_PATH_STYLE: "true"
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backup:
+    image: postgres:17-bookworm
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - >-
+        apt-get update && apt-get install -y curl &&
+        curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc
+        -o /usr/local/bin/mc &&
+        chmod +x /usr/local/bin/mc &&
+        while true; do /scripts/backup.sh; sleep 86400; done
+    volumes:
+      - ./scripts:/scripts:ro
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-finima}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      BACKUP_BUCKET: finima-backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/pacphi/finima-frontend:latest
+    volumes:
+      - ./config/frontend-prod.yaml:/usr/share/nginx/html/config.yaml:ro
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  pgdata_prod:
+  ollama_models_prod:
+  caddy_data:
+  minio_data:

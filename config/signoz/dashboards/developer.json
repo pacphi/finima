@@ -1,0 +1,76 @@
+{
+  "title": "Finima - Developer",
+  "description": "LLM categorization, transaction imports, API response times, and database query performance.",
+  "tags": ["developer", "debug", "finima"],
+  "layout": [
+    {
+      "id": "llm-categorization-duration",
+      "title": "LLM Categorization Duration",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.95, rate(finima_llm_categorization_duration_seconds_bucket[5m]))",
+      "description": "95th percentile time for LLM-based transaction categorization.",
+      "unit": "seconds",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "id": "llm-categorization-success-rate",
+      "title": "LLM Categorization Success Rate",
+      "type": "gauge",
+      "query": "sum(rate(finima_llm_categorizations_total{status=\"success\"}[5m])) / sum(rate(finima_llm_categorizations_total[5m]))",
+      "description": "Proportion of LLM categorization requests that complete successfully.",
+      "thresholds": [
+        { "value": 0.95, "color": "green" },
+        { "value": 0.85, "color": "yellow" },
+        { "value": 0.0, "color": "red" }
+      ],
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "id": "transaction-import-throughput",
+      "title": "Transaction Import Throughput",
+      "type": "timeseries",
+      "query": "rate(finima_transactions_imported_total[5m])",
+      "description": "Rate of transactions imported (from CSV uploads, bank feeds, etc.).",
+      "unit": "transactions/sec",
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 }
+    },
+    {
+      "id": "api-response-times-by-path",
+      "title": "API Response Times by Path",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.95, sum by (endpoint, le) (rate(finima_http_request_duration_seconds_bucket[5m])))",
+      "legendFormat": "{{endpoint}}",
+      "description": "95th percentile response time for each API endpoint.",
+      "unit": "seconds",
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 4 }
+    },
+    {
+      "id": "db-query-latency",
+      "title": "DB Query Latency Distribution",
+      "type": "heatmap",
+      "query": "rate(finima_db_query_duration_seconds_bucket[5m])",
+      "description": "Distribution of database query durations as a heatmap.",
+      "unit": "seconds",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 4 }
+    },
+    {
+      "id": "feed-fetch-duration",
+      "title": "Feed Fetch Duration",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.95, rate(finima_feed_fetch_duration_seconds_bucket[5m]))",
+      "legendFormat": "{{source}}",
+      "description": "95th percentile time to fetch and parse RSS/Atom feed sources.",
+      "unit": "seconds",
+      "gridPos": { "x": 0, "y": 12, "w": 6, "h": 4 }
+    },
+    {
+      "id": "feed-fetch-errors",
+      "title": "Feed Fetch Errors",
+      "type": "timeseries",
+      "query": "rate(finima_feed_fetch_errors_total[5m])",
+      "legendFormat": "{{source}}",
+      "description": "Rate of feed fetch failures by source.",
+      "gridPos": { "x": 6, "y": 12, "w": 6, "h": 4 }
+    }
+  ]
+}

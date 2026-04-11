@@ -1,0 +1,60 @@
+server:
+  host: "0.0.0.0"
+  port: 3000
+
+database:
+  url: "postgres://finima:finima_dev@localhost:5432/finima"
+  max_connections: 10
+
+auth:
+  jwt_secret: "change-me-in-production"
+  magic_link_expiry_minutes: 15
+  from_email: "Finima <auth@finima.app>"
+  rate_limit_per_hour: 5
+
+resend:
+  api_key: ""
+
+llm:
+  provider: "candle"
+  model: "auto"
+  candle:
+    model_id: "google/gemma-4-E4B-it"
+    model_path: ""
+    quantization: "Q4_K_M"
+    device: "auto"
+    context_length: 8192
+    threads: 0
+  ollama:
+    url: "http://localhost:11434"
+    model: "gemma4:26b-a4b-it-q4_K_M"
+  batch_size: 20
+  confidence_threshold: 0.7
+  timeout_seconds: 60
+  max_retries: 2
+
+feed:
+  poll_interval_hours: 6
+  sources:
+    - name: "Investopedia"
+      url: "https://www.investopedia.com/feedbuilder/feed/getfeed/?feedName=rss_articles"
+      topic: "investing"
+    - name: "NerdWallet"
+      url: "https://www.nerdwallet.com/blog/feed/"
+      topic: "budgeting"
+
+logging:
+  level: "debug"
+  format: "pretty"
+
+s3:
+  endpoint_url: "http://localhost:9000"
+  region: "us-east-1"
+  bucket: "finima-uploads"
+  access_key_id: "finima"
+  secret_access_key: "finima_dev"
+  force_path_style: true
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"

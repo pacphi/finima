@@ -1,0 +1,23 @@
+[package]
+name = "finima-core"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+axum = ["dep:axum"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rust_decimal = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+axum = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

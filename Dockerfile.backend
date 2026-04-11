@@ -1,0 +1,37 @@
+# Multi-stage Rust build for finima-api
+# Stage 1: Build the release binary
+FROM rust:1.82-bookworm AS builder
+WORKDIR /app
+
+# Copy manifests and source
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+
+# Build the release binary and strip debug symbols
+RUN cargo build --release -p finima-api \
+    && strip /app/target/release/finima-api
+
+# Stage 2: Minimal runtime image
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the stripped binary
+COPY --from=builder /app/target/release/finima-api /usr/local/bin/finima-api
+
+# Copy config directory (excluding test.yaml via .dockerignore)
+COPY config/ /app/config/
+
+WORKDIR /app
+
+RUN useradd -r -s /bin/false finima
+USER finima
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+CMD ["finima-api"]

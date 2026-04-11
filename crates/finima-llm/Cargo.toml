@@ -1,0 +1,34 @@
+[package]
+name = "finima-llm"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["ollama"]
+ollama = ["dep:reqwest"]
+candle = ["dep:mistralrs", "dep:hf-hub", "dep:tokenizers"]
+cuda = ["candle", "mistralrs/cuda"]
+metal = ["candle", "mistralrs/metal"]
+
+[dependencies]
+finima-core = { path = "../finima-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rust_decimal = { workspace = true }
+
+# Hardware detection
+sysinfo = { workspace = true }
+
+# Ollama backend (HTTP)
+reqwest = { workspace = true, optional = true }
+
+# Candle/mistral.rs backend (in-process inference)
+mistralrs = { version = "0.8", optional = true, default-features = false }
+hf-hub = { version = "0.3", optional = true }
+tokenizers = { version = "0.20", optional = true }

@@ -1,0 +1,68 @@
+name: Check Links
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - ".lychee.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - ".lychee.toml"
+  # Check external links weekly (rate limits make per-PR checks slow)
+  schedule:
+    - cron: "0 9 * * 1" # Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  check-internal-links:
+    name: Internal Links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore lychee cache
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.sha }}
+          restore-keys: lychee-
+
+      - name: Check internal links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --scheme file
+            --include-fragments
+            --config .lychee.toml
+            '**/*.md'
+          fail: true
+
+  check-external-links:
+    name: External Links
+    runs-on: ubuntu-latest
+    # Only run on schedule or manual dispatch (external checks are slow)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore lychee cache
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-external-${{ github.sha }}
+          restore-keys: lychee-external-
+
+      - name: Check external links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --scheme https
+            --scheme http
+            --config .lychee.toml
+            --timeout 30
+            --max-concurrency 4
+            '**/*.md'
+          fail: false # External links may flake; report but don't block

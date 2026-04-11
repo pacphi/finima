@@ -1,0 +1,30 @@
+# Build artifacts
+target/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Version control
+.git/
+
+# Secrets
+.env
+
+# Test artifacts
+tests/
+config/test.yaml
+
+# Documentation
+docs/
+
+# IDE / tooling
+.claude/
+.swarm/
+.claude-flow/
+.gitnexus/
+.vscode/
+.idea/
+
+# Misc
+*.md
+LICENSE

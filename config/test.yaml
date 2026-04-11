@@ -1,0 +1,35 @@
+# Test overrides
+# Uses a separate test database and mock endpoints.
+
+database:
+  url: "postgres://finima:finima_dev@localhost:5432/finima_test"
+  max_connections: 3
+
+auth:
+  jwt_secret: "test-secret-do-not-use-in-production"
+  magic_link_expiry_minutes: 5
+
+resend:
+  api_key: "re_test_mock_key"
+
+llm:
+  provider: "ollama"
+  ollama:
+    url: "http://localhost:11435"
+    model: "gemma4:26b-a4b-it-q4_K_M"
+
+logging:
+  level: "warn"
+  format: "pretty"
+
+s3:
+  endpoint_url: "http://localhost:9002"
+  region: "us-east-1"
+  bucket: "finima-test-uploads"
+  access_key_id: "finima-test"
+  secret_access_key: "finima-test"
+  force_path_style: true
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"

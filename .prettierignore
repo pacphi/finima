@@ -1,0 +1,20 @@
+# Rust build artifacts
+target/
+
+# Node
+node_modules/
+dist/
+.turbo/
+
+# Claude Code / agent state
+.claude/
+.claude-flow/
+.swarm/
+
+# Coverage & reports
+coverage/
+test-results/
+playwright-report/
+
+# Lockfiles
+pnpm-lock.yaml

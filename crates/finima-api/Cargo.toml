@@ -1,0 +1,61 @@
+[package]
+name = "finima-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+finima-core = { path = "../finima-core", features = ["axum"] }
+finima-db = { path = "../finima-db" }
+finima-auth = { path = "../finima-auth" }
+finima-ingest = { path = "../finima-ingest" }
+finima-llm = { path = "../finima-llm" }
+finima-analysis = { path = "../finima-analysis" }
+finima-feed = { path = "../finima-feed" }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+futures = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+config = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rust_decimal = { workspace = true }
+tower = "0.5"
+http = "1"
+base64 = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-config = { workspace = true }
+aws-credential-types = { workspace = true }
+bytes = { workspace = true }
+prometheus-client = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+candle = []
+ollama = []
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http = "1"
+http-body-util = "0.1"
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+sqlx = { workspace = true }
+jsonwebtoken = { workspace = true }
+
+# Library crates needed to construct the test app (finima-api is a binary crate)
+finima-core = { path = "../finima-core", features = ["axum"] }
+finima-db = { path = "../finima-db" }
+finima-auth = { path = "../finima-auth" }
+finima-llm = { path = "../finima-llm" }
+axum = { workspace = true }
+tower-http = { workspace = true }

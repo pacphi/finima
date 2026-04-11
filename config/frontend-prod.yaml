@@ -1,0 +1,10 @@
+api:
+  base_url: "/api"
+  ws_url: "/ws"
+features:
+  news_feed: true
+  flow_analysis: true
+defaults:
+  currency: "USD"
+  date_format: "MM/DD/YYYY"
+  theme: "system"

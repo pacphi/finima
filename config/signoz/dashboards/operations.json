@@ -1,0 +1,108 @@
+{
+  "title": "Finima - Operations",
+  "description": "Request latency, error rates, error budget, resource utilization, and system health.",
+  "tags": ["operations", "sre", "finima"],
+  "layout": [
+    {
+      "id": "request-latency-p50",
+      "title": "Request Latency (p50)",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.50, rate(finima_http_request_duration_seconds_bucket[5m]))",
+      "description": "Median request latency across all endpoints.",
+      "unit": "seconds",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 }
+    },
+    {
+      "id": "request-latency-p95",
+      "title": "Request Latency (p95)",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.95, rate(finima_http_request_duration_seconds_bucket[5m]))",
+      "description": "95th percentile request latency.",
+      "unit": "seconds",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 }
+    },
+    {
+      "id": "request-latency-p99",
+      "title": "Request Latency (p99)",
+      "type": "timeseries",
+      "query": "histogram_quantile(0.99, rate(finima_http_request_duration_seconds_bucket[5m]))",
+      "description": "99th percentile request latency.",
+      "unit": "seconds",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 }
+    },
+    {
+      "id": "error-rate",
+      "title": "Error Rate (5xx / Total)",
+      "type": "gauge",
+      "query": "sum(rate(finima_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(finima_http_requests_total[5m]))",
+      "description": "Proportion of requests returning 5xx status codes.",
+      "thresholds": [
+        { "value": 0.001, "color": "green" },
+        { "value": 0.01, "color": "yellow" },
+        { "value": 0.05, "color": "red" }
+      ],
+      "gridPos": { "x": 0, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "error-budget-burn",
+      "title": "Error Budget Burn Rate",
+      "type": "timeseries",
+      "query": "(sum(rate(finima_http_requests_total{status=~\"5..\"}[1h])) / sum(rate(finima_http_requests_total[1h]))) / 0.001",
+      "description": "Burn rate against a 99.9% availability SLO. Values above 1 mean the budget is being consumed faster than sustainable.",
+      "thresholds": [
+        { "value": 1.0, "color": "green" },
+        { "value": 2.0, "color": "yellow" },
+        { "value": 10.0, "color": "red" }
+      ],
+      "gridPos": { "x": 4, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "db-connection-pool",
+      "title": "DB Connection Pool Utilization",
+      "type": "gauge",
+      "query": "finima_db_connections_active / finima_db_connections_max",
+      "description": "Ratio of active to maximum database connections.",
+      "thresholds": [
+        { "value": 0.5, "color": "green" },
+        { "value": 0.8, "color": "yellow" },
+        { "value": 0.95, "color": "red" }
+      ],
+      "gridPos": { "x": 8, "y": 4, "w": 4, "h": 4 }
+    },
+    {
+      "id": "websocket-connections",
+      "title": "Active WebSocket Connections",
+      "type": "timeseries",
+      "query": "finima_websocket_connections_active",
+      "description": "Number of currently active WebSocket connections.",
+      "gridPos": { "x": 0, "y": 8, "w": 4, "h": 4 }
+    },
+    {
+      "id": "upload-success-failure",
+      "title": "Upload Success / Failure Rate",
+      "type": "timeseries",
+      "query": "rate(finima_uploads_total[5m])",
+      "legendFormat": "{{status}}",
+      "description": "File upload rate broken down by success and failure.",
+      "gridPos": { "x": 4, "y": 8, "w": 4, "h": 4 }
+    },
+    {
+      "id": "container-memory",
+      "title": "Container Memory Usage",
+      "type": "timeseries",
+      "query": "container_memory_usage_bytes{name=~\"finima.*\"}",
+      "description": "Memory consumption of Finima containers.",
+      "unit": "bytes",
+      "gridPos": { "x": 8, "y": 8, "w": 4, "h": 4 }
+    },
+    {
+      "id": "container-cpu",
+      "title": "Container CPU Usage",
+      "type": "timeseries",
+      "query": "rate(container_cpu_usage_seconds_total{name=~\"finima.*\"}[5m])",
+      "description": "CPU utilization of Finima containers.",
+      "unit": "cores",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 4 }
+    }
+  ]
+}

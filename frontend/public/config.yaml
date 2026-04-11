@@ -1,0 +1,12 @@
+api:
+  base_url: "http://localhost:3000"
+  ws_url: "ws://localhost:3000"
+
+features:
+  news_feed: true
+  flow_analysis: true
+
+defaults:
+  currency: "USD"
+  date_format: "MM/DD/YYYY"
+  theme: "system"

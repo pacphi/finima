@@ -1,0 +1,263 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useApi } from '@/hooks/useApi';
+import { createUploadApi } from '@/api/uploads';
+import { ColumnMappingModal } from './ColumnMappingModal';
+import type { Upload, UploadPreview, FileFormat } from '@/types/models';
+
+const ACCEPTED_EXTENSIONS: Record<string, FileFormat> = {
+  '.csv': 'csv',
+  '.tsv': 'tsv',
+  '.ofx': 'ofx',
+  '.qfx': 'qfx',
+  '.qbo': 'qbo',
+  '.qif': 'qif',
+  '.xls': 'xls',
+  '.xlsx': 'xlsx',
+};
+
+const ACCEPT_MAP: Record<string, string[]> = {
+  'text/csv': ['.csv'],
+  'text/tab-separated-values': ['.tsv'],
+  'application/x-ofx': ['.ofx'],
+  'application/x-qfx': ['.qfx'],
+  'application/vnd.intu.qbo': ['.qbo'],
+  'application/qif': ['.qif'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+};
+
+function detectFormat(fileName: string): FileFormat | null {
+  const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+  return ACCEPTED_EXTENSIONS[ext] ?? null;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface FileUploadProps {
+  accountId: string;
+  onImportComplete?: () => void;
+}
+
+export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
+  const api = useApi();
+  const uploadApi = createUploadApi(api);
+
+  const [file, setFile] = useState<File | null>(null);
+  const [detectedFormat, setDetectedFormat] = useState<FileFormat | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [upload, setUpload] = useState<Upload | null>(null);
+  const [preview, setPreview] = useState<UploadPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<Upload | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const onDrop = useCallback((accepted: File[]) => {
+    const dropped = accepted[0];
+    if (!dropped) return;
+    const format = detectFormat(dropped.name);
+    if (!format) {
+      setError('Unsupported file format');
+      return;
+    }
+    setFile(dropped);
+    setDetectedFormat(format);
+    setError(null);
+    setUpload(null);
+    setPreview(null);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: ACCEPT_MAP,
+    maxFiles: 1,
+    multiple: false,
+  });
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const result = await uploadApi.uploadFile(accountId, file, setUploadProgress);
+      setUpload(result);
+      const previewData = await uploadApi.getPreview(result.id);
+      setPreview(previewData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const handleMappingComplete = () => {
+    const currentUpload = upload;
+    setPreview(null);
+
+    if (currentUpload) {
+      setProcessingStatus(currentUpload);
+      pollRef.current = setInterval(async () => {
+        try {
+          const status = await uploadApi.getUploadStatus(currentUpload.id);
+          setProcessingStatus(status);
+          if (status.status === 'complete' || status.status === 'error') {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            if (status.status === 'complete') {
+              setFile(null);
+              setUpload(null);
+              setProcessingStatus(null);
+              setDetectedFormat(null);
+              onImportComplete?.();
+            } else {
+              setError(status.error_message ?? 'Import failed');
+              setProcessingStatus(null);
+            }
+          }
+        } catch {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setFile(null);
+          setUpload(null);
+          setProcessingStatus(null);
+          setDetectedFormat(null);
+          onImportComplete?.();
+        }
+      }, 2000);
+    } else {
+      setFile(null);
+      setUpload(null);
+      setDetectedFormat(null);
+      onImportComplete?.();
+    }
+  };
+
+  if (processingStatus) {
+    const statusLabel =
+      processingStatus.status === 'importing'
+        ? 'Importing transactions...'
+        : processingStatus.status === 'categorizing'
+          ? 'Categorizing transactions...'
+          : `Processing (${processingStatus.status})...`;
+    return (
+      <div className="space-y-3" aria-live="polite">
+        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">{statusLabel}</p>
+            {processingStatus.imported_count !== null && (
+              <p className="text-xs text-blue-600">
+                {processingStatus.imported_count} imported
+                {processingStatus.skipped_count
+                  ? `, ${processingStatus.skipped_count} skipped`
+                  : ''}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (preview && upload) {
+    return (
+      <ColumnMappingModal
+        preview={preview}
+        uploadId={upload.id}
+        onComplete={handleMappingComplete}
+        onCancel={() => {
+          setPreview(null);
+          setUpload(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        {...getRootProps()}
+        role="button"
+        tabIndex={0}
+        aria-label="File drop zone. Drop a file or press Enter to browse. Supported formats: CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX."
+        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+          isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400'
+        }`}
+      >
+        <input {...getInputProps()} aria-label="Choose file to upload" />
+        <div className="text-4xl mb-2" aria-hidden="true">
+          📁
+        </div>
+        <p className="text-sm font-medium text-slate-700">
+          {isDragActive ? 'Drop the file here' : 'Drop file or click to browse'}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX</p>
+      </div>
+
+      {error && (
+        <div
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+          role="alert"
+          aria-live="assertive"
+        >
+          {error}
+        </div>
+      )}
+
+      {file && !uploading && !upload && (
+        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <div>
+            <p className="text-sm font-medium text-slate-800">{file.name}</p>
+            <p className="text-xs text-slate-500">
+              {formatFileSize(file.size)}
+              {detectedFormat && (
+                <span className="ml-2 inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium uppercase">
+                  {detectedFormat}
+                </span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={handleUpload}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Upload
+          </button>
+        </div>
+      )}
+
+      {uploading && (
+        <div className="space-y-2" aria-live="polite">
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div
+            className="w-full bg-slate-200 rounded-full h-2"
+            role="progressbar"
+            aria-valuenow={uploadProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Upload progress: ${uploadProgress}%`}
+          >
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
