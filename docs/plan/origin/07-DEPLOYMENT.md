@@ -558,7 +558,7 @@ jobs:
 
 ## 7. Configuration
 
-All configuration is externalized into **YAML files** with a layered override hierarchy. Secrets are injected via environment variables (never committed to version control). See [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md) for full rationale.
+All configuration is externalized into **YAML files** with a layered override hierarchy. Secrets are injected via environment variables (never committed to version control). See [ADR-009](../../ADRs/ADR-009-externalized-yaml-configuration.md) for full rationale.
 
 ### Backend Configuration (config-rs + YAML)
 
