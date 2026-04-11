@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["full"] }
 
 # Web framework
 axum = { version = "0.8", features = ["macros", "multipart", "ws"] }
-axum-extra = { version = "0.10", features = ["query"] }
+axum-extra = { version = "0.12", features = ["query"] }
 tower-http = { version = "0.6", features = ["cors", "compression-gzip", "trace", "limit", "set-header"] }
 futures = "0.3"
 
