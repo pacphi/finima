@@ -72,4 +72,4 @@ thiserror = "2"
 async-trait = "0.1"
 
 # Hardware detection
-sysinfo = "0.33"
+sysinfo = "0.38"
