@@ -6,8 +6,7 @@
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 
 /// Generate a cryptographically random magic link token.
@@ -17,7 +16,7 @@ use sha2::{Digest, Sha256};
 /// - `token_hash` is the hex-encoded SHA-256 hash of the raw token string, for database storage.
 pub fn generate_token() -> (String, String) {
     let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let raw_token = URL_SAFE_NO_PAD.encode(bytes);
     let token_hash = hash_token(&raw_token);
     (raw_token, token_hash)

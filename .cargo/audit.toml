@@ -1,0 +1,9 @@
+# Cargo audit configuration
+# See https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# RUSTSEC-2023-0071: Marvin Attack timing sidechannel in `rsa` crate.
+# Transitive dependency via sqlx-mysql — no fixed upgrade available.
+# sqlx does not use RSA for anything security-sensitive in our context
+# (PostgreSQL-only deployment). Ignore until upstream provides a fix.
+ignore = ["RUSTSEC-2023-0071"]
