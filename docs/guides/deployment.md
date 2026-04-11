@@ -211,7 +211,7 @@ make backup
 ```
 
 For detailed backup and restore procedures, see
-[the backup guide](../backup-guide.md) (if available) or inspect
+[the backup guide](database-backup.md) or inspect
 `scripts/backup.sh`.
 
 ## Monitoring
@@ -232,7 +232,7 @@ SigNoz.
 Access the SigNoz dashboard at `http://your-server:3301`.
 
 For detailed setup and dashboard configuration, see
-[the observability guide](../observability-guide.md) (if available).
+[the observability guide](observability.md).
 
 ### Health Endpoint
 
