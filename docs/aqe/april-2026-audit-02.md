@@ -9,14 +9,14 @@
 
 ## Executive Summary
 
-| Dimension                      | Score  | Verdict                                                           |
-| ------------------------------ | ------ | ----------------------------------------------------------------- |
-| README Accuracy                | 8/10   | Mostly honest; two material omissions                             |
-| Guide Accuracy                 | 7/10   | Several stale claims and one lie-by-omission                      |
-| ADR Accuracy                   | 9/10   | Faithfully describe decisions; one ADR missing from arch overview |
-| DDD Accuracy                   | 9/10   | Clean mapping to crate boundaries                                 |
-| Doc Completeness               | 6/10   | Major gaps in LLM fallback, env config, API reference, testing    |
-| **Overall Docs-vs-Reality**    | **7/10** | **Docs paint a rosier picture than reality warrants**           |
+| Dimension                   | Score    | Verdict                                                           |
+| --------------------------- | -------- | ----------------------------------------------------------------- |
+| README Accuracy             | 8/10     | Mostly honest; two material omissions                             |
+| Guide Accuracy              | 7/10     | Several stale claims and one lie-by-omission                      |
+| ADR Accuracy                | 9/10     | Faithfully describe decisions; one ADR missing from arch overview |
+| DDD Accuracy                | 9/10     | Clean mapping to crate boundaries                                 |
+| Doc Completeness            | 6/10     | Major gaps in LLM fallback, env config, API reference, testing    |
+| **Overall Docs-vs-Reality** | **7/10** | **Docs paint a rosier picture than reality warrants**             |
 
 ### The One-Line Truth
 
@@ -28,11 +28,11 @@ The documentation is well-structured and covers most features accurately, but it
 
 ### 1.1 INACCURATE: Rate Limit Described Inconsistently
 
-| Source | Claim |
-| --- | --- |
-| `troubleshooting.md` line 26 | "five per hour per email address" |
-| `ADR-002` | "5 requests per email per hour" |
-| `DDD-001` | "At most 5 magic links per email per hour" |
+| Source                            | Claim                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `troubleshooting.md` line 26      | "five per hour per email address"                                        |
+| `ADR-002`                         | "5 requests per email per hour"                                          |
+| `DDD-001`                         | "At most 5 magic links per email per hour"                               |
 | **Actual code** (`router.rs:235`) | `RateLimiter::new(5, Duration::from_secs(60))` — **5 per minute per IP** |
 
 **Verdict:** Three doc sources say "5/hour/email". Code says "5/minute/IP". Both the unit (minute vs hour) and the key (IP vs email) are wrong in docs. This is a **material safety documentation error** — an operator reading the docs would believe the rate limit is 60x more restrictive than it actually is.
@@ -40,6 +40,7 @@ The documentation is well-structured and covers most features accurately, but it
 ### 1.2 INACCURATE: Architecture Overview Omits QIF Format
 
 `architecture-overview.md` line 187–188 says:
+
 > "Finima supports importing transactions from CSV, OFX/QFX, and Excel files"
 
 **Reality:** QIF is fully implemented (`crates/finima-ingest/src/qif.rs`), documented in the user guide, quick-start guide, and troubleshooting guide, and declared in the `FileFormat` type. The architecture overview is the only doc that omits it.
@@ -52,11 +53,11 @@ The architecture overview's "Key Design Decisions" table lists ADRs 001–009 bu
 
 Multiple docs describe AI categorization as a core feature without disclosing degraded behavior:
 
-| Doc | Claim | Reality |
-| --- | --- | --- |
-| README line 8 | "Local AI categorization — Ollama-powered LLM classifies transactions on-device" | True **only if** Ollama is running and model is pulled. Otherwise `StubLlmClient` returns category="other" with confidence=0.5 for ALL transactions. |
-| README line 19 | "AI-powered categorization — local LLM via Ollama, no cloud API calls" | Same — silently degrades. |
-| User Guide line 149–152 | "If Ollama is running and a model has been pulled, Finima automatically categorizes..." | This is the **only** doc that hedges correctly. |
+| Doc                     | Claim                                                                                   | Reality                                                                                                                                              |
+| ----------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| README line 8           | "Local AI categorization — Ollama-powered LLM classifies transactions on-device"        | True **only if** Ollama is running and model is pulled. Otherwise `StubLlmClient` returns category="other" with confidence=0.5 for ALL transactions. |
+| README line 19          | "AI-powered categorization — local LLM via Ollama, no cloud API calls"                  | Same — silently degrades.                                                                                                                            |
+| User Guide line 149–152 | "If Ollama is running and a model has been pulled, Finima automatically categorizes..." | This is the **only** doc that hedges correctly.                                                                                                      |
 
 The `StubLlmClient` fallback is clearly documented in code comments (`stub.rs:5`: "This is clearly marked as a stub and should be replaced") but **zero user-facing docs** mention that without Ollama the system silently degrades. The Settings > LLM tab shows connection status, but a new user following the quick-start who skips the optional `make download-model` step will get all transactions categorized as "other" with no warning.
 
@@ -173,7 +174,7 @@ Every repository file in `finima-db/src/repos/` contains `// Integration test pl
 - `override_repo.rs:93`
 - `savings_goal_repo.rs:123`
 
-These are not a doc issue per se, but the testing docs should acknowledge this gap.
+These placeholders were removed on 2026-04-11. Integration testing of DB repos is handled at the API level via `crates/finima-api/tests/` which exercises repos through handlers with a real test database.
 
 ---
 
@@ -290,32 +291,32 @@ These are not a doc issue per se, but the testing docs should acknowledge this g
 
 ### Priority 1 — Fix Before Next Release
 
-| # | Action | File(s) | Effort |
-|---|--------|---------|--------|
-| 1 | Fix rate limit docs: change "5/hour/email" to "5/minute/IP" everywhere | troubleshooting.md, ADR-002, DDD-001, ADR-009 | 30 min |
-| 2 | Add "Degraded Mode" section documenting stub LLM behavior | troubleshooting.md, quick-start.md | 1 hour |
-| 3 | Add QIF to architecture overview's file import section | architecture-overview.md | 5 min |
-| 4 | Add ADR-010 to architecture overview's design decisions table | architecture-overview.md | 5 min |
-| 5 | Fix broken internal links in deployment.md | deployment.md | 15 min |
+| #   | Action                                                                 | File(s)                                                      | Effort | Status                                                                                                                                                     |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Fix rate limit docs: change "5/hour/email" to "5/minute/IP" everywhere | troubleshooting.md, ADR-002, DDD-001                         | 30 min | **DONE** (2026-04-11). ADR-009 had no rate limit text; architecture-overview.md already had correct rate limit.                                            |
+| 2   | Add "Degraded Mode" section documenting stub LLM behavior              | troubleshooting.md, quick-start.md, architecture-overview.md | 1 hour | **DONE** (2026-04-11). Added section 2a to troubleshooting, stub-mode note to quick-start, and stub fallback details to architecture overview LLM section. |
+| 3   | Add QIF to architecture overview's file import section                 | architecture-overview.md                                     | 5 min  | **DONE** (2026-04-11). Added QIF to prose, parse pipeline diagram, crate dependency graph, and ADR-005 row.                                                |
+| 4   | Add ADR-010 to architecture overview's design decisions table          | architecture-overview.md                                     | 5 min  | **DONE** (2026-04-11).                                                                                                                                     |
+| 5   | Fix broken internal links in deployment.md                             | deployment.md                                                | 15 min | **N/A** — links already correct (`database-backup.md` and `observability.md` both exist at the referenced paths).                                          |
 
 ### Priority 2 — Create Missing Documentation
 
-| # | Action | Suggested Path | Effort |
-|---|--------|---------------|--------|
-| 6 | Create API reference (all endpoints, auth requirements, request/response shapes) | docs/guides/api-reference.md | 4-6 hours |
-| 7 | Create environment variable reference (all vars, defaults, required/optional) | docs/guides/configuration-reference.md | 2 hours |
-| 8 | Document compile-time feature flags (candle, ollama) and their effects | docs/guides/maintainer-guide.md (add section) | 1 hour |
-| 9 | Create testing guide (how to run, write, and debug tests; coverage status) | docs/guides/testing-guide.md | 2-3 hours |
+| #   | Action                                                                           | Suggested Path                                | Effort    |
+| --- | -------------------------------------------------------------------------------- | --------------------------------------------- | --------- |
+| 6   | Create API reference (all endpoints, auth requirements, request/response shapes) | docs/guides/api-reference.md                  | 4-6 hours |
+| 7   | Create environment variable reference (all vars, defaults, required/optional)    | docs/guides/configuration-reference.md        | 2 hours   |
+| 8   | Document compile-time feature flags (candle, ollama) and their effects           | docs/guides/maintainer-guide.md (add section) | 1 hour    |
+| 9   | Create testing guide (how to run, write, and debug tests; coverage status)       | docs/guides/testing-guide.md                  | 2-3 hours |
 
 ### Priority 3 — Improve Existing Docs
 
-| # | Action | File(s) | Effort |
-|---|--------|---------|--------|
-| 10 | Verify all `make` targets referenced in docs against actual Makefile | All guides | 1 hour |
-| 11 | Add visible drag handles to dashboard widgets (or remove drag claim from docs) | DashboardPage.tsx + widget components OR user-guide.md, quick-start.md | 1-2 hours |
-| 12 | Document that "bring data from any bank" means file import, not direct bank connections | README.md | 15 min |
-| 13 | Add WebSocket message schema documentation | api-reference.md or architecture-overview.md | 1 hour |
-| 14 | Document the YAML config layering system with examples for operators | deployment.md or configuration-reference.md | 1 hour |
+| #   | Action                                                                                  | File(s)                                                                | Effort    |
+| --- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
+| 10  | Verify all `make` targets referenced in docs against actual Makefile                    | All guides                                                             | 1 hour    |
+| 11  | Add visible drag handles to dashboard widgets (or remove drag claim from docs)          | DashboardPage.tsx + widget components OR user-guide.md, quick-start.md | 1-2 hours |
+| 12  | Document that "bring data from any bank" means file import, not direct bank connections | README.md                                                              | 15 min    |
+| 13  | Add WebSocket message schema documentation                                              | api-reference.md or architecture-overview.md                           | 1 hour    |
+| 14  | Document the YAML config layering system with examples for operators                    | deployment.md or configuration-reference.md                            | 1 hour    |
 
 ---
 

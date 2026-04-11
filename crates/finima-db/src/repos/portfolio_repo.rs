@@ -91,12 +91,3 @@ impl PortfolioRepo for PgPortfolioRepo {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_create_portfolio() {
-        // Integration test placeholder
-    }
-}

@@ -156,12 +156,3 @@ impl PgRecurringRepo {
         Ok(group)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_recurring_repo() {
-        // Integration test placeholder
-    }
-}

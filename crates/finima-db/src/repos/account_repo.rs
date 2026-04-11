@@ -141,12 +141,3 @@ impl AccountRepo for PgAccountRepo {
         Ok(balance)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_create_account() {
-        // Integration test placeholder
-    }
-}

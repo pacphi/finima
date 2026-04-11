@@ -114,12 +114,3 @@ impl PgSavingsGoalRepo {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_savings_goal_repo() {
-        // Integration test placeholder
-    }
-}

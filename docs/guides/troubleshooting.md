@@ -23,8 +23,8 @@ error messages.
   for an email from "Finima" or the address configured in
   `config/default.yaml` under `auth.from_email`.
 
-- **Rate limit reached.** Finima limits magic-link requests to five
-  per hour per email address. Wait and try again later.
+- **Rate limit reached.** Finima limits magic-link requests to 5 per
+  minute per IP address. Wait a minute and try again.
 
 - **Invalid API key.** Verify that the `RESEND_API_KEY` in your
   `.env` file is correct. Log in to your Resend dashboard to confirm
@@ -64,6 +64,37 @@ empty or shows generic values.
   at import time. Transactions imported before Ollama was available
   will not be retroactively categorized. Re-import the same file to
   pick up uncategorized transactions.
+
+---
+
+## 2a. Degraded Mode — Running Without Ollama
+
+If Ollama is not running, no model has been pulled, or the `ollama`
+compile-time feature flag is disabled, Finima silently falls back to a
+**stub LLM client**. In this mode:
+
+- All transaction categorization returns `category="other"` with
+  `confidence=0.5`.
+- All enrichment returns default/empty values.
+- All insight generation returns a placeholder string.
+- Feed article summarization returns stubs.
+
+This is graceful degradation by design — the application remains fully
+functional for importing, viewing, and manually categorizing
+transactions.
+
+**How to detect stub mode:**
+
+- Check the backend logs at startup for the line:
+  `Using STUB LLM client`
+- In the UI, go to **Settings > LLM**. If the connection status shows
+  "Disconnected", the stub client is active.
+
+**Re-categorizing after enabling Ollama:**
+
+Transactions imported during stub mode will have generic categories.
+Once Ollama is running with a model pulled, re-import the same file
+to pick up AI categorization for those transactions.
 
 ---
 

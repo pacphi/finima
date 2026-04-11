@@ -44,7 +44,7 @@ Implement **passwordless email magic links** using the Resend API for email deli
 - Depends on Resend (external email API) for the auth flow. Mitigated: Resend is used only for sending; verification is entirely local.
 - Email delivery latency (typically <5s via Resend) adds friction compared to password login.
 - Users without email access (e.g., shared device, lost email) cannot sign in. Mitigated: this is an acceptable constraint for a personal finance app where email is a universal assumption.
-- Rate limiting is critical to prevent magic link abuse (5 requests per email per hour).
+- Rate limiting is critical to prevent magic link abuse (5 requests per IP address per minute).
 
 ## Alternatives Considered
 

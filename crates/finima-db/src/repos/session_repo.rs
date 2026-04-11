@@ -85,12 +85,3 @@ impl PgSessionRepo {
         Ok(result.rows_affected())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_session_repo() {
-        // Integration test placeholder
-    }
-}

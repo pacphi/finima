@@ -86,12 +86,3 @@ impl PgBudgetRepo {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_budget_repo() {
-        // Integration test placeholder
-    }
-}

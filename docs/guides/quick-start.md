@@ -167,6 +167,13 @@ make download-model
 This downloads the default Gemma 4 model. The download is several
 gigabytes and may take a few minutes.
 
+> **Note:** If you skip this step, Finima runs in **stub mode** — all
+> transactions will be categorized as "other" with a confidence of 0.5.
+> The app is fully functional otherwise. You can pull a model later and
+> re-import files to get AI categorization. See the
+> [Troubleshooting Guide](troubleshooting.md#2a-degraded-mode--running-without-ollama)
+> for details.
+
 ## 9. Explore the dashboard
 
 Go to the **Dashboard** page. Once you have imported transactions you

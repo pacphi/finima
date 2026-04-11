@@ -55,7 +55,7 @@ MagicLink
 
 - A magic link can only be used once (`used_at` must be null).
 - A magic link expires after 15 minutes.
-- At most 5 magic links may be created per email per hour (rate limit, enforced at API layer).
+- At most 5 magic links may be requested per IP address per minute (rate limit, enforced at API layer).
 
 ### Session (Entity)
 

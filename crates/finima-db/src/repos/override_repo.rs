@@ -84,12 +84,3 @@ impl PgOverrideRepo {
         Ok(row)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_override_repo() {
-        // Integration test placeholder
-    }
-}

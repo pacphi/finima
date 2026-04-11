@@ -113,12 +113,3 @@ impl PgFlowGroupRepo {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_flow_group_repo() {
-        // Integration test placeholder
-    }
-}

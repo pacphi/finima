@@ -43,7 +43,8 @@ The backend is organized as a Cargo workspace with eight crates:
   (repos,     auth   ingest  llm     analysis
    migrations)(JWT,  (CSV,   (Ollama (budgets,
               magic  OFX,    client, recurring,
-              links) Excel)  categ.) dashboards)
+              links) QIF,    categ.) dashboards)
+                     Excel)
                                 |
                             finima-feed
                             (RSS polling,
@@ -184,8 +185,8 @@ Finima uses passwordless authentication via magic links (see
 
 ## File Import Pipeline
 
-Finima supports importing transactions from CSV, OFX/QFX, and Excel files (see
-[ADR-005](../ADRs/ADR-005-multi-format-file-import.md)).
+Finima supports importing transactions from CSV, OFX/QFX, QIF, and Excel files
+(see [ADR-005](../ADRs/ADR-005-multi-format-file-import.md)).
 
 ```text
 1. POST /api/uploads  (multipart file upload, 50 MB limit)
@@ -197,6 +198,7 @@ Finima supports importing transactions from CSV, OFX/QFX, and Excel files (see
 2. Parse file (finima-ingest crate)
    |-- CSV: detect delimiter, parse with column mapping
    |-- OFX/QFX: XML parse with financial-specific schema
+   |-- QIF: line-oriented parse (Quicken Interchange Format)
    |-- Excel: calamine crate for .xls/.xlsx
    |-- Produce Vec<RawTransaction> with amounts as Decimal
    |-- Compute file hash (SHA-256) for duplicate detection
@@ -242,8 +244,13 @@ by default) receives transaction descriptions and returns category
 assignments. Results are stored on the transaction records.
 
 The LLM client (`finima-llm`) communicates with Ollama via its HTTP API.
-If Ollama is unavailable or no model is loaded, transactions remain
-uncategorized and can be manually categorized by the user.
+If Ollama is unavailable, no model is loaded, or neither the `ollama` nor
+`candle` compile-time feature flag is enabled, a **stub client** is used
+instead. The stub returns `category="other"` with `confidence=0.5` for all
+categorization requests and placeholder values for enrichment and
+summarization. This is logged at startup (`Using STUB LLM client`).
+Transactions imported during stub mode can be re-categorized later by
+re-importing the file after Ollama is available.
 
 ### Article Summarization
 
@@ -307,17 +314,18 @@ The observability stack (`docker-compose.observability.yml`) adds:
 
 Significant architectural choices are documented as ADRs:
 
-| ADR                                                           | Decision                                                        |
-| ------------------------------------------------------------- | --------------------------------------------------------------- |
-| [ADR-001](../ADRs/ADR-001-rust-multi-crate-workspace.md)      | Multi-crate workspace for modularity and compile-time isolation |
-| [ADR-002](../ADRs/ADR-002-passwordless-auth-magic-links.md)   | Magic links instead of passwords for simpler, more secure auth  |
-| [ADR-003](../ADRs/ADR-003-local-llm-gemma4-categorization.md) | Local Ollama LLM for privacy-preserving categorization          |
-| [ADR-004](../ADRs/ADR-004-postgresql-single-datastore.md)     | PostgreSQL as the sole data store (no Redis, no secondary DB)   |
-| [ADR-005](../ADRs/ADR-005-multi-format-file-import.md)        | Support CSV, OFX, and Excel with format auto-detection          |
-| [ADR-006](../ADRs/ADR-006-react-vite-zustand-frontend.md)     | React + Vite + Zustand for fast, lightweight frontend           |
-| [ADR-007](../ADRs/ADR-007-websocket-realtime-progress.md)     | WebSocket for import/categorization progress                    |
-| [ADR-008](../ADRs/ADR-008-inter-account-flow-detection.md)    | Inter-account flow detection and Sankey visualization           |
-| [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md) | YAML config files with env var override layering                |
+| ADR                                                              | Decision                                                        |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| [ADR-001](../ADRs/ADR-001-rust-multi-crate-workspace.md)         | Multi-crate workspace for modularity and compile-time isolation |
+| [ADR-002](../ADRs/ADR-002-passwordless-auth-magic-links.md)      | Magic links instead of passwords for simpler, more secure auth  |
+| [ADR-003](../ADRs/ADR-003-local-llm-gemma4-categorization.md)    | Local Ollama LLM for privacy-preserving categorization          |
+| [ADR-004](../ADRs/ADR-004-postgresql-single-datastore.md)        | PostgreSQL as the sole data store (no Redis, no secondary DB)   |
+| [ADR-005](../ADRs/ADR-005-multi-format-file-import.md)           | Support CSV, OFX, QIF, and Excel with format auto-detection     |
+| [ADR-006](../ADRs/ADR-006-react-vite-zustand-frontend.md)        | React + Vite + Zustand for fast, lightweight frontend           |
+| [ADR-007](../ADRs/ADR-007-websocket-realtime-progress.md)        | WebSocket for import/categorization progress                    |
+| [ADR-008](../ADRs/ADR-008-inter-account-flow-detection.md)       | Inter-account flow detection and Sankey visualization           |
+| [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md)    | YAML config files with env var override layering                |
+| [ADR-010](../ADRs/ADR-010-candle-mistralrs-inference-backend.md) | In-process Candle/mistral.rs inference as Ollama alternative    |
 
 Domain boundaries and bounded contexts are documented in the
 [DDD index](../DDDs/README.md).

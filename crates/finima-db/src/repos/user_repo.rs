@@ -81,12 +81,3 @@ impl UserRepo for PgUserRepo {
         Ok(user)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_create_user() {
-        // Integration test placeholder
-    }
-}

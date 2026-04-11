@@ -108,12 +108,3 @@ impl PgUploadRepo {
         Ok(upload)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_upload_repo() {
-        // Integration test placeholder
-    }
-}

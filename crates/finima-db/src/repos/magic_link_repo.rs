@@ -65,12 +65,3 @@ impl PgMagicLinkRepo {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore] // Requires a running PostgreSQL database
-    fn test_create_magic_link() {
-        // Integration test placeholder
-    }
-}
