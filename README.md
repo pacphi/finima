@@ -41,7 +41,7 @@ make start          # Start infrastructure + backend + frontend
 Or step by step:
 
 ```bash
-make docker-infra   # Start PostgreSQL, Ollama, MinIO
+make docker-infra   # Start PostgreSQL + MinIO (and Ollama when LLM=ollama)
 make dev            # Start backend (port 3000) + frontend (port 5173)
 ```
 

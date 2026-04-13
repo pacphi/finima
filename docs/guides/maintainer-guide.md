@@ -40,14 +40,14 @@ make install
 make start
 ```
 
-`make start` brings up PostgreSQL, Ollama, and MinIO, waits for them
-to be healthy, then launches the backend (port 3000) and frontend
-(port 5173) together. Press `Ctrl-C` to stop.
+`make start` brings up PostgreSQL and MinIO (and Ollama when
+`LLM=ollama`), waits for them to be healthy, then launches the backend
+(port 3000) and frontend (port 5173) together. Press `Ctrl-C` to stop.
 
 If you prefer to manage infrastructure separately:
 
 ```sh
-make docker-infra   # Start PostgreSQL, Ollama, MinIO
+make docker-infra   # Start PostgreSQL + MinIO (and Ollama when LLM=ollama)
 make migrate        # Run database migrations
 make dev            # Start backend + frontend
 ```
@@ -138,7 +138,7 @@ make dev-ollama           # explicit alias
 Then pull a model into the container:
 
 ```sh
-make download-model-ollama              # pulls gemma4:26b-a4b-it-q4_K_M
+make download-model LLM=ollama          # pulls gemma4:26b-a4b-it-q4_K_M
 # or manually:
 docker exec finima-ollama ollama pull gemma4:26b-a4b-it-q4_K_M
 ```
@@ -202,7 +202,7 @@ The `finima-api` crate re-exports these as pass-through features. When you run
 | Setup effort     | Low (Docker container)        | Medium (native compile)            |
 | Latency          | HTTP round-trip per request   | In-process, lower latency          |
 | GPU support      | Managed by Ollama             | `--features metal` or `cuda`       |
-| Model management | `ollama pull` / `ollama list` | HF Hub auto-download or local GGUF |
+| Model management | `make models LLM=ollama`      | `make models LLM=candle`           |
 | Production use   | Needs sidecar container       | Single binary, no sidecar          |
 
 ## Project Structure
@@ -516,8 +516,10 @@ The application uses the `config` crate with this precedence (highest wins):
 | `make lint`                  | Lint everything (Rust + TypeScript + Markdown + YAML)  |
 | `make format`                | Format all code and docs                               |
 | `make ci`                    | Full CI pipeline locally                               |
-| `make docker-infra`          | Start dev infrastructure (PostgreSQL + Ollama + MinIO) |
+| `make docker-infra`          | Start dev infrastructure (PostgreSQL + MinIO; Ollama when `LLM=ollama`) |
 | `make docker-infra-down`     | Stop dev infrastructure                                |
+| `make models`                | List downloaded models (set `LLM=candle` or `ollama`)  |
+| `make download-model`        | Download the default model (set `LLM=candle` or `ollama`) |
 | `make docker-up`             | Start full production stack                            |
 | `make docker-down`           | Stop production stack                                  |
 | `make migrate`               | Run database migrations                                |

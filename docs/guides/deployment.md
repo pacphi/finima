@@ -80,7 +80,7 @@ APP__CORS__ALLOWED_ORIGINS=https://finima.example.com
 ### 3. Start the Production Stack
 
 ```sh
-make docker-prod
+make docker-up
 ```
 
 This starts all services: PostgreSQL, Ollama, MinIO, backend, frontend, Caddy
@@ -297,7 +297,7 @@ cd finima
 docker compose -f docker-compose.prod.yml pull
 
 # Restart with new images (migrations run automatically)
-make docker-prod
+make docker-up
 ```
 
 ### Rollback
@@ -306,13 +306,13 @@ If a deployment fails:
 
 ```sh
 # Stop the stack
-make docker-prod-down
+make docker-down
 
 # Pin to a specific image tag in docker-compose.prod.yml
 # e.g., image: ghcr.io/pacphi/finima-backend:v0.1.0
 
 # Restart
-make docker-prod
+make docker-up
 ```
 
 If a migration needs reverting (rare, requires the CLI):

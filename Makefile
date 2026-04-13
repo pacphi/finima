@@ -173,7 +173,7 @@ help:
 	@echo "  db-seed                - Load test seed data (dev/test only)"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Docker — Infrastructure ════════════════════════════════════════$(RESET)"
-	@echo "  docker-infra           - Start dev infrastructure (PostgreSQL + Ollama)"
+	@echo "  docker-infra           - Start dev infrastructure (services depend on LLM)"
 	@echo "  docker-infra-down      - Stop dev infrastructure"
 	@echo "  docker-infra-restart   - Restart dev infrastructure"
 	@echo "  docker-infra-logs      - Tail infrastructure container logs"
@@ -209,9 +209,8 @@ help:
 	@echo "  dev-candle             - Start with Candle LLM (auto-detects GPU)"
 	@echo "  dev-ollama             - Start with Ollama LLM"
 	@echo "  dev-stub               - Start without any LLM (stub mode)"
-	@echo "  download-model-candle  - Pre-download Candle model (HuggingFace Hub)"
-	@echo "  download-model-ollama  - Download Ollama model (Gemma 4)"
-	@echo "  models                 - List available Ollama models"
+	@echo "  models                 - List downloaded models (set LLM=candle or ollama)"
+	@echo "  download-model         - Download the default model (set LLM=candle or ollama)"
 	@echo ""
 	@echo "  Run '$(BOLD)make -C frontend$(RESET)' for frontend-specific targets."
 
@@ -534,7 +533,7 @@ deadcode: ## Check for dead code
 #  LLM / AI Models
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: dev-candle dev-ollama dev-stub models download-model-candle download-model-ollama
+.PHONY: dev-candle dev-ollama dev-stub models download-model
 
 dev-candle: ## Start with Candle in-process LLM (auto-detects Metal/CUDA/CPU)
 	@$(MAKE) dev LLM=candle
@@ -545,14 +544,41 @@ dev-ollama: ## Start with Ollama HTTP LLM
 dev-stub: ## Start without any LLM (stub mode)
 	@$(MAKE) dev LLM=stub
 
-models: ## List available Ollama models
+models: ## List downloaded models (set LLM=candle or LLM=ollama)
+ifeq ($(filter candle candle-metal candle-cuda,$(LLM)),)
+ifeq ($(LLM),ollama)
 	@ollama list 2>/dev/null || echo "Ollama not running. Start with: make docker-infra LLM=ollama"
+else
+	$(error Set LLM to candle or ollama (current: $(LLM)))
+endif
+else
+	@HF_CACHE="$${HF_HOME:-$${HOME}/.cache/huggingface}/hub"; \
+	if [ -d "$$HF_CACHE" ]; then \
+		found=0; \
+		for d in "$$HF_CACHE"/models--*; do \
+			[ -d "$$d" ] || continue; \
+			name=$$(basename "$$d" | sed 's/^models--//; s/--/\//g'); \
+			gguf_count=$$(find "$$d" -name '*.gguf' 2>/dev/null | wc -l | tr -d ' '); \
+			printf "  %-45s (%s GGUF files)\n" "$$name" "$$gguf_count"; \
+			found=1; \
+		done; \
+		[ "$$found" = "1" ] || echo "No models found in $$HF_CACHE"; \
+	else \
+		echo "HuggingFace cache not found at $$HF_CACHE"; \
+		echo "Run 'make download-model' to download a model."; \
+	fi
+endif
 
-download-model-candle: ## Pre-download Candle model from HuggingFace Hub
-	cargo run -p finima-llm --features candle --bin download_model
-
-download-model-ollama: ## Download default Gemma 4 model into Ollama
+download-model: ## Download the default model (set LLM=candle or LLM=ollama)
+ifeq ($(filter candle candle-metal candle-cuda,$(LLM)),)
+ifeq ($(LLM),ollama)
 	ollama pull gemma4:26b-a4b-it-q4_K_M
+else
+	$(error Set LLM to candle or ollama (current: $(LLM)))
+endif
+else
+	cargo run -p finima-llm --features candle --bin download_model
+endif
 
 # ═══════════════════════════════════════════════════════════════
 #  Infrastructure (MinIO, Backups, Observability)

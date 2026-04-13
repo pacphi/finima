@@ -159,7 +159,7 @@ below), and your overrides are preserved on future imports.
 To set up AI categorization:
 
 1. Make sure the Ollama container is running (`make docker-infra`).
-2. Pull a model: `make download-model-ollama`.
+2. Pull a model: `make download-model LLM=ollama`.
 3. Verify on the **Settings > LLM** tab that the connection status
    shows "Connected".
 

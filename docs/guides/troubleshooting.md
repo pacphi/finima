@@ -47,7 +47,7 @@ empty or shows generic values.
   before it can categorize anything. Run:
 
   ```bash
-  make download-model-ollama
+  make download-model LLM=ollama
   ```
 
   This downloads the default Gemma 4 model (several gigabytes).

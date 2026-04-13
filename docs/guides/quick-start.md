@@ -97,7 +97,7 @@ environment variables work regardless of how you start the app.
 | Container         | Port        | Purpose                                     |
 | ----------------- | ----------- | ------------------------------------------- |
 | `finima-postgres` | 5432        | PostgreSQL 16 database                      |
-| `finima-ollama`   | 11434       | Ollama LLM runtime for AI categorization    |
+| `finima-ollama`   | 11434       | Ollama LLM runtime (only when `LLM=ollama`) |
 | `finima-minio`    | 9000 / 9001 | Object storage for uploaded bank statements |
 
 ### Application services
@@ -187,7 +187,7 @@ If you prefer to use **Ollama** instead (HTTP-based, runs in Docker):
 
 ```bash
 make start LLM=ollama     # starts Ollama container + pulls model
-make download-model-ollama   # pull the default Gemma 4 model
+make download-model LLM=ollama   # pull the default Gemma 4 model
 ```
 
 To run **without any LLM** (stub mode):

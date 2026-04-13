@@ -8,9 +8,9 @@
 
 | Target                    | Purpose                            | Tooling                             |
 | ------------------------- | ---------------------------------- | ----------------------------------- |
-| **Local Dev**             | Developer workstation              | `make dev` (cargo watch + vite dev) |
-| **Docker Compose (dev)**  | Full-stack local with all services | `make docker-up`                    |
-| **Docker Compose (prod)** | Self-hosted production             | `make docker-prod`                  |
+| **Local Dev**             | Developer workstation              | `make dev` (cargo run + vite dev)   |
+| **Docker Compose (dev)**  | Full-stack local with all services | `make docker-infra` + `make dev`    |
+| **Docker Compose (prod)** | Self-hosted production             | `make docker-up`                    |
 | **CI/CD**                 | Automated testing + image build    | GitHub Actions                      |
 
 ---
@@ -706,7 +706,7 @@ POSTGRES_PASSWORD=STRONG_PASSWORD
    #   - api.ws_url: "wss://finima.yourdomain.com/api"
 
    # Pull and start
-   make docker-prod
+   make docker-up
 
    # Pull Gemma 4 model (first time only)
    docker exec finima-ollama-1 ollama pull gemma4:26b-a4b-it-q4_K_M

@@ -55,7 +55,7 @@ Stories are labeled by context: `[AUTH]`, `[PORT]`, `[INGEST]`, `[LLM]`, `[ANALY
 
 **Acceptance Criteria:**
 
-- `make docker-up` starts PostgreSQL + backend + frontend.
+- `make docker-up` starts the full production stack (PostgreSQL, Ollama, MinIO, backend, frontend, Caddy).
 - User can enter email, receive magic link (via Resend), click link, land on empty dashboard.
 - JWT refresh works transparently.
 - Portfolio and account CRUD works via API (tested with curl/Playwright).
@@ -425,7 +425,7 @@ Stories are labeled by context: `[AUTH]`, `[PORT]`, `[INGEST]`, `[LLM]`, `[ANALY
 
 **Acceptance Criteria:**
 
-- `make docker-prod` starts a fully functional production deployment.
+- `make docker-up` starts a fully functional production deployment.
 - CI pipeline runs on every PR: lint, test, E2E. Blocks merge on failure.
 - Release workflow builds and pushes Docker images on version tag.
 - All security measures in place: rate limiting, input validation, JWT rotation, CORS, magic bytes validation.

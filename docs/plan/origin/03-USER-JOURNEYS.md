@@ -146,7 +146,7 @@ STEP 2: Pull Model
   # Model downloads ~15GB; Kenji has RTX 4090
 
 STEP 3: Start Services
-  make docker-up  # PostgreSQL + Ollama + finima-backend + finima-frontend
+  make start  # Starts infra (PostgreSQL + MinIO + Ollama when LLM=ollama), then backend + frontend
 
 STEP 4: Verify
   Opens http://localhost:5173
