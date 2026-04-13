@@ -28,8 +28,40 @@ pub struct ServerConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
+    #[serde(default)]
     pub url: String,
     pub max_connections: u32,
+    #[serde(default)]
+    pub host: String,
+    #[serde(default = "default_db_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub user: String,
+    #[serde(default)]
+    pub password: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+fn default_db_port() -> u16 {
+    5432
+}
+
+impl DatabaseConfig {
+    /// Return the connection URL, constructing it from individual parts when
+    /// `host` is set and `url` is empty.
+    pub fn resolved_url(&self) -> String {
+        if !self.url.is_empty() {
+            return self.url.clone();
+        }
+        if !self.host.is_empty() {
+            return format!(
+                "postgres://{}:{}@{}:{}/{}",
+                self.user, self.password, self.host, self.port, self.name
+            );
+        }
+        String::new()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -228,13 +260,13 @@ impl Default for S3Config {
 /// Validate critical configuration values at startup.
 ///
 /// Panics if any of the following conditions are met:
-/// - `database.url` is empty
+/// - `database.url` is empty and cannot be constructed from parts
 /// - `auth.jwt_secret` equals the default placeholder in production
 ///
 /// Logs a warning if the JWT secret is shorter than 32 characters.
 pub fn validate_config(config: &AppConfig) {
-    if config.database.url.is_empty() {
-        panic!("FATAL: database.url must not be empty");
+    if config.database.resolved_url().is_empty() {
+        panic!("FATAL: database.url must not be empty (set url directly or provide host/user/password/name)");
     }
 
     let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
@@ -255,7 +287,7 @@ pub fn validate_config(config: &AppConfig) {
 ///
 /// Reads `config/default.yaml`, then overlays `config/{APP_ENV}.yaml` (defaulting
 /// to "development"), then overlays environment variables with prefix `APP` and
-/// separator `__` (e.g., `APP__DATABASE__URL`).
+/// separator `__` (e.g., `APP__DATABASE__PASSWORD`).
 pub fn load_config() -> Result<AppConfig, config::ConfigError> {
     let config = load_config_from("config")?;
     validate_config(&config);
@@ -297,7 +329,11 @@ server:
   port: 4000
 
 database:
-  url: "postgres://test:test@localhost/test"
+  host: "localhost"
+  port: 5432
+  user: "test"
+  password: "test"
+  name: "test"
   max_connections: 5
 
 auth:
@@ -391,6 +427,9 @@ s3:
         assert_eq!(cfg.llm.timeout_seconds, 60);
         assert_eq!(cfg.llm.max_retries, 2);
         assert_eq!(cfg.logging.format, "pretty");
-        assert_eq!(cfg.database.url, "postgres://test:test@localhost/test");
+        assert_eq!(
+            cfg.database.resolved_url(),
+            "postgres://test:test@localhost:5432/test"
+        );
     }
 }

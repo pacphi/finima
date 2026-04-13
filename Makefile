@@ -23,10 +23,15 @@ BACKEND_DIR  := .
 FRONTEND_DIR := frontend
 
 COMPOSE      := docker compose
-COMPOSE_DEV  := $(COMPOSE) -f docker-compose.yml
-COMPOSE_PROD := $(COMPOSE) -f docker-compose.prod.yml
+
+# Auto-detect NVIDIA GPU: include GPU overlay on Linux when nvidia-smi is available
+HAS_NVIDIA   := $(shell command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1 && echo 1 || echo 0)
+GPU_OVERLAY  := $(if $(filter 1,$(HAS_NVIDIA)), -f docker-compose.gpu.yml,)
+
+COMPOSE_DEV  := $(COMPOSE) -f docker-compose.yml$(GPU_OVERLAY)
+COMPOSE_PROD := $(COMPOSE) -f docker-compose.prod.yml$(GPU_OVERLAY)
 COMPOSE_TEST := $(COMPOSE) -f docker-compose.test.yml
-COMPOSE_OBS  := $(COMPOSE) -f docker-compose.yml -f docker-compose.observability.yml
+COMPOSE_OBS  := $(COMPOSE) -f docker-compose.yml -f docker-compose.observability.yml$(GPU_OVERLAY)
 
 LYCHEE := $(shell command -v lychee 2>/dev/null)
 

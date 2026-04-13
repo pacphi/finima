@@ -226,9 +226,9 @@ PostgreSQL, or pages fail to load with server errors.
 
 - **Password mismatch.** The database password is set by the
   `POSTGRES_PASSWORD` environment variable in `.env` (default:
-  `finima_dev`). The backend reads its connection string from
-  `config/default.yaml` under `database.url`. Make sure the
-  password in both places matches.
+  `finima_dev`). The backend reads `database.password` from
+  `config/default.yaml` (overridable via `APP__DATABASE__PASSWORD`).
+  Make sure the password in both places matches.
 
 - **Migrations have not been run.** If you see errors about missing
   tables, run:

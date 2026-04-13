@@ -3,7 +3,11 @@ server:
   port: 3000
 
 database:
-  url: "postgres://finima:finima_dev@localhost:5432/finima"
+  host: "localhost"
+  port: 5432
+  user: "finima"
+  password: "finima_dev"
+  name: "finima"
   max_connections: 10
 
 auth:

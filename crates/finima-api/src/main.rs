@@ -44,7 +44,7 @@ async fn main() {
 
     // Create database connection pool
     let pool = finima_db::create_pool(
-        &app_config.database.url,
+        &app_config.database.resolved_url(),
         app_config.database.max_connections,
     )
     .await

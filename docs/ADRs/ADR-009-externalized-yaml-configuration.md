@@ -35,7 +35,7 @@ config/
 
 1. `config/default.yaml` — always loaded.
 2. `config/{APP_ENV}.yaml` — loaded based on `APP_ENV` environment variable (`development`, `test`, `production`).
-3. Environment variables — `APP__DATABASE__URL` overrides `database.url` in YAML (double-underscore separator).
+3. Environment variables — e.g., `APP__DATABASE__PASSWORD` overrides `database.password` in YAML (double-underscore separator).
 
 This gives a clean hierarchy: YAML files define structure, `APP_ENV` selects the profile, and env vars provide secret injection for production (e.g., CI/CD secrets, Docker Compose `environment:` blocks).
 
@@ -163,7 +163,7 @@ frontend:
 
 Secrets (JWT secret, Resend API key, database password) are **never stored in YAML files committed to version control**. They are injected via:
 
-1. Environment variables (override YAML values): `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__URL`.
+1. Environment variables (override YAML values): `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__PASSWORD`.
 2. Docker Compose `environment:` or `env_file:` referencing a `.env` file that is `.gitignore`d.
 3. CI/CD secret injection (GitHub Actions secrets).
 

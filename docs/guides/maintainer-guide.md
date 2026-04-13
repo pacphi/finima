@@ -325,7 +325,7 @@ The application uses the `config` crate with this precedence (highest wins):
 2. `config/{APP_ENV}.yaml` -- environment-specific overrides (e.g.,
    `production.yaml`)
 3. Environment variables -- prefixed with `APP__`, double underscores for
-   nesting (e.g., `APP__DATABASE__URL`)
+   nesting (e.g., `APP__DATABASE__PASSWORD`)
 
 ### Adding a New Config Field
 
@@ -341,7 +341,10 @@ The application uses the `config` crate with this precedence (highest wins):
 | Variable                     | Purpose                                                |
 | ---------------------------- | ------------------------------------------------------ |
 | `APP_ENV`                    | Environment name (`development`, `test`, `production`) |
-| `APP__DATABASE__URL`         | PostgreSQL connection string                           |
+| `APP__DATABASE__HOST`        | Database hostname (default: `localhost`)               |
+| `APP__DATABASE__USER`        | Database user                                          |
+| `APP__DATABASE__PASSWORD`    | Database password                                      |
+| `APP__DATABASE__NAME`        | Database name                                          |
 | `APP__AUTH__JWT_SECRET`      | JWT signing secret                                     |
 | `APP__RESEND__API_KEY`       | Resend email API key                                   |
 | `APP__LLM__OLLAMA__URL`      | Ollama server URL                                      |
