@@ -2644,6 +2644,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config",
+ "dotenvy",
  "finima-analysis",
  "finima-auth",
  "finima-core",
@@ -2783,6 +2784,7 @@ dependencies = [
  "tokenizers 0.20.4",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid 1.23.0",
 ]
 

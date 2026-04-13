@@ -1,7 +1,7 @@
 # Troubleshooting Guide
 
 Solutions for common issues when running Finima. If your problem is
-not listed here, check the backend logs with `make docker-logs` for
+not listed here, check the backend logs with `make docker-infra-logs` for
 error messages.
 
 ---
@@ -39,15 +39,15 @@ empty or shows generic values.
 
 **Possible causes and fixes:**
 
-- **Ollama is not running.** Check with `make docker-ps`. If the
+- **Ollama is not running.** Check with `make docker-infra-ps`. If the
   `finima-ollama` container is not listed or is unhealthy, restart
-  services with `make docker-restart`.
+  services with `make docker-infra-restart`.
 
 - **No model has been pulled.** Ollama needs a model downloaded
   before it can categorize anything. Run:
 
   ```bash
-  make download-model
+  make download-model-ollama
   ```
 
   This downloads the default Gemma 4 model (several gigabytes).
@@ -113,7 +113,7 @@ message.
   supported. Export a CSV from your bank's website instead.
 
 - **MinIO is not running.** File uploads are stored in MinIO before
-  being processed. Check with `make docker-ps` that the
+  being processed. Check with `make docker-infra-ps` that the
   `finima-minio` container is running and healthy. If not:
 
   ```bash
@@ -176,7 +176,7 @@ If you are being signed out completely (not just briefly), check:
 
 ## 6. Docker services will not start
 
-**Symptoms:** Running `make docker-up` fails, or containers
+**Symptoms:** Running `make docker-infra` fails, or containers
 immediately exit.
 
 **Possible causes and fixes:**
@@ -197,7 +197,7 @@ immediately exit.
   memory. Open Docker Desktop and increase the memory limit to at
   least 8 GB under Settings > Resources.
 
-- **Check container logs.** Run `make docker-logs` to see error
+- **Check container logs.** Run `make docker-infra-logs` to see error
   output from all containers. For a specific container:
 
   ```bash
@@ -221,8 +221,8 @@ PostgreSQL, or pages fail to load with server errors.
 **Possible causes and fixes:**
 
 - **PostgreSQL container is not running.** Check with
-  `make docker-ps`. If it is not healthy, restart with
-  `make docker-restart`.
+  `make docker-infra-ps`. If it is not healthy, restart with
+  `make docker-infra-restart`.
 
 - **Password mismatch.** The database password is set by the
   `POSTGRES_PASSWORD` environment variable in `.env` (default:
@@ -238,8 +238,8 @@ PostgreSQL, or pages fail to load with server errors.
   ```
 
 - **Database volume is corrupted.** As a last resort, run
-  `make docker-down && docker volume rm finima_pgdata` then
-  `make docker-up && make migrate`. This deletes all data.
+  `make docker-infra-down && docker volume rm finima_pgdata` then
+  `make docker-infra && make migrate`. This deletes all data.
 
 ---
 
@@ -310,9 +310,9 @@ After running this, start again from step 3 of the
 To reset only the database without removing other data:
 
 ```bash
-make docker-down
+make docker-infra-down
 docker volume rm finima_pgdata
-make docker-up
+make docker-infra
 make migrate
 ```
 
@@ -329,8 +329,8 @@ development and test environments (not production).
 
 ## Getting more help
 
-- **Backend logs:** `make docker-logs` or `make docker-logs-backend`
-- **Container status:** `make docker-ps` or `make docker-health`
+- **Backend logs:** `make docker-infra-logs`
+- **Container status:** `make docker-infra-ps` or `make docker-infra-health`
 - **Check configuration:** Review `config/default.yaml` for all
   server-side settings.
 - **Quick Start guide:** [quick-start.md](quick-start.md)

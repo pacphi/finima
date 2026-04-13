@@ -8,7 +8,7 @@ rust_decimal = { workspace = true }
 
 [dependencies]
 finima-core = { path = "../finima-core" }
-finima-llm = { path = "../finima-llm" }
+finima-llm = { path = "../finima-llm", default-features = false }
 feed-rs = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

@@ -33,27 +33,66 @@ Copy the example file and open it in a text editor:
 cp .env.example .env
 ```
 
-Open `.env` and review these variables:
+Open `.env` and review the variables. The file is self-documented.
+For a quick local setup the defaults work out of the box.
 
-| Variable              | Purpose                                                                                                                                                   | Default      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `POSTGRES_PASSWORD`   | Password for the PostgreSQL database.                                                                                                                     | `finima_dev` |
-| `RESEND_API_KEY`      | API key from [Resend](https://resend.com) for sending magic-link emails. Leave blank in development to have the link printed in the backend logs instead. | (empty)      |
-| `MINIO_ROOT_USER`     | Username for the MinIO object store used for file uploads.                                                                                                | `finima`     |
-| `MINIO_ROOT_PASSWORD` | Password for MinIO.                                                                                                                                       | `finima_dev` |
+**Key variables:**
 
-For a quick local setup you can leave every value at its default.
-If you want to receive magic-link emails, sign up for a free
-[Resend](https://resend.com) account and paste your API key into
-`RESEND_API_KEY`.
+| Variable                | Purpose                                                      | Default                                              |
+| ----------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| `POSTGRES_PASSWORD`     | PostgreSQL password (used by Docker)                         | `finima_dev`                                         |
+| `APP__DATABASE__URL`    | Full DB connection string (must match `POSTGRES_PASSWORD`)   | `postgres://finima:finima_dev@localhost:5432/finima` |
+| `APP__AUTH__JWT_SECRET` | JWT signing secret (generate with `openssl rand -base64 32`) | placeholder                                          |
+| `APP__RESEND__API_KEY`  | [Resend](https://resend.com) API key for magic-link emails   | (empty)                                              |
+| `MINIO_ROOT_USER`       | MinIO username (used by Docker)                              | `finima`                                             |
+| `MINIO_ROOT_PASSWORD`   | MinIO password (used by Docker)                              | `finima_dev`                                         |
 
-## 3. Start the services
+If you change `POSTGRES_PASSWORD`, update the password in
+`APP__DATABASE__URL` to match. Leave `APP__RESEND__API_KEY` empty
+to have magic links printed in the backend logs instead.
+
+> **Do not quote values.** Both Make and Docker Compose treat
+> quotes as literal characters. Write `POSTGRES_PASSWORD=secret`,
+> not `POSTGRES_PASSWORD="secret"`.
+
+## 3. Start everything
+
+### Option A — Using Make (recommended)
 
 ```bash
-make docker-up
+make start
 ```
 
-This starts three containers:
+This starts the infrastructure containers, waits for them to be
+healthy, then launches the backend and frontend together. Press
+`Ctrl-C` to stop.
+
+You can also start infrastructure and the app separately:
+
+```bash
+make docker-infra       # Start infrastructure containers
+make dev                # Start backend + frontend
+```
+
+### Option B — Without Make
+
+```bash
+# Start infrastructure
+docker compose up -d
+
+# In one terminal — start the backend
+APP_ENV=development cargo run --bin finima-api
+
+# In another terminal — start the frontend
+cd frontend
+pnpm install
+pnpm dev
+```
+
+The backend loads `.env` automatically via `dotenvy`, so `APP__*`
+environment variables work regardless of how you start the app.
+
+### Infrastructure containers
 
 | Container         | Port        | Purpose                                     |
 | ----------------- | ----------- | ------------------------------------------- |
@@ -61,35 +100,16 @@ This starts three containers:
 | `finima-ollama`   | 11434       | Ollama LLM runtime for AI categorization    |
 | `finima-minio`    | 9000 / 9001 | Object storage for uploaded bank statements |
 
-Wait until `make docker-health` shows all containers as healthy.
+### Application services
 
-## 4. Run the backend
+| Service  | URL                   |
+| -------- | --------------------- |
+| Backend  | http://localhost:3000 |
+| Frontend | http://localhost:5173 |
 
-In a separate terminal:
-
-```bash
-make dev
-```
-
-The backend API starts on `http://localhost:3000`.
-
-## 5. Start the frontend
-
-In another terminal:
-
-```bash
-make -C frontend dev
-```
-
-Or manually:
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
-
-The frontend starts on `http://localhost:5173`.
+With `make dev`, both run in the same terminal. With `make
+dev-backend`, only the backend starts (useful while working on
+backend code).
 
 ## 6. Sign in
 
@@ -156,21 +176,35 @@ transactions.
 If Ollama is running and a model has been pulled, Finima
 automatically categorizes each transaction using AI.
 
-### Pull an AI model (optional)
+### AI categorization
 
-To enable AI categorization, pull a model into Ollama:
+By default, `make start` and `make dev` compile the backend with the
+**Candle** LLM backend. The Makefile auto-detects your hardware
+(Metal on macOS, CUDA on NVIDIA, CPU otherwise). On first startup
+the model downloads from HuggingFace (~4-5 GB).
+
+If you prefer to use **Ollama** instead (HTTP-based, runs in Docker):
 
 ```bash
-make download-model
+make start LLM=ollama     # starts Ollama container + pulls model
+make download-model-ollama   # pull the default Gemma 4 model
 ```
 
-This downloads the default Gemma 4 model. The download is several
-gigabytes and may take a few minutes.
+To run **without any LLM** (stub mode):
 
-> **Note:** If you skip this step, Finima runs in **stub mode** — all
-> transactions will be categorized as "other" with a confidence of 0.5.
-> The app is fully functional otherwise. You can pull a model later and
-> re-import files to get AI categorization. See the
+```bash
+make start LLM=stub
+```
+
+See the `.env.example` file and the
+[Maintainer Guide](maintainer-guide.md#llm-backend-configuration)
+for full configuration details (model selection, quantization,
+device, etc.).
+
+> **Note:** In stub mode all transactions are categorized as "other"
+> with a confidence of 0.5. The app is fully functional otherwise.
+> You can switch to a real LLM later and re-import files to get AI
+> categorization. See the
 > [Troubleshooting Guide](troubleshooting.md#2a-degraded-mode--running-without-ollama)
 > for details.
 

@@ -7,8 +7,9 @@
 # Quick Start:
 #   make help              - Show all available targets
 #   make install           - Install all dependencies
-#   make dev               - Start backend API server
-#   make docker-up         - Start dev services (PostgreSQL + Ollama)
+#   make start             - Start everything (infra + backend + frontend)
+#   make dev               - Start backend + frontend (assumes infra running)
+#   make docker-infra      - Start dev infrastructure
 #   make ci                - Run full CI pipeline
 # ============================================================================
 
@@ -19,19 +20,71 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+# Load .env if present so Docker Compose targets and Make-level variables
+# (e.g. POSTGRES_PASSWORD for docker-compose.yml substitution) are available.
+# The backend also loads .env itself via dotenvy, so APP__* vars work
+# regardless of whether the user starts via Make or cargo run directly.
+# Values must be bare (unquoted) — both Make and Docker Compose read literally.
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 BACKEND_DIR  := .
 FRONTEND_DIR := frontend
 
 COMPOSE      := docker compose
 
-# Auto-detect NVIDIA GPU: include GPU overlay on Linux when nvidia-smi is available
+# Auto-detect hardware for GPU acceleration
 HAS_NVIDIA   := $(shell command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1 && echo 1 || echo 0)
+HAS_METAL    := $(shell xcrun -find metal >/dev/null 2>&1 && echo 1 || echo 0)
 GPU_OVERLAY  := $(if $(filter 1,$(HAS_NVIDIA)), -f docker-compose.gpu.yml,)
 
 COMPOSE_DEV  := $(COMPOSE) -f docker-compose.yml$(GPU_OVERLAY)
 COMPOSE_PROD := $(COMPOSE) -f docker-compose.prod.yml$(GPU_OVERLAY)
 COMPOSE_TEST := $(COMPOSE) -f docker-compose.test.yml
 COMPOSE_OBS  := $(COMPOSE) -f docker-compose.yml -f docker-compose.observability.yml$(GPU_OVERLAY)
+
+# ── LLM backend selection ──────────────────────────────────────
+# Set LLM= to control which AI backend is compiled and which Docker
+# services are started.  Valid values:
+#   candle        – in-process inference (CPU)
+#   candle-metal  – in-process inference (Apple Metal GPU)
+#   candle-cuda   – in-process inference (NVIDIA CUDA GPU)
+#   ollama        – HTTP inference via Ollama container
+#   stub          – no real LLM; all categorization returns defaults
+#
+# Default: candle with auto-detected accelerator.
+LLM ?= candle
+
+# Auto-promote bare "candle" to the best accelerator for this machine.
+ifeq ($(LLM),candle)
+  ifeq ($(HAS_NVIDIA),1)
+    override LLM := candle-cuda
+  else ifeq ($(HAS_METAL),1)
+    override LLM := candle-metal
+  endif
+endif
+
+# Derive Cargo feature flags from LLM choice.
+ifeq ($(LLM),ollama)
+  CARGO_LLM_FEATURES := --features ollama
+else ifeq ($(LLM),candle-metal)
+  CARGO_LLM_FEATURES := --features candle,metal
+else ifeq ($(LLM),candle-cuda)
+  CARGO_LLM_FEATURES := --features candle,cuda
+else ifeq ($(LLM),candle)
+  CARGO_LLM_FEATURES := --features candle
+else
+  CARGO_LLM_FEATURES :=
+endif
+
+# When NOT using Ollama, skip the ollama container in docker-infra.
+ifeq ($(LLM),ollama)
+  INFRA_SERVICES :=
+else
+  INFRA_SERVICES := postgres minio
+endif
 
 LYCHEE := $(shell command -v lychee 2>/dev/null)
 
@@ -59,16 +112,24 @@ help:
 	@echo ""
 	@echo "$(BOLD)Quick Start:$(RESET)"
 	@echo "  make install           - Install all dependencies"
-	@echo "  make dev               - Start backend API server"
-	@echo "  make docker-up         - Start dev services (PostgreSQL + Ollama)"
+	@echo "  make start             - Start everything (infra + backend + frontend)"
+	@echo "  make dev               - Start backend + frontend (assumes infra running)"
+	@echo "  make docker-infra      - Start dev infrastructure"
 	@echo "  make ci                - Run full CI pipeline"
 	@echo "  make test              - Run all tests"
+	@echo ""
+	@echo "$(BOLD)LLM Backend (current: $(LLM)):$(RESET)"
+	@echo "  LLM=candle  make dev   - In-process inference (auto-detects Metal/CUDA/CPU)"
+	@echo "  LLM=ollama  make dev   - HTTP inference via Ollama container"
+	@echo "  LLM=stub    make dev   - No LLM (stub mode)"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Install & Build ═════════════════════════════════════════════════$(RESET)"
 	@echo "  install                - Install all dependencies (backend + frontend)"
 	@echo "  build                  - Build all (backend debug + frontend)"
 	@echo "  build-release          - Build backend in release mode"
-	@echo "  dev                    - Start backend API server (development)"
+	@echo "  start                  - Start everything (infra + backend + frontend)"
+	@echo "  dev                    - Start backend + frontend (assumes infra running)"
+	@echo "  dev-backend            - Start backend API server only"
 	@echo "  dev-watch              - Start backend with auto-reload (cargo-watch)"
 	@echo "  clean                  - Clean build artifacts"
 	@echo "  clean-all              - Clean build + Docker volumes (DESTROYS DATA)"
@@ -111,21 +172,18 @@ help:
 	@echo "  migrate-revert         - Revert the last migration"
 	@echo "  db-seed                - Load test seed data (dev/test only)"
 	@echo ""
-	@echo "$(BOLD)$(BLUE)═══ Docker — Development ═══════════════════════════════════════════$(RESET)"
-	@echo "  docker-up              - Start dev services (PostgreSQL + Ollama)"
-	@echo "  docker-down            - Stop dev services"
-	@echo "  docker-restart         - Restart dev services"
-	@echo "  docker-logs            - Tail all container logs"
-	@echo "  docker-logs-backend    - Tail backend logs"
-	@echo "  docker-logs-frontend   - Tail frontend logs"
-	@echo "  docker-ps              - Show container status"
-	@echo "  docker-exec-backend    - Shell into backend container"
-	@echo "  docker-health          - Health check all containers"
+	@echo "$(BOLD)$(BLUE)═══ Docker — Infrastructure ════════════════════════════════════════$(RESET)"
+	@echo "  docker-infra           - Start dev infrastructure (PostgreSQL + Ollama)"
+	@echo "  docker-infra-down      - Stop dev infrastructure"
+	@echo "  docker-infra-restart   - Restart dev infrastructure"
+	@echo "  docker-infra-logs      - Tail infrastructure container logs"
+	@echo "  docker-infra-ps        - Show infrastructure container status"
+	@echo "  docker-infra-health    - Health check infrastructure containers"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Docker — Production ════════════════════════════════════════════$(RESET)"
-	@echo "  docker-prod            - Start production stack"
-	@echo "  docker-prod-down       - Stop production stack"
-	@echo "  docker-prod-logs       - Tail production logs"
+	@echo "  docker-up              - Start full production stack"
+	@echo "  docker-down            - Stop production stack"
+	@echo "  docker-logs            - Tail production logs"
 	@echo "  docker-build           - Build Docker images"
 	@echo "  docker-build-no-cache  - Build images without cache"
 	@echo ""
@@ -148,8 +206,12 @@ help:
 	@echo "  observability          - Start SigNoz observability stack"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ AI & Models ═════════════════════════════════════════════════════$(RESET)"
+	@echo "  dev-candle             - Start with Candle LLM (auto-detects GPU)"
+	@echo "  dev-ollama             - Start with Ollama LLM"
+	@echo "  dev-stub               - Start without any LLM (stub mode)"
+	@echo "  download-model-candle  - Pre-download Candle model (HuggingFace Hub)"
+	@echo "  download-model-ollama  - Download Ollama model (Gemma 4)"
 	@echo "  models                 - List available Ollama models"
-	@echo "  download-model         - Download default Gemma 4 model"
 	@echo ""
 	@echo "  Run '$(BOLD)make -C frontend$(RESET)' for frontend-specific targets."
 
@@ -157,7 +219,7 @@ help:
 #  Install & Build
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: install build build-release dev dev-watch
+.PHONY: install build build-release start dev dev-backend dev-watch
 
 install: ## Install all dependencies (backend + frontend)
 	cargo fetch
@@ -168,13 +230,31 @@ build: ## Build all (backend debug + frontend)
 	$(MAKE) -C $(FRONTEND_DIR) build
 
 build-release: ## Build backend in release mode
-	cargo build --release -p finima-api
+	cargo build --release -p finima-api $(CARGO_LLM_FEATURES)
 
-dev: ## Start backend API server (development)
-	APP_ENV=development cargo run --bin finima-api
+start: docker-infra ## Start everything (infra + backend + frontend)
+	@echo "$(GREEN)Waiting for infrastructure to be healthy...$(RESET)"
+	@for i in $$(seq 1 30); do \
+		pg_isready -h localhost -p 5432 -U finima >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	@$(MAKE) dev
+
+dev: ## Start backend + frontend (assumes infra is running)
+	@echo "$(GREEN)Backend: http://localhost:3000  Frontend: http://localhost:5173$(RESET)"
+	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
+	@trap 'kill 0' INT TERM EXIT; \
+		APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES) & \
+		$(MAKE) -C $(FRONTEND_DIR) dev & \
+		wait
+
+dev-backend: ## Start backend API server only
+	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
+	APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES)
 
 dev-watch: ## Start backend with auto-reload (requires cargo-watch)
-	APP_ENV=development cargo watch -x 'run --bin finima-api'
+	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
+	APP_ENV=development cargo watch -x 'run --bin finima-api $(CARGO_LLM_FEATURES)'
 
 # ═══════════════════════════════════════════════════════════════
 #  Testing
@@ -360,51 +440,42 @@ db-seed: ## Load test seed data (dev/test only)
 	psql "$${DATABASE_URL:-postgres://finima:finima_dev@localhost:5432/finima}" -f tests/seed.sql
 
 # ═══════════════════════════════════════════════════════════════
-#  Docker — Development
+#  Docker — Infrastructure
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: docker-up docker-down docker-restart docker-logs docker-logs-backend docker-logs-frontend docker-ps docker-exec-backend docker-health
+.PHONY: docker-infra docker-infra-down docker-infra-restart docker-infra-logs docker-infra-ps docker-infra-health
 
-docker-up: ## Start dev services (PostgreSQL + Ollama)
-	$(COMPOSE_DEV) up -d
+docker-infra: ## Start dev infrastructure (services depend on LLM setting)
+	$(COMPOSE_DEV) up -d $(INFRA_SERVICES)
 
-docker-down: ## Stop dev services
+docker-infra-down: ## Stop dev infrastructure
 	$(COMPOSE_DEV) down
 
-docker-restart: ## Restart dev services
+docker-infra-restart: ## Restart dev infrastructure
 	$(COMPOSE_DEV) restart
 
-docker-logs: ## Tail all container logs
+docker-infra-logs: ## Tail infrastructure container logs
 	$(COMPOSE_DEV) logs -f
 
-docker-logs-backend: ## Tail backend logs
-	$(COMPOSE_DEV) logs -f backend 2>/dev/null || echo "Backend not running in Docker (use 'make dev' for local)"
-
-docker-logs-frontend: ## Tail frontend logs
-	$(COMPOSE_DEV) logs -f frontend 2>/dev/null || echo "Frontend not running in Docker (use 'make -C frontend dev')"
-
-docker-ps: ## Show container status
+docker-infra-ps: ## Show infrastructure container status
 	$(COMPOSE_DEV) ps
 
-docker-exec-backend: ## Shell into backend container
-	$(COMPOSE_DEV) exec backend /bin/bash
-
-docker-health: ## Health check all containers
+docker-infra-health: ## Health check infrastructure containers
 	@$(COMPOSE_DEV) ps --format '{{.Name}}\t{{.Status}}' | column -t
 
 # ═══════════════════════════════════════════════════════════════
 #  Docker — Production
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: docker-prod docker-prod-down docker-prod-logs docker-build docker-build-no-cache
+.PHONY: docker-up docker-down docker-logs docker-build docker-build-no-cache
 
-docker-prod: ## Start production stack
+docker-up: ## Start full production stack
 	$(COMPOSE_PROD) up -d
 
-docker-prod-down: ## Stop production stack
+docker-down: ## Stop production stack
 	$(COMPOSE_PROD) down
 
-docker-prod-logs: ## Tail production logs
+docker-logs: ## Tail production logs
 	$(COMPOSE_PROD) logs -f
 
 docker-build: ## Build Docker images
@@ -463,12 +534,24 @@ deadcode: ## Check for dead code
 #  LLM / AI Models
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: models download-model
+.PHONY: dev-candle dev-ollama dev-stub models download-model-candle download-model-ollama
+
+dev-candle: ## Start with Candle in-process LLM (auto-detects Metal/CUDA/CPU)
+	@$(MAKE) dev LLM=candle
+
+dev-ollama: ## Start with Ollama HTTP LLM
+	@$(MAKE) dev LLM=ollama
+
+dev-stub: ## Start without any LLM (stub mode)
+	@$(MAKE) dev LLM=stub
 
 models: ## List available Ollama models
-	@ollama list 2>/dev/null || echo "Ollama not running. Start with: make docker-up"
+	@ollama list 2>/dev/null || echo "Ollama not running. Start with: make docker-infra LLM=ollama"
 
-download-model: ## Download default Gemma 4 model
+download-model-candle: ## Pre-download Candle model from HuggingFace Hub
+	cargo run -p finima-llm --features candle --bin download_model
+
+download-model-ollama: ## Download default Gemma 4 model into Ollama
 	ollama pull gemma4:26b-a4b-it-q4_K_M
 
 # ═══════════════════════════════════════════════════════════════
@@ -497,5 +580,6 @@ clean: ## Clean build artifacts
 	$(MAKE) -C $(FRONTEND_DIR) clean
 
 clean-all: clean ## Clean build + Docker volumes (DESTROYS DATA)
-	$(COMPOSE_DEV) down -v
+	$(COMPOSE_DEV) down -v 2>/dev/null || true
+	$(COMPOSE_PROD) down -v 2>/dev/null || true
 	$(COMPOSE_TEST) down -v 2>/dev/null || true

@@ -8,7 +8,7 @@ finima-core = { path = "../finima-core", features = ["axum"] }
 finima-db = { path = "../finima-db" }
 finima-auth = { path = "../finima-auth" }
 finima-ingest = { path = "../finima-ingest" }
-finima-llm = { path = "../finima-llm" }
+finima-llm = { path = "../finima-llm", default-features = false }
 finima-analysis = { path = "../finima-analysis" }
 finima-feed = { path = "../finima-feed" }
 axum = { workspace = true }
@@ -35,10 +35,13 @@ aws-credential-types = { workspace = true }
 bytes = { workspace = true }
 prometheus-client = { workspace = true }
 thiserror = { workspace = true }
+dotenvy = "0.15"
 
 [features]
-candle = []
-ollama = []
+candle = ["finima-llm/candle"]
+metal = ["candle", "finima-llm/metal"]
+cuda = ["candle", "finima-llm/cuda"]
+ollama = ["finima-llm/ollama"]
 
 [dev-dependencies]
 tempfile = "3"
@@ -56,6 +59,6 @@ jsonwebtoken = { workspace = true }
 finima-core = { path = "../finima-core", features = ["axum"] }
 finima-db = { path = "../finima-db" }
 finima-auth = { path = "../finima-auth" }
-finima-llm = { path = "../finima-llm" }
+finima-llm = { path = "../finima-llm", default-features = false }
 axum = { workspace = true }
 tower-http = { workspace = true }

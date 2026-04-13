@@ -13,6 +13,11 @@ use finima_auth::{LoggingEmailSender, ResendClient};
 
 #[tokio::main]
 async fn main() {
+    // Load .env file if present (silently ignored if missing).
+    // This makes APP__* env vars available to the config crate regardless
+    // of whether the user starts the app via Make, Docker, or cargo run.
+    dotenvy::dotenv().ok();
+
     // Load configuration
     let app_config = config::load_config().expect("Failed to load configuration");
 

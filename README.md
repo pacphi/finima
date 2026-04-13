@@ -34,10 +34,15 @@ Your financial data never leaves your server. Finima combines a high-performance
 git clone https://github.com/cphillipson/finima.git
 cd finima
 cp .env.example .env
-make docker-up      # Start PostgreSQL, Ollama, MinIO
-make dev            # Start backend (port 3000)
-make -C frontend dev  # In another terminal — start frontend (port 5173)
+make start          # Start infrastructure + backend + frontend
 # Open http://localhost:5173
+```
+
+Or step by step:
+
+```bash
+make docker-infra   # Start PostgreSQL, Ollama, MinIO
+make dev            # Start backend (port 3000) + frontend (port 5173)
 ```
 
 See [docs/guides/quick-start.md](docs/guides/quick-start.md) for the full setup guide.
@@ -67,10 +72,10 @@ See [docs/guides/architecture-overview.md](docs/guides/architecture-overview.md)
 ## Testing
 
 ```bash
-make test              # Fast: unit tests only (no Docker needed)
-make test-all          # Full: auto-starts test DB, runs everything, stops DB
-make test-llm          # LLM: auto-starts Ollama, pulls model, runs LLM tests
-make ci                # CI: format + lint + typecheck + unit tests
+make test           # Fast: unit tests only (no Docker needed)
+make test-all       # Full: auto-starts test DB, runs everything, stops DB
+make test-llm       # LLM: auto-starts Ollama, pulls model, runs LLM tests
+make ci             # CI: format + lint + typecheck + unit tests
 ```
 
 See the [Maintainer Guide](docs/guides/maintainer-guide.md) for the full test reference.

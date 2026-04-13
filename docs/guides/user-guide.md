@@ -158,8 +158,8 @@ below), and your overrides are preserved on future imports.
 
 To set up AI categorization:
 
-1. Make sure the Ollama container is running (`make docker-up`).
-2. Pull a model: `make download-model`.
+1. Make sure the Ollama container is running (`make docker-infra`).
+2. Pull a model: `make download-model-ollama`.
 3. Verify on the **Settings > LLM** tab that the connection status
    shows "Connected".
 
@@ -420,14 +420,26 @@ The Settings page is organized into four tabs.
 This tab displays the AI configuration (set on the server) for
 reference:
 
-- **Provider** -- Candle (in-process) or Ollama (HTTP).
+- **Provider** -- the active LLM backend. Possible values:
+  - **Ollama** -- HTTP-based inference using an Ollama container.
+    Easiest to set up; the container runs via `docker-compose`.
+  - **Candle** -- in-process inference via mistral.rs. Lower latency,
+    no sidecar container required. Needs the `candle` compile-time
+    feature flag (with `metal` or `cuda` for GPU acceleration).
+  - **Stub** -- no real LLM. All categorization returns "other" with
+    confidence 0.5. Active when neither feature is compiled in, or
+    when the configured backend fails to initialize.
 - **Model** -- the model name (for example, Gemma 4).
-- **Endpoint URL** -- the Ollama server address.
+- **Endpoint URL** -- the Ollama server address (shown only when
+  the provider is Ollama).
 - **Connection Status** -- whether the backend can reach the LLM
   service (Connected, Disconnected, or Checking).
 
-LLM settings are configured in `config/default.yaml` on the server,
-not through the UI. See the Troubleshooting guide if the status shows
+LLM settings are configured in `config/default.yaml` on the server
+(or via `APP__LLM__*` environment variables in `.env`), not through
+the UI. See the
+[Maintainer Guide](maintainer-guide.md#llm-backend-configuration) for
+setup instructions and the Troubleshooting guide if the status shows
 Disconnected.
 
 ### Saving settings

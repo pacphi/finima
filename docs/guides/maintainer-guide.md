@@ -30,35 +30,180 @@ git clone https://github.com/pacphi/finima.git && cd finima
 # 2. Create an environment file (optional -- defaults work out of the box)
 cp .env.example .env   # review and edit if you need custom passwords or a Resend API key
 
-# 3. Start dev services (PostgreSQL on 5432, Ollama on 11434, MinIO on 9000)
-make docker-up
-
-# 4. Install backend and frontend dependencies
+# 3. Install backend and frontend dependencies
 make install
 
-# 5. Run database migrations
-make migrate
+# 4. Run database migrations (requires PostgreSQL -- next step starts it)
+# make migrate
 
-# 6. Start the backend API server (port 3000)
-make dev
-
-# 7. In a second terminal, start the frontend dev server (port 5173)
-make -C frontend dev
+# 5. Start everything (infrastructure + backend + frontend)
+make start
 ```
 
-The backend reads `config/default.yaml` automatically when `APP_ENV` is unset or
-set to `development`. No `.env` file is required for local development -- the
-defaults connect to the Dockerized PostgreSQL and MinIO with dev credentials.
+`make start` brings up PostgreSQL, Ollama, and MinIO, waits for them
+to be healthy, then launches the backend (port 3000) and frontend
+(port 5173) together. Press `Ctrl-C` to stop.
 
-### Optional: Ollama Models
-
-If you want LLM-powered categorization locally:
+If you prefer to manage infrastructure separately:
 
 ```sh
-make download-model   # pulls gemma4:26b-a4b-it-q4_K_M
+make docker-infra   # Start PostgreSQL, Ollama, MinIO
+make migrate        # Run database migrations
+make dev            # Start backend + frontend
 ```
 
-Without a model loaded, the app falls back to pattern-based categorization.
+To run only the backend (useful when working on backend code):
+
+```sh
+make dev-backend
+```
+
+The backend loads `config/default.yaml` and then `.env` (via `dotenvy`)
+automatically. Variables prefixed with `APP__` override the corresponding
+YAML keys (e.g. `APP__DATABASE__URL` overrides `database.url`). No `.env`
+file is required for local development if you keep the defaults.
+
+If you are not using Make, you can start the app directly:
+
+```sh
+docker compose up -d                       # Start PostgreSQL, Ollama, MinIO
+APP_ENV=development cargo run --bin finima-api  # Start backend
+cd frontend && pnpm dev                    # Start frontend (separate terminal)
+```
+
+### LLM Backend Configuration
+
+Finima uses an LLM to categorize transactions, enrich recurring payment
+metadata, and generate spending insights. Three backends are available, selected
+by the `llm.provider` field in `config/default.yaml` (or the `APP__LLM__PROVIDER`
+environment variable).
+
+#### Option 1: Candle (default -- in-process inference)
+
+The Candle backend uses [mistral.rs](https://github.com/EricLBuehler/mistral.rs)
+to run model inference directly inside the Finima process, removing the HTTP
+round-trip to Ollama. This is the default because it requires no sidecar
+container and the Makefile auto-detects your GPU.
+
+```sh
+make dev                 # auto-detects Metal (macOS) / CUDA (NVIDIA) / CPU
+make dev-candle          # explicit alias, same behavior
+make dev LLM=candle-metal   # force Metal
+make dev LLM=candle-cuda    # force CUDA
+make dev LLM=candle         # force CPU-only
+```
+
+When using Candle, `make docker-infra` starts only PostgreSQL and MinIO (the
+Ollama container is skipped).
+
+On first startup the model downloads from HuggingFace Hub (~4-5 GB for the
+default Gemma 4 E4B at Q4_K_M quantization). To use a local GGUF file instead,
+set `llm.candle.model_path` to the file path.
+
+If you run `cargo` directly (without Make), pass the feature flag explicitly:
+
+```sh
+cargo run -p finima-api --features candle,metal
+```
+
+Configuration keys (YAML path / env var):
+
+| YAML key                    | Env var                            | Default                 |
+| --------------------------- | ---------------------------------- | ----------------------- |
+| `llm.candle.model_id`       | `APP__LLM__CANDLE__MODEL_ID`       | `google/gemma-4-E4B-it` |
+| `llm.candle.model_path`     | `APP__LLM__CANDLE__MODEL_PATH`     | (empty = use HF Hub)    |
+| `llm.candle.quantization`   | `APP__LLM__CANDLE__QUANTIZATION`   | `Q4_K_M`                |
+| `llm.candle.device`         | `APP__LLM__CANDLE__DEVICE`         | `auto`                  |
+| `llm.candle.context_length` | `APP__LLM__CANDLE__CONTEXT_LENGTH` | `8192`                  |
+| `llm.candle.threads`        | `APP__LLM__CANDLE__THREADS`        | `0` (auto-detect)       |
+
+Hardware requirements:
+
+- **Apple Silicon (M1/M2/M3/M4):** Use `--features metal`. 16 GB unified memory
+  is recommended.
+- **NVIDIA GPU:** Use `--features cuda`. Requires CUDA toolkit installed. 8 GB+
+  VRAM recommended.
+- **CPU only:** Works but is significantly slower. Adequate for light workloads
+  or testing.
+
+#### Option 2: Ollama (HTTP inference)
+
+Ollama runs as a Docker container alongside PostgreSQL and MinIO.
+
+```sh
+make dev LLM=ollama      # starts Ollama container, compiles with --features ollama
+make dev-ollama           # explicit alias
+```
+
+Then pull a model into the container:
+
+```sh
+make download-model-ollama              # pulls gemma4:26b-a4b-it-q4_K_M
+# or manually:
+docker exec finima-ollama ollama pull gemma4:26b-a4b-it-q4_K_M
+```
+
+If you run `cargo` directly, pass the feature flag explicitly:
+
+```sh
+cargo run -p finima-api --features ollama
+```
+
+Configuration keys (YAML path / env var):
+
+| YAML key           | Env var                   | Default                    |
+| ------------------ | ------------------------- | -------------------------- |
+| `llm.ollama.url`   | `APP__LLM__OLLAMA__URL`   | `http://localhost:11434`   |
+| `llm.ollama.model` | `APP__LLM__OLLAMA__MODEL` | `gemma4:26b-a4b-it-q4_K_M` |
+
+#### Option 3: Stub (no LLM)
+
+```sh
+make dev LLM=stub        # compiles without any LLM feature
+make dev-stub             # explicit alias
+```
+
+If neither the `candle` nor `ollama` feature is enabled at compile time, or if
+the configured provider cannot be initialized (e.g., model download fails),
+Finima falls back to a **stub LLM client**. In stub mode:
+
+- All transactions are categorized as `other` with confidence `0.5`.
+- Recurring payment enrichment returns default values.
+- Insight generation returns a placeholder string.
+
+The application is fully functional otherwise -- you can import statements, view
+transactions, set budgets, and manually categorize entries. Look for this log
+line at startup to confirm stub mode:
+
+```
+WARN finima_llm::stub: Using STUB LLM client
+```
+
+#### Feature flag summary
+
+The LLM backend is controlled by Cargo feature flags on both `finima-llm` and
+`finima-api`. The features cascade:
+
+| Feature flag       | Activates          | Extra native deps                   |
+| ------------------ | ------------------ | ----------------------------------- |
+| `ollama` (default) | Ollama HTTP client | None (uses `reqwest`)               |
+| `candle`           | mistral.rs backend | `mistralrs`, `hf-hub`, `tokenizers` |
+| `metal`            | Candle + Metal GPU | Metal framework (macOS)             |
+| `cuda`             | Candle + CUDA GPU  | CUDA toolkit (Linux)                |
+
+The `finima-api` crate re-exports these as pass-through features. When you run
+`cargo run -p finima-api --features candle,metal`, the flag propagates to
+`finima-llm` automatically.
+
+#### Choosing a backend
+
+| Criterion        | Ollama                        | Candle                             |
+| ---------------- | ----------------------------- | ---------------------------------- |
+| Setup effort     | Low (Docker container)        | Medium (native compile)            |
+| Latency          | HTTP round-trip per request   | In-process, lower latency          |
+| GPU support      | Managed by Ollama             | `--features metal` or `cuda`       |
+| Model management | `ollama pull` / `ollama list` | HF Hub auto-download or local GGUF |
+| Production use   | Needs sidecar container       | Single binary, no sidecar          |
 
 ## Project Structure
 
@@ -355,31 +500,34 @@ The application uses the `config` crate with this precedence (highest wins):
 
 ## Common Makefile Targets
 
-| Target                       | Description                                           |
-| ---------------------------- | ----------------------------------------------------- |
-| `make help`                  | Show all available targets                            |
-| `make install`               | Install backend + frontend dependencies               |
-| `make dev`                   | Start backend API server                              |
-| `make dev-watch`             | Start backend with auto-reload (needs cargo-watch)    |
-| `make build`                 | Build backend (debug) + frontend                      |
-| `make test`                  | Run unit tests (backend + frontend)                   |
-| `make test-all`              | Run ALL tests (auto-manages test DB)                  |
-| `make test-integration`      | Run integration tests (auto-starts DB if needed)      |
-| `make test-llm`              | Run LLM tests (auto-starts Ollama, pulls model)       |
-| `make lint`                  | Lint everything (Rust + TypeScript + Markdown + YAML) |
-| `make format`                | Format all code and docs                              |
-| `make ci`                    | Full CI pipeline locally                              |
-| `make docker-up`             | Start dev services                                    |
-| `make docker-down`           | Stop dev services                                     |
-| `make docker-prod`           | Start production stack                                |
-| `make migrate`               | Run database migrations                               |
-| `make migrate-create name=x` | Create a new migration                                |
-| `make migrate-revert`        | Revert the last migration                             |
-| `make db-seed`               | Load test seed data                                   |
-| `make coverage`              | Generate test coverage report                         |
-| `make audit`                 | Security audit all dependencies                       |
-| `make observability`         | Start SigNoz observability stack                      |
-| `make clean-all`             | Clean build artifacts + Docker volumes (destructive)  |
+| Target                       | Description                                            |
+| ---------------------------- | ------------------------------------------------------ |
+| `make help`                  | Show all available targets                             |
+| `make install`               | Install backend + frontend dependencies                |
+| `make start`                 | Start everything (infra + backend + frontend)          |
+| `make dev`                   | Start backend + frontend (assumes infra running)       |
+| `make dev-backend`           | Start backend API server only                          |
+| `make dev-watch`             | Start backend with auto-reload (needs cargo-watch)     |
+| `make build`                 | Build backend (debug) + frontend                       |
+| `make test`                  | Run unit tests (backend + frontend)                    |
+| `make test-all`              | Run ALL tests (auto-manages test DB)                   |
+| `make test-integration`      | Run integration tests (auto-starts DB if needed)       |
+| `make test-llm`              | Run LLM tests (auto-starts Ollama, pulls model)        |
+| `make lint`                  | Lint everything (Rust + TypeScript + Markdown + YAML)  |
+| `make format`                | Format all code and docs                               |
+| `make ci`                    | Full CI pipeline locally                               |
+| `make docker-infra`          | Start dev infrastructure (PostgreSQL + Ollama + MinIO) |
+| `make docker-infra-down`     | Stop dev infrastructure                                |
+| `make docker-up`             | Start full production stack                            |
+| `make docker-down`           | Stop production stack                                  |
+| `make migrate`               | Run database migrations                                |
+| `make migrate-create name=x` | Create a new migration                                 |
+| `make migrate-revert`        | Revert the last migration                              |
+| `make db-seed`               | Load test seed data                                    |
+| `make coverage`              | Generate test coverage report                          |
+| `make audit`                 | Security audit all dependencies                        |
+| `make observability`         | Start SigNoz observability stack                       |
+| `make clean-all`             | Clean build artifacts + Docker volumes (destructive)   |
 
 ## ADRs and DDDs
 

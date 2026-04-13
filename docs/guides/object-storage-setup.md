@@ -7,7 +7,7 @@ Finima uses S3-compatible object storage for file uploads (transaction CSVs, rec
 MinIO runs automatically as part of the dev Docker Compose stack:
 
 ```bash
-make docker-up
+make docker-infra
 ```
 
 The MinIO console is available at <http://localhost:9001> with the default credentials:
