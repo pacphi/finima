@@ -39,6 +39,35 @@ export function ColumnMappingModal({
   };
 
   const handleConfirm = async () => {
+    // Validate required mappings before submitting.
+    const targets = Object.values(mapping);
+    const hasDate = targets.includes('Date');
+    const hasAmount = targets.includes('Amount');
+    const hasDebit = targets.includes('Debit');
+    const hasCredit = targets.includes('Credit');
+    const hasDescription = targets.includes('Description');
+
+    if (!hasDate) {
+      setError('Please map a column to "Date".');
+      return;
+    }
+    if (!hasDescription) {
+      setError('Please map a column to "Description".');
+      return;
+    }
+    if (!hasAmount && !(hasDebit && hasCredit)) {
+      setError('Please map a column to "Amount", or map both "Debit" and "Credit" columns.');
+      return;
+    }
+    if (hasAmount && (hasDebit || hasCredit)) {
+      setError('Map either "Amount" or "Debit"/"Credit" — not both.');
+      return;
+    }
+    if ((hasDebit && !hasCredit) || (hasCredit && !hasDebit)) {
+      setError('Both "Debit" and "Credit" columns must be mapped together.');
+      return;
+    }
+
     setImporting(true);
     setError(null);
     try {

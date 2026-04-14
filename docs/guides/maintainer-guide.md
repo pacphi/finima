@@ -175,7 +175,7 @@ The application is fully functional otherwise -- you can import statements, view
 transactions, set budgets, and manually categorize entries. Look for this log
 line at startup to confirm stub mode:
 
-```
+```text
 WARN finima_llm::stub: Using STUB LLM client
 ```
 
@@ -197,13 +197,13 @@ The `finima-api` crate re-exports these as pass-through features. When you run
 
 #### Choosing a backend
 
-| Criterion        | Ollama                        | Candle                             |
-| ---------------- | ----------------------------- | ---------------------------------- |
-| Setup effort     | Low (Docker container)        | Medium (native compile)            |
-| Latency          | HTTP round-trip per request   | In-process, lower latency          |
-| GPU support      | Managed by Ollama             | `--features metal` or `cuda`       |
-| Model management | `make models LLM=ollama`      | `make models LLM=candle`           |
-| Production use   | Needs sidecar container       | Single binary, no sidecar          |
+| Criterion        | Ollama                      | Candle                       |
+| ---------------- | --------------------------- | ---------------------------- |
+| Setup effort     | Low (Docker container)      | Medium (native compile)      |
+| Latency          | HTTP round-trip per request | In-process, lower latency    |
+| GPU support      | Managed by Ollama           | `--features metal` or `cuda` |
+| Model management | `make models LLM=ollama`    | `make models LLM=candle`     |
+| Production use   | Needs sidecar container     | Single binary, no sidecar    |
 
 ## Project Structure
 
@@ -306,7 +306,8 @@ application startup in all environments.
 - **Error types**: Define errors in `finima-core` using `thiserror`. Handlers
   convert them into appropriate HTTP status codes.
 - **Logging**: Use `tracing` macros (`tracing::info!`, `tracing::error!`, etc.)
-  with structured fields.
+  with structured fields. See [Logging configuration](#logging-configuration)
+  below for level and format settings.
 
 ### Frontend (TypeScript/React)
 
@@ -492,44 +493,97 @@ The application uses the `config` crate with this precedence (highest wins):
 | `APP__DATABASE__NAME`        | Database name                                          |
 | `APP__AUTH__JWT_SECRET`      | JWT signing secret                                     |
 | `APP__RESEND__API_KEY`       | Resend email API key                                   |
+| `APP__AUTH__FROM_EMAIL`      | Sender address for magic-link emails                   |
+| `APP__AUTH__PUBLIC_URL`      | Frontend origin for magic-link URLs                    |
 | `APP__LLM__OLLAMA__URL`      | Ollama server URL                                      |
 | `APP__S3__ENDPOINT_URL`      | MinIO/S3 endpoint                                      |
 | `APP__S3__ACCESS_KEY_ID`     | S3 access key                                          |
 | `APP__S3__SECRET_ACCESS_KEY` | S3 secret key                                          |
 | `APP__CORS__ALLOWED_ORIGINS` | Comma-separated allowed origins                        |
+| `RUST_LOG`                   | Overrides `logging.level` from YAML (see below)        |
+
+### Logging Configuration
+
+The backend uses [`tracing`](https://docs.rs/tracing) with an
+[`EnvFilter`](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html)
+for level control. Two YAML fields govern logging:
+
+| Field            | Values                     | Purpose                      |
+| ---------------- | -------------------------- | ---------------------------- |
+| `logging.level`  | EnvFilter directive string | Controls which logs appear   |
+| `logging.format` | `"pretty"` or `"json"`     | Human-readable or structured |
+
+**Level strategy per environment:**
+
+| Config             | `level`                             | `format`          | Rationale                                   |
+| ------------------ | ----------------------------------- | ----------------- | ------------------------------------------- |
+| `default.yaml`     | `warn`                              | `json`            | Production-safe baseline; quiet, structured |
+| `development.yaml` | `debug,h2=warn,hyper_util=warn,...` | `pretty`          | Verbose for app code, noisy deps suppressed |
+| `test.yaml`        | `warn`                              | `pretty`          | Quiet tests                                 |
+| `production.yaml`  | `info`                              | _(inherits json)_ | Operational visibility without noise        |
+
+The `level` field uses
+[EnvFilter directive syntax](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives):
+
+```text
+<global_level>,<crate>=<level>,<crate>=<level>,...
+```
+
+For example, `debug,h2=warn,sqlx=warn` means "emit debug for
+everything, except `h2` and `sqlx` which only emit warnings."
+Per-crate directives override the global default.
+
+**Runtime override:** Set the `RUST_LOG` environment variable to
+bypass the YAML config entirely:
+
+```bash
+RUST_LOG=debug,tower_http=info cargo run --bin finima-api
+```
+
+**Common noisy crates to suppress in development:**
+
+| Crate        | What it logs at debug                             |
+| ------------ | ------------------------------------------------- |
+| `h2`         | HTTP/2 frame-level protocol events                |
+| `hyper`      | HTTP connection lifecycle                         |
+| `hyper_util` | Connection pooling internals                      |
+| `reqwest`    | HTTP client request details                       |
+| `rustls`     | TLS handshake negotiation                         |
+| `tower_http` | Per-request start/finish events from `TraceLayer` |
+| `sqlx`       | Every SQL query with bind parameters              |
 
 ## Common Makefile Targets
 
-| Target                       | Description                                            |
-| ---------------------------- | ------------------------------------------------------ |
-| `make help`                  | Show all available targets                             |
-| `make install`               | Install backend + frontend dependencies                |
-| `make start`                 | Start everything (infra + backend + frontend)          |
-| `make dev`                   | Start backend + frontend (assumes infra running)       |
-| `make dev-backend`           | Start backend API server only                          |
-| `make dev-watch`             | Start backend with auto-reload (needs cargo-watch)     |
-| `make build`                 | Build backend (debug) + frontend                       |
-| `make test`                  | Run unit tests (backend + frontend)                    |
-| `make test-all`              | Run ALL tests (auto-manages test DB)                   |
-| `make test-integration`      | Run integration tests (auto-starts DB if needed)       |
-| `make test-llm`              | Run LLM tests (auto-starts Ollama, pulls model)        |
-| `make lint`                  | Lint everything (Rust + TypeScript + Markdown + YAML)  |
-| `make format`                | Format all code and docs                               |
-| `make ci`                    | Full CI pipeline locally                               |
+| Target                       | Description                                                             |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `make help`                  | Show all available targets                                              |
+| `make install`               | Install backend + frontend dependencies                                 |
+| `make start`                 | Start everything (infra + backend + frontend)                           |
+| `make dev`                   | Start backend + frontend (assumes infra running)                        |
+| `make dev-backend`           | Start backend API server only                                           |
+| `make dev-watch`             | Start backend with auto-reload (needs cargo-watch)                      |
+| `make build`                 | Build backend (debug) + frontend                                        |
+| `make test`                  | Run unit tests (backend + frontend)                                     |
+| `make test-all`              | Run ALL tests (auto-manages test DB)                                    |
+| `make test-integration`      | Run integration tests (auto-starts DB if needed)                        |
+| `make test-llm`              | Run LLM tests (auto-starts Ollama, pulls model)                         |
+| `make lint`                  | Lint everything (Rust + TypeScript + Markdown + YAML)                   |
+| `make format`                | Format all code and docs                                                |
+| `make ci`                    | Full CI pipeline locally                                                |
 | `make docker-infra`          | Start dev infrastructure (PostgreSQL + MinIO; Ollama when `LLM=ollama`) |
-| `make docker-infra-down`     | Stop dev infrastructure                                |
-| `make models`                | List downloaded models (set `LLM=candle` or `ollama`)  |
-| `make download-model`        | Download the default model (set `LLM=candle` or `ollama`) |
-| `make docker-up`             | Start full production stack                            |
-| `make docker-down`           | Stop production stack                                  |
-| `make migrate`               | Run database migrations                                |
-| `make migrate-create name=x` | Create a new migration                                 |
-| `make migrate-revert`        | Revert the last migration                              |
-| `make db-seed`               | Load test seed data                                    |
-| `make coverage`              | Generate test coverage report                          |
-| `make audit`                 | Security audit all dependencies                        |
-| `make observability`         | Start SigNoz observability stack                       |
-| `make clean-all`             | Clean build artifacts + Docker volumes (destructive)   |
+| `make docker-infra-down`     | Stop dev infrastructure                                                 |
+| `make models`                | List downloaded models (set `LLM=candle` or `ollama`)                   |
+| `make download-model`        | Download the default model (set `LLM=candle` or `ollama`)               |
+| `make docker-up`             | Start full production stack                                             |
+| `make docker-down`           | Stop production stack                                                   |
+| `make migrate`               | Run database migrations                                                 |
+| `make migrate-create name=x` | Create a new migration                                                  |
+| `make migrate-revert`        | Revert the last migration                                               |
+| `make db-seed`               | Load test seed data                                                     |
+| `make coverage`              | Generate test coverage report                                           |
+| `make audit`                 | Security audit all dependencies                                         |
+| `make observability`         | Start SigNoz observability stack                                        |
+| `make clean-all`             | Clean build artifacts + Docker volumes (destructive)                    |
 
 ## ADRs and DDDs
 

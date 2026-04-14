@@ -182,7 +182,9 @@ impl FileParser for OfxParser {
             rows,
             inferred_mapping: ColumnMapping {
                 date_col: 0,
-                amount_col: 1,
+                amount_col: Some(1),
+                debit_col: None,
+                credit_col: None,
                 description_col: 2,
                 memo_col: Some(3),
                 category_col: None,

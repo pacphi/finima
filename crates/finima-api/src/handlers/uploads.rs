@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -24,7 +26,7 @@ use crate::ws::WsMessage;
 
 #[derive(Debug, Serialize)]
 pub struct UploadResponse {
-    pub upload_id: Uuid,
+    pub id: Uuid,
     pub preview: serde_json::Value,
     pub format: FileFormat,
 }
@@ -37,8 +39,17 @@ pub struct ConfirmResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ConfirmRequest {
-    pub column_mapping: Option<ColumnMapping>,
+    /// Header-name → target-name mapping from the frontend (e.g. `{"Date": "Date", "Debit": "Debit"}`).
+    pub mapping: HashMap<String, String>,
+    #[serde(default = "default_true")]
+    pub skip_duplicates: bool,
+    pub date_format: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize)]
@@ -66,6 +77,107 @@ fn parser_for_format(format: FileFormat) -> Box<dyn FileParser> {
         FileFormat::Qif => Box::new(finima_ingest::QifParser::new()),
         FileFormat::Xls | FileFormat::Xlsx => Box::new(finima_ingest::XlsxParser::default()),
     }
+}
+
+/// Convert a name-based mapping from the frontend into an index-based [`ColumnMapping`].
+///
+/// The frontend sends `{ "Date": "Date", "Description": "Description", "Debit": "Debit", ... }`
+/// where keys are file column headers and values are target field names.
+fn resolve_mapping(
+    mapping: &HashMap<String, String>,
+    headers: &[String],
+) -> Result<ColumnMapping, AppError> {
+    let mut date_col = None;
+    let mut amount_col = None;
+    let mut debit_col = None;
+    let mut credit_col = None;
+    let mut description_col = None;
+    let mut memo_col = None;
+    let mut category_col = None;
+
+    for (header_name, target) in mapping {
+        if target == "-- Skip --" {
+            continue;
+        }
+        let idx = headers
+            .iter()
+            .position(|h| h == header_name)
+            .ok_or_else(|| {
+                AppError::BadRequest(format!("Header '{}' not found in file", header_name))
+            })?;
+        match target.as_str() {
+            "Date" => date_col = Some(idx),
+            "Amount" => amount_col = Some(idx),
+            "Debit" => debit_col = Some(idx),
+            "Credit" => credit_col = Some(idx),
+            "Description" => description_col = Some(idx),
+            "Memo" => memo_col = Some(idx),
+            "Category" => category_col = Some(idx),
+            _ => {}
+        }
+    }
+
+    let date_col =
+        date_col.ok_or_else(|| AppError::BadRequest("Date column is required".into()))?;
+    let description_col = description_col
+        .ok_or_else(|| AppError::BadRequest("Description column is required".into()))?;
+
+    let cm = ColumnMapping {
+        date_col,
+        amount_col,
+        debit_col,
+        credit_col,
+        description_col,
+        memo_col,
+        category_col,
+    };
+    cm.validate()
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+    Ok(cm)
+}
+
+/// Convert an index-based [`ColumnMapping`] to a header-name → target-name map
+/// for the frontend preview response.
+fn inferred_mapping_to_names(
+    mapping: &ColumnMapping,
+    headers: &[String],
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut map = serde_json::Map::new();
+    let set = |m: &mut serde_json::Map<String, serde_json::Value>,
+               idx: usize,
+               target: &str,
+               headers: &[String]| {
+        if let Some(h) = headers.get(idx) {
+            m.insert(h.clone(), serde_json::Value::String(target.into()));
+        }
+    };
+
+    set(&mut map, mapping.date_col, "Date", headers);
+    if let Some(idx) = mapping.amount_col {
+        set(&mut map, idx, "Amount", headers);
+    }
+    if let Some(idx) = mapping.debit_col {
+        set(&mut map, idx, "Debit", headers);
+    }
+    if let Some(idx) = mapping.credit_col {
+        set(&mut map, idx, "Credit", headers);
+    }
+    set(&mut map, mapping.description_col, "Description", headers);
+    if let Some(idx) = mapping.memo_col {
+        set(&mut map, idx, "Memo", headers);
+    }
+    if let Some(idx) = mapping.category_col {
+        set(&mut map, idx, "Category", headers);
+    }
+
+    // Fill unmapped headers with "-- Skip --"
+    for h in headers {
+        if !map.contains_key(h) {
+            map.insert(h.clone(), serde_json::Value::String("-- Skip --".into()));
+        }
+    }
+
+    map
 }
 
 /// Resolve the user_id that owns a given account, for WebSocket message routing.
@@ -170,17 +282,25 @@ pub async fn create_upload(
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to store file in S3: {}", e)))?;
 
-    // Store only the S3 key and preview in the database (not the file content).
+    // Convert the index-based inferred_mapping to name-based for the frontend,
+    // then store both the S3 key and the frontend-friendly preview in the database.
+    let mut preview_json = serde_json::to_value(&preview).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = preview_json.as_object_mut() {
+        let name_mapping = inferred_mapping_to_names(&preview.inferred_mapping, &preview.headers);
+        obj.insert(
+            "inferred_mapping".into(),
+            serde_json::Value::Object(name_mapping),
+        );
+    }
+
     let storage = serde_json::json!({
         "s3_key": s3_key,
-        "preview": preview,
+        "preview": preview_json,
     });
     state
         .upload_repo()
         .update_column_mapping(upload.id, storage)
         .await?;
-
-    let preview_json = serde_json::to_value(&preview).unwrap_or(serde_json::Value::Null);
 
     // Notify the owning user via WebSocket that a new upload has been received.
     if let Some(owner_id) = user_id_for_account(&state, account_id).await {
@@ -200,7 +320,7 @@ pub async fn create_upload(
     Ok((
         StatusCode::CREATED,
         Json(UploadResponse {
-            upload_id: upload.id,
+            id: upload.id,
             preview: preview_json,
             format,
         }),
@@ -244,6 +364,14 @@ pub async fn confirm_upload(
     Path(id): Path<Uuid>,
     Json(body): Json<ConfirmRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Gate: the LLM backend must be loaded before we accept uploads that
+    // require categorization. Return 503 so the UI can show "still loading".
+    if !state.is_llm_ready() {
+        return Err(AppError::ServiceUnavailable(
+            "LLM backend is still loading — please try again shortly".to_string(),
+        ));
+    }
+
     let upload = state.upload_repo().find_by_id(id).await?;
 
     // Verify ownership: upload -> account -> portfolio -> user
@@ -287,10 +415,25 @@ pub async fn confirm_upload(
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to retrieve file from S3: {}", e)))?;
 
+    // Resolve the name-based mapping from the frontend into an index-based ColumnMapping.
+    // For auto-mapped formats (OFX, QFX, QBO, QIF) the mapping is ignored by the parser,
+    // but we still resolve it to keep the API contract consistent.
+    let column_mapping = if !body.mapping.is_empty() {
+        // Extract headers from stored preview to resolve name→index mapping.
+        let headers: Vec<String> = stored
+            .get("preview")
+            .and_then(|v| v.get("headers"))
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .ok_or_else(|| AppError::InternalError("No headers found in stored preview".into()))?;
+        Some(resolve_mapping(&body.mapping, &headers)?)
+    } else {
+        None
+    };
+
     // Parse all rows
     let parser = parser_for_format(upload.format);
     let raw_transactions = parser
-        .parse_all(&file_data, body.column_mapping.as_ref())
+        .parse_all(&file_data, column_mapping.as_ref())
         .map_err(|e| AppError::ParseError(format!("Parse error: {}", e)))?;
 
     let total = raw_transactions.len();
@@ -454,7 +597,9 @@ async fn run_categorization_pipeline(
         .collect();
 
     // Step 4: Categorize using the LLM client
-    let llm_client = state.llm_client();
+    let llm_client = state
+        .llm_client()
+        .ok_or_else(|| AppError::ServiceUnavailable("LLM backend not available".to_string()))?;
     let categorizer = Categorizer::new(llm_client);
 
     // Send initial progress

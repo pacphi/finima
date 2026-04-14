@@ -63,13 +63,34 @@ pub struct RawTransaction {
 }
 
 /// Mapping of CSV/XLSX columns to transaction fields.
+///
+/// Supports two amount modes:
+/// - **Single amount**: `amount_col` is `Some(idx)` — one signed column.
+/// - **Split debit/credit**: both `debit_col` and `credit_col` are `Some` —
+///   debit values become negative (outflow), credit values positive (inflow).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ColumnMapping {
     pub date_col: usize,
-    pub amount_col: usize,
+    pub amount_col: Option<usize>,
+    pub debit_col: Option<usize>,
+    pub credit_col: Option<usize>,
     pub description_col: usize,
     pub memo_col: Option<usize>,
     pub category_col: Option<usize>,
+}
+
+impl ColumnMapping {
+    /// Check that the mapping has a valid amount configuration.
+    pub fn validate(&self) -> Result<()> {
+        let has_amount = self.amount_col.is_some();
+        let has_debit_credit = self.debit_col.is_some() && self.credit_col.is_some();
+        if !has_amount && !has_debit_credit {
+            return Err(IngestError::MissingColumn(
+                "Must map either Amount or both Debit and Credit columns".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// Preview of parsed file data shown to the user before final import.

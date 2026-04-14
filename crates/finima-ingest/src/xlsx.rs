@@ -98,9 +98,6 @@ impl XlsxParser {
             let date_cell = row.get(mapping.date_col).ok_or_else(|| {
                 IngestError::MissingColumn(format!("Row {}: date column missing", row_idx + 1))
             })?;
-            let amount_cell = row.get(mapping.amount_col).ok_or_else(|| {
-                IngestError::MissingColumn(format!("Row {}: amount column missing", row_idx + 1))
-            })?;
             let desc_cell = row.get(mapping.description_col).ok_or_else(|| {
                 IngestError::MissingColumn(format!(
                     "Row {}: description column missing",
@@ -116,13 +113,52 @@ impl XlsxParser {
                 ))
             })?;
 
-            let amount = parse_cell_amount(amount_cell).map_err(|_| {
-                IngestError::InvalidAmount(format!(
-                    "Row {}: '{}'",
-                    row_idx + 1,
-                    cell_to_string(amount_cell)
-                ))
-            })?;
+            // Resolve amount from single column or debit/credit pair.
+            let amount = if let Some(amount_col) = mapping.amount_col {
+                let amount_cell = row.get(amount_col).ok_or_else(|| {
+                    IngestError::MissingColumn(format!(
+                        "Row {}: amount column missing",
+                        row_idx + 1
+                    ))
+                })?;
+                parse_cell_amount(amount_cell).map_err(|_| {
+                    IngestError::InvalidAmount(format!(
+                        "Row {}: '{}'",
+                        row_idx + 1,
+                        cell_to_string(amount_cell)
+                    ))
+                })?
+            } else if let (Some(debit_col), Some(credit_col)) =
+                (mapping.debit_col, mapping.credit_col)
+            {
+                let debit_cell = row.get(debit_col);
+                let credit_cell = row.get(credit_col);
+                let is_empty_cell = |c: Option<&Data>| match c {
+                    None | Some(Data::Empty) => true,
+                    Some(Data::String(s)) => s.trim().is_empty(),
+                    _ => false,
+                };
+                if is_empty_cell(debit_cell) && is_empty_cell(credit_cell) {
+                    continue;
+                }
+                let debit = match debit_cell {
+                    Some(c) if !matches!(c, Data::Empty) => {
+                        parse_cell_amount(c).unwrap_or(Decimal::ZERO)
+                    }
+                    _ => Decimal::ZERO,
+                };
+                let credit = match credit_cell {
+                    Some(c) if !matches!(c, Data::Empty) => {
+                        parse_cell_amount(c).unwrap_or(Decimal::ZERO)
+                    }
+                    _ => Decimal::ZERO,
+                };
+                credit - debit
+            } else {
+                return Err(IngestError::MissingColumn(
+                    "No amount or debit/credit columns mapped".into(),
+                ));
+            };
 
             let description = cell_to_string(desc_cell);
             if description.is_empty() {

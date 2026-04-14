@@ -243,6 +243,8 @@ export const COLUMN_MAPPING_OPTIONS = [
   '-- Skip --',
   'Date',
   'Amount',
+  'Debit',
+  'Credit',
   'Description',
   'Memo',
   'Category',
