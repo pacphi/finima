@@ -17,24 +17,41 @@ export function Header() {
     navigate('/auth/signin');
   };
 
+  const initials = user?.displayName
+    ? user.displayName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : '?';
+
   return (
     <header
       role="banner"
-      className="h-16 bg-[var(--color-bg)] border-b border-[var(--color-border)] flex items-center justify-between px-6"
+      className="h-16 bg-[var(--color-bg)]/80 backdrop-blur-md border-b border-[var(--color-border)] flex items-center justify-between px-6"
     >
       <h1 className="text-lg font-semibold text-[var(--color-text)] md:hidden">
         {/* Hidden on desktop since sidebar shows the name */}
       </h1>
       <div className="flex-1" />
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {user && (
-          <span className="text-sm text-[var(--color-text-secondary)]">{user.displayName}</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] flex items-center justify-center text-xs font-semibold text-white shadow-sm">
+              {initials}
+            </div>
+            <span className="text-sm font-medium text-[var(--color-text)] hidden sm:inline">
+              {user.displayName}
+            </span>
+          </div>
         )}
+        <div className="w-px h-6 bg-[var(--color-border)] mx-1" />
         <button
           onClick={handleLogout}
           aria-label="Log out of your account"
           className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]
-            transition-colors"
+            transition-colors px-2 py-1.5 rounded-lg hover:bg-[var(--color-border)]"
         >
           Logout
         </button>

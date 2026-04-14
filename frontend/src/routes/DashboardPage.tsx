@@ -63,11 +63,35 @@ function loadSavedLayouts(): ResponsiveLayouts | null {
 
 function WidgetCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
         {title}
       </h3>
       <div className="min-h-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 shadow-[var(--card-shadow)]">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-subtle)] text-[var(--color-primary)]">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+          {label}
+        </p>
+        <p className="mt-0.5 text-xl font-bold text-[var(--color-text)] truncate">{value}</p>
+      </div>
     </div>
   );
 }
@@ -151,14 +175,122 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center p-6" role="status" aria-live="polite">
-        <div className="text-[var(--color-text-secondary)]">Loading dashboard...</div>
+        <div className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+          <svg
+            className="animate-spin h-5 w-5 text-[var(--color-primary)]"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          Loading dashboard...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6" ref={containerRef}>
-      <h1 className="mb-6 text-2xl font-bold text-[var(--color-text)]">Dashboard</h1>
+    <div className="p-6 lg:p-8" ref={containerRef}>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-[var(--color-text)] tracking-tight">Dashboard</h1>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          Your financial overview at a glance
+        </p>
+      </div>
+
+      {/* Summary cards */}
+      {summary && (
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <SummaryCard
+            label="Net Worth"
+            value={formatCurrency(summary.net_worth)}
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                />
+              </svg>
+            }
+          />
+          <SummaryCard
+            label="Total Assets"
+            value={formatCurrency(summary.total_assets)}
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
+                />
+              </svg>
+            }
+          />
+          <SummaryCard
+            label="Total Liabilities"
+            value={formatCurrency(summary.total_liabilities)}
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.511m-3.182 5.51-5.511-3.181"
+                />
+              </svg>
+            }
+          />
+          <SummaryCard
+            label="Accounts"
+            value={String(summary.account_count)}
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"
+                />
+              </svg>
+            }
+          />
+        </div>
+      )}
 
       {mounted && (
         <ResponsiveGridLayout
@@ -168,6 +300,8 @@ export function DashboardPage() {
           breakpoints={{ lg: 1024, md: 768, sm: 0 }}
           cols={{ lg: 12, md: 12, sm: 12 }}
           rowHeight={60}
+          margin={[16, 16]}
+          containerPadding={[0, 0]}
           onLayoutChange={handleLayoutChange}
           dragConfig={{ handle: '.widget-drag-handle' }}
         >
@@ -230,7 +364,7 @@ export function DashboardPage() {
                   {upcomingBills.map((bill) => (
                     <li
                       key={bill.id}
-                      className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2"
+                      className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
                     >
                       <div>
                         <span className="text-sm font-medium text-[var(--color-text)]">
@@ -245,7 +379,7 @@ export function DashboardPage() {
                             : ''}
                         </span>
                       </div>
-                      <span className="text-sm font-medium text-[var(--color-text)]">
+                      <span className="text-sm font-semibold text-[var(--color-text)]">
                         {formatCurrency(Math.abs(bill.average_amount))}
                       </span>
                     </li>
@@ -269,7 +403,10 @@ export function DashboardPage() {
               ) : (
                 <p className="text-sm text-[var(--color-text-secondary)]">
                   No budget data yet.{' '}
-                  <a href="/budget" className="text-[var(--color-accent)] underline">
+                  <a
+                    href="/budget"
+                    className="text-[var(--color-primary)] hover:underline font-medium"
+                  >
                     Set up a budget
                   </a>
                 </p>

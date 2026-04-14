@@ -176,7 +176,7 @@ export function OnboardingPage() {
               >
                 {i > 0 && (
                   <div
-                    className={`w-12 h-0.5 ${i <= step ? 'bg-blue-600' : 'bg-slate-300'}`}
+                    className={`w-12 h-0.5 ${i <= step ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`}
                     aria-hidden="true"
                   />
                 )}
@@ -184,9 +184,9 @@ export function OnboardingPage() {
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       i < step
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-[var(--color-primary)] text-white'
                         : i === step
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-[var(--color-primary)] text-white'
                           : 'bg-slate-200 text-slate-500'
                     }`}
                     aria-hidden="true"
@@ -239,7 +239,7 @@ export function OnboardingPage() {
                     profileForm.formState.errors.display_name ? 'onb-name-error' : undefined
                   }
                   {...profileForm.register('display_name')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="Your name"
                 />
                 {profileForm.formState.errors.display_name && (
@@ -258,7 +258,7 @@ export function OnboardingPage() {
                 <select
                   id="onb-currency"
                   {...profileForm.register('currency')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 >
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR</option>
@@ -278,7 +278,7 @@ export function OnboardingPage() {
                 <select
                   id="onb-date-format"
                   {...profileForm.register('date_format')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 >
                   <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                   <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -288,7 +288,7 @@ export function OnboardingPage() {
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 btn-primary text-sm font-medium rounded-lg transition-colors"
                 >
                   Next
                 </button>
@@ -318,7 +318,7 @@ export function OnboardingPage() {
                     portfolioForm.formState.errors.name ? 'onb-portfolio-name-error' : undefined
                   }
                   {...portfolioForm.register('name')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="My Finances"
                 />
                 {portfolioForm.formState.errors.name && (
@@ -342,7 +342,7 @@ export function OnboardingPage() {
                   id="onb-portfolio-desc"
                   {...portfolioForm.register('description')}
                   rows={2}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 />
               </div>
               <div className="flex justify-between pt-2">
@@ -355,7 +355,7 @@ export function OnboardingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 btn-primary text-sm font-medium rounded-lg transition-colors"
                 >
                   Next
                 </button>
@@ -380,7 +380,7 @@ export function OnboardingPage() {
                 <select
                   id="onb-acct-type"
                   {...accountForm.register('account_type')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 >
                   {ACCOUNT_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -404,7 +404,7 @@ export function OnboardingPage() {
                     accountForm.formState.errors.name ? 'onb-acct-name-error' : undefined
                   }
                   {...accountForm.register('name')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="e.g. Chase Checking"
                 />
                 {accountForm.formState.errors.name && (
@@ -423,7 +423,7 @@ export function OnboardingPage() {
                 <input
                   id="onb-acct-institution"
                   {...accountForm.register('institution')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                   placeholder="e.g. Chase Bank"
                 />
               </div>
@@ -439,7 +439,7 @@ export function OnboardingPage() {
                   {...accountForm.register('opening_balance', { valueAsNumber: true })}
                   type="number"
                   step="0.01"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-[var(--color-input-border)] rounded-lg text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 />
               </div>
               <div className="flex justify-between pt-2">
@@ -463,7 +463,7 @@ export function OnboardingPage() {
                 <button
                   type="submit"
                   disabled={completing}
-                  className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="px-6 py-2 btn-primary text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
                 >
                   {completing ? 'Setting up...' : 'Complete Setup'}
                 </button>

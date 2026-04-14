@@ -215,10 +215,7 @@ export function AccountDetailPage() {
               </span>
             </div>
           </div>
-          <button
-            onClick={() => setShowUpload(!showUpload)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
+          <button onClick={() => setShowUpload(!showUpload)} className="btn-primary text-sm">
             Import Transactions
           </button>
         </div>
@@ -284,7 +281,7 @@ export function AccountDetailPage() {
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#3b82f6"
+                stroke="var(--color-primary)"
                 strokeWidth={2}
                 dot={chartData.length <= 12}
               />

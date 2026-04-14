@@ -1,39 +1,87 @@
 /* ── Light theme (default) ──────────────────────────────────────────── */
 :root {
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-bg: #ffffff;
-  --color-surface: #f8fafc;
-  --color-text: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-border: #e2e8f0;
+  /* Primary accent — change these to re-theme the entire app */
+  --color-primary: #10b981;
+  --color-primary-hover: #059669;
+  --color-primary-glow: rgba(16, 185, 129, 0.25);
+  --color-primary-subtle: rgba(16, 185, 129, 0.08);
+  --color-primary-badge-bg: #d1fae5;
+  --color-primary-badge-text: #065f46;
+  --color-primary-muted: #6ee7b7;
+
+  /* Backgrounds */
+  --color-bg: #f8fafc;
+  --color-surface: #f1f5f9;
   --color-card: #ffffff;
   --color-input-bg: #ffffff;
+
+  /* Text */
+  --color-text: #0f172a;
+  --color-text-secondary: #64748b;
+
+  /* Borders */
+  --color-border: #e2e8f0;
   --color-input-border: #cbd5e1;
+
+  /* Semantic */
   --color-success: #22c55e;
   --color-error: #ef4444;
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #f8fafc;
-  --sidebar-active: #1e293b;
-  --sidebar-hover: #1e293b;
+  --color-warning: #f59e0b;
+
+  /* Sidebar */
+  --sidebar-bg: #0a0f1a;
+  --sidebar-text: #94a3b8;
+  --sidebar-active: rgba(16, 185, 129, 0.12);
+  --sidebar-active-text: #10b981;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+
+  /* Elevation */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Dark theme ────────────────────────────────────────────────────── */
 .dark {
-  --color-primary: #3b82f6;
-  --color-primary-hover: #60a5fa;
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
+  --color-primary: #34d399;
+  --color-primary-hover: #6ee7b7;
+  --color-primary-glow: rgba(52, 211, 153, 0.2);
+  --color-primary-subtle: rgba(52, 211, 153, 0.08);
+  --color-primary-badge-bg: rgba(52, 211, 153, 0.15);
+  --color-primary-badge-text: #6ee7b7;
+  --color-primary-muted: rgba(52, 211, 153, 0.4);
+
+  --color-bg: #060a13;
+  --color-surface: #0a0f1a;
+  --color-card: rgba(15, 23, 42, 0.6);
+  --color-input-bg: rgba(15, 23, 42, 0.8);
+
   --color-text: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-border: #334155;
-  --color-card: #1e293b;
-  --color-input-bg: #1e293b;
-  --color-input-border: #475569;
+  --color-text-secondary: #64748b;
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-input-border: rgba(255, 255, 255, 0.1);
+
   --color-success: #4ade80;
   --color-error: #f87171;
-  --sidebar-bg: #020617;
-  --sidebar-text: #f8fafc;
-  --sidebar-active: #1e293b;
-  --sidebar-hover: #0f172a;
+  --color-warning: #fbbf24;
+
+  --sidebar-bg: #050810;
+  --sidebar-text: #64748b;
+  --sidebar-active: rgba(52, 211, 153, 0.1);
+  --sidebar-active-text: #34d399;
+  --sidebar-hover: rgba(255, 255, 255, 0.04);
+
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
 }

@@ -110,7 +110,7 @@ export function ColumnMappingModal({
 
       <div className="text-sm text-slate-600">
         <span className="font-medium">{preview.file_name}</span>
-        <span className="ml-2 inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium uppercase">
+        <span className="ml-2 inline-block px-1.5 py-0.5 badge-primary rounded text-xs font-medium uppercase">
           {preview.file_format}
         </span>
         <span className="ml-2">{preview.row_count} rows</span>
@@ -147,7 +147,7 @@ export function ColumnMappingModal({
                       id={`mapping-${header}`}
                       value={mapping[header] ?? '-- Skip --'}
                       onChange={(e) => handleMappingChange(header, e.target.value)}
-                      className="block w-full rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="block w-full rounded border border-[var(--color-input-border)] px-2 py-1 text-sm focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
                     >
                       {COLUMN_MAPPING_OPTIONS.map((opt) => (
                         <option key={opt} value={opt}>
@@ -209,7 +209,7 @@ export function ColumnMappingModal({
           type="checkbox"
           checked={skipDuplicates}
           onChange={(e) => setSkipDuplicates(e.target.checked)}
-          className="rounded border-slate-300"
+          className="rounded border-[var(--color-input-border)]"
         />
         Skip duplicate transactions (by date + amount + description)
       </label>
@@ -234,7 +234,7 @@ export function ColumnMappingModal({
         <button
           onClick={handleConfirm}
           disabled={importing}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 btn-primary text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
         >
           {importing ? 'Importing...' : `Import ${preview.row_count} rows`}
         </button>

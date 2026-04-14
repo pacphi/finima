@@ -11,7 +11,7 @@ interface ThemeState {
 }
 
 const STORAGE_KEY = 'finima-theme';
-const DEFAULT_ACCENT = '#3B82F6';
+const DEFAULT_ACCENT = '#10b981';
 
 function getSystemPreference(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
@@ -27,14 +27,35 @@ function applyDarkClass(isDark: boolean) {
   }
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const num = parseInt(hex.replace('#', ''), 16);
+  return {
+    r: (num >> 16) & 0xff,
+    g: (num >> 8) & 0xff,
+    b: num & 0xff,
+  };
+}
+
 function applyAccentColor(color: string) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.style.setProperty('--color-primary', color);
+  const { r, g, b } = hexToRgb(color);
 
-  // Compute a slightly lighter/darker hover variant.
-  // Simple approach: adjust brightness.
+  root.style.setProperty('--color-primary', color);
   root.style.setProperty('--color-primary-hover', adjustBrightness(color, -15));
+  root.style.setProperty('--color-primary-glow', `rgba(${r}, ${g}, ${b}, 0.25)`);
+  root.style.setProperty('--color-primary-subtle', `rgba(${r}, ${g}, ${b}, 0.08)`);
+  root.style.setProperty('--color-primary-muted', `rgba(${r}, ${g}, ${b}, 0.4)`);
+
+  // Badge colors adapt to light/dark mode
+  const isDark = root.classList.contains('dark');
+  if (isDark) {
+    root.style.setProperty('--color-primary-badge-bg', `rgba(${r}, ${g}, ${b}, 0.15)`);
+    root.style.setProperty('--color-primary-badge-text', adjustBrightness(color, 40));
+  } else {
+    root.style.setProperty('--color-primary-badge-bg', adjustBrightness(color, 80));
+    root.style.setProperty('--color-primary-badge-text', adjustBrightness(color, -40));
+  }
 }
 
 function adjustBrightness(hex: string, percent: number): string {
@@ -81,6 +102,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => ({
   setMode: (mode) => {
     const accentColor = get().accentColor;
     applyDarkClass(resolveEffectiveMode(mode) === 'dark');
+    applyAccentColor(accentColor);
     saveToStorage(mode, accentColor);
     set({ mode });
   },
@@ -104,6 +126,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => ({
         const current = get().mode;
         if (current === 'system') {
           applyDarkClass(getSystemPreference() === 'dark');
+          applyAccentColor(get().accentColor);
         }
       });
     }

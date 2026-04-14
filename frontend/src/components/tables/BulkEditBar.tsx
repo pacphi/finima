@@ -56,11 +56,11 @@ export function BulkEditBar({
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg"
+      className="flex items-center gap-3 px-4 py-2 bg-[var(--color-primary-subtle)] border border-[var(--color-primary-muted)] rounded-lg"
       role="toolbar"
       aria-label={`Bulk actions for ${selectedCount} selected transactions`}
     >
-      <span className="text-sm font-medium text-blue-800" aria-live="polite">
+      <span className="text-sm font-medium text-[var(--color-primary)]" aria-live="polite">
         {selectedCount} selected
       </span>
 
@@ -69,7 +69,7 @@ export function BulkEditBar({
           onClick={() => setShowCategoryPicker(!showCategoryPicker)}
           aria-expanded={showCategoryPicker}
           aria-haspopup="listbox"
-          className="px-3 py-1.5 text-sm bg-white border border-blue-300 rounded-lg hover:bg-blue-50 text-blue-700 font-medium"
+          className="px-3 py-1.5 text-sm bg-white border border-[var(--color-primary-muted)] rounded-lg hover:bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium"
         >
           Change Category
         </button>
@@ -95,7 +95,7 @@ export function BulkEditBar({
                 }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search categories..."
-                className="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-2 py-1 text-sm border border-[var(--color-input-border)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                 role="combobox"
                 aria-expanded={true}
                 aria-controls="bulk-category-listbox"
@@ -122,8 +122,10 @@ export function BulkEditBar({
                       setSearch('');
                       setActiveIndex(-1);
                     }}
-                    className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-700 ${
-                      index === activeIndex ? 'bg-blue-50 text-blue-700' : ''
+                    className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
+                      index === activeIndex
+                        ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                        : ''
                     }`}
                   >
                     {cat}

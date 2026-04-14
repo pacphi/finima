@@ -26,7 +26,7 @@ export function AppLayout() {
       {/* Skip to main content link for keyboard users */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-[var(--color-primary)] focus:text-white focus:rounded-lg focus:text-sm focus:font-medium"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-[var(--color-primary)] focus:text-white focus:rounded-xl focus:text-sm focus:font-medium"
       >
         Skip to main content
       </a>
@@ -39,7 +39,6 @@ export function AppLayout() {
           className="flex-1 overflow-auto bg-[var(--color-surface)]"
           tabIndex={-1}
         >
-          {/* Responsive wrapper: tables get horizontal scroll on mobile */}
           <div className="min-w-0">
             <Outlet />
           </div>

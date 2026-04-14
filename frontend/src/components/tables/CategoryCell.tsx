@@ -68,7 +68,7 @@ export function CategoryCell({
             ⚠️
           </span>
         )}
-        <span className="group-hover:text-blue-600 transition-colors">
+        <span className="group-hover:text-[var(--color-primary)] transition-colors">
           {value ?? 'Uncategorized'}
         </span>
         {isLowConfidence && <span className="sr-only"> (low confidence)</span>}
@@ -91,7 +91,7 @@ export function CategoryCell({
           setActiveIndex(-1);
         }}
         placeholder="Search categories..."
-        className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full px-2 py-1 text-sm border border-[var(--color-primary)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
         role="combobox"
         aria-expanded={true}
         aria-controls="category-listbox"
@@ -134,8 +134,10 @@ export function CategoryCell({
           >
             <button
               onClick={() => handleSelect(cat)}
-              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-700 ${
-                index === activeIndex ? 'bg-blue-50 text-blue-700' : ''
+              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
+                index === activeIndex
+                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                  : ''
               }`}
               tabIndex={-1}
             >
