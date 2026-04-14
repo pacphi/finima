@@ -213,20 +213,22 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
         aria-label="File drop zone. Drop a file or press Enter to browse. Supported formats: CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX."
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           !llmReady
-            ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60'
+            ? 'border-[var(--color-border)] bg-[var(--color-surface)] cursor-not-allowed opacity-60'
             : isDragActive
               ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)] cursor-pointer'
-              : 'border-[var(--color-input-border)] hover:border-slate-400 cursor-pointer'
+              : 'border-[var(--color-input-border)] hover:border-[var(--color-text-secondary)] cursor-pointer'
         }`}
       >
         <input {...getInputProps()} aria-label="Choose file to upload" />
         <div className="text-4xl mb-2" aria-hidden="true">
           📁
         </div>
-        <p className="text-sm font-medium text-slate-700">
+        <p className="text-sm font-medium text-[var(--color-text)]">
           {isDragActive ? 'Drop the file here' : 'Drop file or click to browse'}
         </p>
-        <p className="text-xs text-slate-500 mt-1">CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX</p>
+        <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+          CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX
+        </p>
       </div>
 
       {error && (
@@ -240,10 +242,10 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
       )}
 
       {file && !uploading && !upload && (
-        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg">
           <div>
-            <p className="text-sm font-medium text-slate-800">{file.name}</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm font-medium text-[var(--color-text)]">{file.name}</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">
               {formatFileSize(file.size)}
               {detectedFormat && (
                 <span className="ml-2 inline-block px-1.5 py-0.5 badge-primary rounded text-xs font-medium uppercase">
@@ -268,12 +270,12 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
 
       {uploading && (
         <div className="space-y-2" aria-live="polite">
-          <div className="flex items-center justify-between text-sm text-slate-600">
+          <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
             <span>Uploading...</span>
             <span>{uploadProgress}%</span>
           </div>
           <div
-            className="w-full bg-slate-200 rounded-full h-2"
+            className="w-full bg-[var(--color-border)] rounded-full h-2"
             role="progressbar"
             aria-valuenow={uploadProgress}
             aria-valuemin={0}

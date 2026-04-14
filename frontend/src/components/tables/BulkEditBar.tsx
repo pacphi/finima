@@ -69,18 +69,18 @@ export function BulkEditBar({
           onClick={() => setShowCategoryPicker(!showCategoryPicker)}
           aria-expanded={showCategoryPicker}
           aria-haspopup="listbox"
-          className="px-3 py-1.5 text-sm bg-white border border-[var(--color-primary-muted)] rounded-lg hover:bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium"
+          className="px-3 py-1.5 text-sm bg-[var(--color-card)] border border-[var(--color-primary-muted)] rounded-lg hover:bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium"
         >
           Change Category
         </button>
 
         {showCategoryPicker && (
           <div
-            className="absolute z-50 top-full left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg"
+            className="absolute z-50 top-full left-0 mt-1 w-64 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-lg"
             role="dialog"
             aria-label="Select a category"
           >
-            <div className="p-2 border-b border-slate-100">
+            <div className="p-2 border-b border-[var(--color-border)]">
               <label htmlFor="bulk-category-search" className="sr-only">
                 Search categories
               </label>
@@ -134,7 +134,7 @@ export function BulkEditBar({
               ))}
               {filtered.length === 0 && (
                 <li
-                  className="px-3 py-2 text-sm text-slate-400"
+                  className="px-3 py-2 text-sm text-[var(--color-text-secondary)]"
                   role="option"
                   aria-selected={false}
                   aria-disabled={true}
@@ -147,7 +147,10 @@ export function BulkEditBar({
         )}
       </div>
 
-      <button onClick={onClearSelection} className="text-sm text-slate-500 hover:text-slate-700">
+      <button
+        onClick={onClearSelection}
+        className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+      >
         Clear selection
       </button>
     </div>

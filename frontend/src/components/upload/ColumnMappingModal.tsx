@@ -96,19 +96,19 @@ export function ColumnMappingModal({
       tabIndex={-1}
     >
       <div className="flex items-center justify-between">
-        <h3 id="column-mapping-title" className="text-lg font-semibold text-slate-800">
+        <h3 id="column-mapping-title" className="text-lg font-semibold text-[var(--color-text)]">
           {modalTitle}
         </h3>
         <button
           onClick={onCancel}
-          className="text-sm text-slate-500 hover:text-slate-700"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
           aria-label="Cancel import"
         >
           Cancel
         </button>
       </div>
 
-      <div className="text-sm text-slate-600">
+      <div className="text-sm text-[var(--color-text-secondary)]">
         <span className="font-medium">{preview.file_name}</span>
         <span className="ml-2 inline-block px-1.5 py-0.5 badge-primary rounded text-xs font-medium uppercase">
           {preview.file_format}
@@ -117,28 +117,28 @@ export function ColumnMappingModal({
       </div>
 
       {!isAutoMapped && (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
+        <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
           <table className="w-full text-sm" aria-label="Column mapping configuration">
-            <thead className="bg-slate-50">
+            <thead className="bg-[var(--color-surface)]">
               <tr>
                 <th
                   scope="col"
-                  className="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase"
+                  className="text-left px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] uppercase"
                 >
                   File Column
                 </th>
                 <th
                   scope="col"
-                  className="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase"
+                  className="text-left px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] uppercase"
                 >
                   Maps To
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {preview.headers.map((header) => (
                 <tr key={header}>
-                  <td className="px-3 py-2 font-mono text-slate-700">{header}</td>
+                  <td className="px-3 py-2 font-mono text-[var(--color-text)]">{header}</td>
                   <td className="px-3 py-2">
                     <label htmlFor={`mapping-${header}`} className="sr-only">
                       Map column "{header}" to
@@ -165,29 +165,29 @@ export function ColumnMappingModal({
 
       {/* Preview table */}
       <div>
-        <h4 className="text-sm font-medium text-slate-600 mb-2">
+        <h4 className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
           Preview (first {previewRows.length} rows)
         </h4>
-        <div className="border border-slate-200 rounded-lg overflow-x-auto">
+        <div className="border border-[var(--color-border)] rounded-lg overflow-x-auto">
           <table className="w-full text-sm" aria-label="Data preview">
-            <thead className="bg-slate-50">
+            <thead className="bg-[var(--color-surface)]">
               <tr>
                 {preview.headers.map((h) => (
                   <th
                     key={h}
                     scope="col"
-                    className="text-left px-3 py-2 text-xs font-medium text-slate-500 whitespace-nowrap"
+                    className="text-left px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] whitespace-nowrap"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--color-border)]">
               {previewRows.map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? '' : 'bg-slate-50'}>
+                <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--color-surface)]'}>
                   {row.map((cell, j) => (
-                    <td key={j} className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                    <td key={j} className="px-3 py-2 text-[var(--color-text)] whitespace-nowrap">
                       {cell}
                     </td>
                   ))}
@@ -199,12 +199,12 @@ export function ColumnMappingModal({
       </div>
 
       {preview.date_format && (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-[var(--color-text-secondary)]">
           Date format detected: <span className="font-mono font-medium">{preview.date_format}</span>
         </p>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      <label className="flex items-center gap-2 text-sm text-[var(--color-text)]">
         <input
           type="checkbox"
           checked={skipDuplicates}
@@ -227,7 +227,7 @@ export function ColumnMappingModal({
       <div className="flex justify-end gap-3">
         <button
           onClick={onCancel}
-          className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
+          className="px-4 py-2 text-[var(--color-text-secondary)] border border-[var(--color-border)] text-sm font-medium rounded-lg hover:bg-[var(--color-primary-subtle)] transition-colors"
         >
           Cancel
         </button>

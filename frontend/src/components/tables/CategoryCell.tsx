@@ -123,7 +123,7 @@ export function CategoryCell({
         id="category-listbox"
         role="listbox"
         aria-label="Available categories"
-        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-lg"
       >
         {filtered.map((cat, index) => (
           <li
@@ -147,7 +147,7 @@ export function CategoryCell({
         ))}
         {filtered.length === 0 && (
           <li
-            className="px-3 py-2 text-sm text-slate-400"
+            className="px-3 py-2 text-sm text-[var(--color-text-secondary)]"
             role="option"
             aria-selected={false}
             aria-disabled={true}

@@ -343,7 +343,7 @@ export function Sidebar() {
                       role="menuitem"
                       aria-disabled="true"
                       title="Waiting for AI model to load"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 cursor-not-allowed select-none"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--color-text-secondary)] cursor-not-allowed select-none"
                     >
                       <span className="opacity-40">{item.icon}</span>
                       {item.label}
@@ -361,7 +361,7 @@ export function Sidebar() {
                       `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                         isActive
                           ? 'bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)] font-medium shadow-sm'
-                          : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-slate-200'
+                          : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white'
                       }`
                     }
                   >
@@ -386,7 +386,7 @@ const STATUS_CONFIG: Record<LlmStatus, { dot: string; label: string; animate?: b
   loading: { dot: 'bg-amber-400', label: 'AI model loading', animate: true },
   ready: { dot: 'bg-[var(--color-success)]', label: 'AI model ready' },
   failed: { dot: 'bg-red-400', label: 'AI model failed to load' },
-  unknown: { dot: 'bg-slate-500', label: 'Checking AI status', animate: true },
+  unknown: { dot: 'bg-[var(--color-text-secondary)]', label: 'Checking AI status', animate: true },
 };
 
 function LlmStatusIndicator({ status }: { status: LlmStatus }) {
@@ -396,7 +396,7 @@ function LlmStatusIndicator({ status }: { status: LlmStatus }) {
       className="mx-3 mb-4 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]"
       aria-live="polite"
     >
-      <div className="flex items-center gap-2.5 text-xs text-slate-500">
+      <div className="flex items-center gap-2.5 text-xs text-[var(--color-text-secondary)]">
         <span
           className={`inline-block w-2 h-2 rounded-full ${cfg.dot} ${cfg.animate ? 'animate-pulse' : ''}`}
           aria-hidden="true"

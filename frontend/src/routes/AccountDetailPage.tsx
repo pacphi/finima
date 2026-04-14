@@ -182,37 +182,43 @@ export function AccountDetailPage() {
 
   if (!account && loading) {
     return (
-      <div className="p-6">
-        <div className="text-center py-12 text-slate-400">Loading account...</div>
+      <div className="p-6 lg:p-8">
+        <div className="text-center py-12 text-[var(--color-text-secondary)]">
+          Loading account...
+        </div>
       </div>
     );
   }
 
   if (!account) {
     return (
-      <div className="p-6">
-        <div className="text-center py-12 text-slate-400">Account not found</div>
+      <div className="p-6 lg:p-8">
+        <div className="text-center py-12 text-[var(--color-text-secondary)]">
+          Account not found
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       {/* Account summary card */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-[var(--color-border)] p-6 shadow-[var(--card-shadow)]">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
               <span className="text-2xl">{ACCOUNT_TYPE_ICONS[account.account_type]}</span>
               <div>
-                <h1 className="text-2xl font-bold text-slate-800">{account.name}</h1>
+                <h1 className="text-2xl font-bold text-[var(--color-text)] tracking-tight">
+                  {account.name}
+                </h1>
                 {account.institution && (
-                  <p className="text-sm text-slate-500">{account.institution}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    {account.institution}
+                  </p>
                 )}
               </div>
-              <span className="inline-block px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 rounded-full">
-                {ACCOUNT_TYPE_LABELS[account.account_type]}
-              </span>
+              <span className="badge-primary">{ACCOUNT_TYPE_LABELS[account.account_type]}</span>
             </div>
           </div>
           <button onClick={() => setShowUpload(!showUpload)} className="btn-primary text-sm">
@@ -222,9 +228,11 @@ export function AccountDetailPage() {
 
         <div className="mt-4 grid grid-cols-3 gap-6">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase">Balance</p>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+              Balance
+            </p>
             <p
-              className={`text-xl font-bold ${account.current_balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}
+              className={`text-xl font-bold ${account.current_balance >= 0 ? 'text-[var(--color-text)]' : 'text-[var(--color-error)]'}`}
             >
               {formatCurrency(account.current_balance)}
               <span className="sr-only">
@@ -233,20 +241,28 @@ export function AccountDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase">Last Import</p>
-            <p className="text-sm text-slate-700">{formatDate(account.last_import_at)}</p>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+              Last Import
+            </p>
+            <p className="text-sm text-[var(--color-text)]">{formatDate(account.last_import_at)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase">Transactions</p>
-            <p className="text-sm text-slate-700">{account.transaction_count.toLocaleString()}</p>
+            <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+              Transactions
+            </p>
+            <p className="text-sm text-[var(--color-text)]">
+              {account.transaction_count.toLocaleString()}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Upload section */}
       {showUpload && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Import Transactions</h2>
+        <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-[var(--color-border)] p-6 shadow-[var(--card-shadow)]">
+          <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">
+            Import Transactions
+          </h2>
           <FileUpload
             accountId={account.id}
             onImportComplete={() => {
@@ -258,8 +274,8 @@ export function AccountDetailPage() {
       )}
 
       {/* Balance over time chart */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">Balance Over Time</h2>
+      <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-[var(--color-border)] p-6 shadow-[var(--card-shadow)]">
+        <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">Balance Over Time</h2>
         <div
           role="img"
           aria-label={
@@ -270,13 +286,19 @@ export function AccountDetailPage() {
         >
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData.length > 0 ? chartData : [{ month: '', balance: 0 }]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
+              <YAxis tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
               <Tooltip
                 formatter={(value) =>
                   Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
                 }
+                contentStyle={{
+                  backgroundColor: 'var(--color-surface)',
+                  borderColor: 'var(--color-border)',
+                  borderRadius: '12px',
+                  color: 'var(--color-text)',
+                }}
               />
               <Line
                 type="monotone"
@@ -288,7 +310,7 @@ export function AccountDetailPage() {
             </LineChart>
           </ResponsiveContainer>
           {chartData.length === 0 && (
-            <p className="text-xs text-slate-400 text-center mt-2">
+            <p className="text-xs text-[var(--color-text-secondary)] text-center mt-2">
               Chart will populate with real data after importing transactions
             </p>
           )}
@@ -296,8 +318,8 @@ export function AccountDetailPage() {
       </div>
 
       {/* Transaction table */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">Transactions</h2>
+      <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-[var(--color-border)] p-6 shadow-[var(--card-shadow)]">
+        <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">Transactions</h2>
         <TransactionTable
           transactions={transactions}
           total={total}

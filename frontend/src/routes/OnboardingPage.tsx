@@ -155,12 +155,12 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-surface)]">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-800">Welcome to Finima</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-[var(--color-text)]">Welcome to Finima</h1>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1">
             Step {step + 1} of {STEPS.length}
           </p>
         </div>
@@ -187,13 +187,13 @@ export function OnboardingPage() {
                         ? 'bg-[var(--color-primary)] text-white'
                         : i === step
                           ? 'bg-[var(--color-primary)] text-white'
-                          : 'bg-slate-200 text-slate-500'
+                          : 'bg-[var(--color-border)] text-[var(--color-text-secondary)]'
                     }`}
                     aria-hidden="true"
                   >
                     {i < step ? '\u2713' : i + 1}
                   </div>
-                  <span className="text-xs text-slate-500 mt-1">
+                  <span className="text-xs text-[var(--color-text-secondary)] mt-1">
                     {label}
                     <span className="sr-only">
                       {i < step ? ' (completed)' : i === step ? ' (current)' : ' (upcoming)'}
@@ -206,7 +206,7 @@ export function OnboardingPage() {
         </nav>
 
         {/* Step content */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <div className="bg-[var(--color-card)] rounded-lg shadow-sm border border-[var(--color-border)] p-6">
           {error && (
             <div
               className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
@@ -220,14 +220,16 @@ export function OnboardingPage() {
           {/* Step 1: Profile */}
           {step === 0 && (
             <form onSubmit={profileForm.handleSubmit(handleProfileNext)} className="space-y-4">
-              <h2 className="text-lg font-semibold text-slate-800">Set Up Your Profile</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                Set Up Your Profile
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 Tell us a bit about yourself to personalize your experience.
               </p>
               <div>
                 <label
                   htmlFor="onb-display-name"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Display Name
                 </label>
@@ -251,7 +253,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-currency"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Currency
                 </label>
@@ -271,7 +273,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-date-format"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Date Format
                 </label>
@@ -299,14 +301,16 @@ export function OnboardingPage() {
           {/* Step 2: Portfolio */}
           {step === 1 && (
             <form onSubmit={portfolioForm.handleSubmit(handlePortfolioNext)} className="space-y-4">
-              <h2 className="text-lg font-semibold text-slate-800">Create Your Portfolio</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                Create Your Portfolio
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 A portfolio groups all your accounts together.
               </p>
               <div>
                 <label
                   htmlFor="onb-portfolio-name"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Name *
                 </label>
@@ -334,7 +338,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-portfolio-desc"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Description (optional)
                 </label>
@@ -349,7 +353,7 @@ export function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(0)}
-                  className="px-6 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                  className="px-6 py-2 text-[var(--color-text-secondary)] border border-[var(--color-border)] text-sm font-medium rounded-lg hover:bg-[var(--color-primary-subtle)] transition-colors"
                 >
                   Back
                 </button>
@@ -366,14 +370,16 @@ export function OnboardingPage() {
           {/* Step 3: Account */}
           {step === 2 && (
             <form onSubmit={accountForm.handleSubmit(handleComplete)} className="space-y-4">
-              <h2 className="text-lg font-semibold text-slate-800">Add Your First Account</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                Add Your First Account
+              </h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 Set up your first bank account to start tracking.
               </p>
               <div>
                 <label
                   htmlFor="onb-acct-type"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Account Type
                 </label>
@@ -392,7 +398,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-acct-name"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Name *
                 </label>
@@ -416,7 +422,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-acct-institution"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Institution
                 </label>
@@ -430,7 +436,7 @@ export function OnboardingPage() {
               <div>
                 <label
                   htmlFor="onb-acct-balance"
-                  className="block text-sm font-medium text-slate-700 mb-1"
+                  className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider"
                 >
                   Opening Balance
                 </label>
@@ -447,7 +453,7 @@ export function OnboardingPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="px-6 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                    className="px-6 py-2 text-[var(--color-text-secondary)] border border-[var(--color-border)] text-sm font-medium rounded-lg hover:bg-[var(--color-primary-subtle)] transition-colors"
                   >
                     Back
                   </button>
@@ -455,7 +461,7 @@ export function OnboardingPage() {
                     type="button"
                     onClick={handleSkipAccount}
                     disabled={completing}
-                    className="px-6 py-2 text-slate-500 text-sm font-medium hover:text-slate-700 transition-colors"
+                    className="px-6 py-2 text-[var(--color-text-secondary)] text-sm font-medium hover:text-[var(--color-text)] transition-colors"
                   >
                     Skip
                   </button>
