@@ -120,7 +120,7 @@ export function SettingsPage() {
             className={`text-sm ${
               saveMsg.includes('Failed')
                 ? 'text-[var(--color-error)]'
-                : 'text-[var(--color-success)]'
+                : 'text-[var(--color-primary)]'
             }`}
             role="status"
             aria-live="polite"
@@ -433,7 +433,7 @@ function CategoriesTab() {
 
       {successMsg && (
         <div
-          className="p-3 text-sm bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400"
+          className="p-3 text-sm bg-[var(--color-primary-subtle)] border border-[var(--color-primary-muted)] rounded-lg text-[var(--color-primary)]"
           role="status"
         >
           {successMsg}

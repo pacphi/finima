@@ -47,9 +47,14 @@ function applyAccentColor(color: string) {
   root.style.setProperty('--color-primary-subtle', `rgba(${r}, ${g}, ${b}, 0.08)`);
   root.style.setProperty('--color-primary-muted', `rgba(${r}, ${g}, ${b}, 0.4)`);
 
+  // Sidebar active state
+  root.style.setProperty('--sidebar-active', `rgba(${r}, ${g}, ${b}, 0.12)`);
+  root.style.setProperty('--sidebar-active-text', color);
+
   // Badge colors adapt to light/dark mode
   const isDark = root.classList.contains('dark');
   if (isDark) {
+    root.style.setProperty('--sidebar-active', `rgba(${r}, ${g}, ${b}, 0.1)`);
     root.style.setProperty('--color-primary-badge-bg', `rgba(${r}, ${g}, ${b}, 0.15)`);
     root.style.setProperty('--color-primary-badge-text', adjustBrightness(color, 40));
   } else {
