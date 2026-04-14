@@ -4,7 +4,7 @@ import { ResponsiveGridLayout, useContainerWidth } from 'react-grid-layout';
 import { useApi } from '@/hooks/useApi';
 import { createDashboardApi } from '@/api/dashboard';
 import { createBudgetApi } from '@/api/budgets';
-import { formatCurrencyCompact as formatCurrency } from '@/utils/format';
+import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
 import { NetWorthChart } from '@/components/charts/NetWorthChart';
 import { CashFlowChart } from '@/components/charts/CashFlowChart';
 import { SpendingDonut } from '@/components/charts/SpendingDonut';
@@ -63,7 +63,7 @@ function loadSavedLayouts(): ResponsiveLayouts | null {
 
 function WidgetCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300">
+    <div className="flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 pb-3 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300 overflow-y-auto overflow-x-hidden">
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
         {title}
       </h3>
@@ -111,9 +111,11 @@ export function DashboardPage() {
   const [netWorthData, setNetWorthData] = useState<NetWorthPoint[]>([]);
   const [cashflowData, setCashflowData] = useState<MonthlyCashFlow[]>([]);
   const [spendingData, setSpendingData] = useState<CategorySpend[]>([]);
+  const [spendingMode, setSpendingMode] = useState<'month' | 'all'>('month');
   const [budgetData, setBudgetData] = useState<BudgetVsActual[]>([]);
   const [healthData, setHealthData] = useState<HealthScore | null>(null);
   const [upcomingBills, setUpcomingBills] = useState<RecurringGroup[]>([]);
+  const [billsMode, setBillsMode] = useState<'expenses' | 'income'>('expenses');
   const [layouts, setLayouts] = useState<ResponsiveLayouts>(
     () => loadSavedLayouts() ?? DEFAULT_LAYOUTS,
   );
@@ -152,6 +154,19 @@ export function DashboardPage() {
 
     void loadData();
   }, [dashboardApi, budgetApi, api]);
+
+  useEffect(() => {
+    async function loadSpending() {
+      try {
+        const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
+        const data = await dashboardApi.getSpending(month);
+        setSpendingData(data);
+      } catch {
+        // handled by empty state
+      }
+    }
+    if (!loading) void loadSpending();
+  }, [spendingMode, dashboardApi, loading]);
 
   const handleLayoutChange = useCallback(
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
@@ -348,46 +363,108 @@ export function DashboardPage() {
           <div key="spending">
             <WidgetCard title="Spending by Category">
               <div className="widget-drag-handle cursor-grab" />
+              <div className="mb-2 flex gap-1">
+                <button
+                  onClick={() => setSpendingMode('month')}
+                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                    spendingMode === 'month'
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => setSpendingMode('all')}
+                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                    spendingMode === 'all'
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  All Time
+                </button>
+              </div>
               {spendingData.length > 0 ? (
                 <SpendingDonut data={spendingData} onCategoryClick={handleCategoryClick} />
               ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No spending data yet</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  {spendingMode === 'month'
+                    ? 'No spending data for the current month'
+                    : 'No spending data yet'}
+                </p>
               )}
             </WidgetCard>
           </div>
 
           <div key="bills">
-            <WidgetCard title="Upcoming Bills">
+            <WidgetCard title="Upcoming">
               <div className="widget-drag-handle cursor-grab" />
-              {upcomingBills.length > 0 ? (
-                <ul className="space-y-2">
-                  {upcomingBills.map((bill) => (
-                    <li
-                      key={bill.id}
-                      className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
-                    >
-                      <div>
-                        <span className="text-sm font-medium text-[var(--color-text)]">
-                          {bill.merchant_name}
+              <div className="mb-2 flex gap-1">
+                <button
+                  onClick={() => setBillsMode('expenses')}
+                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                    billsMode === 'expenses'
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  Expenses
+                </button>
+                <button
+                  onClick={() => setBillsMode('income')}
+                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                    billsMode === 'income'
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  Income
+                </button>
+              </div>
+              {(() => {
+                const NON_INCOME_CATEGORIES = new Set(['transfer', 'debt_payment', 'investment']);
+                const filtered = upcomingBills.filter((b) =>
+                  billsMode === 'income'
+                    ? b.avg_amount > 0 && !NON_INCOME_CATEGORIES.has(b.category ?? '')
+                    : b.avg_amount < 0,
+                );
+                return filtered.length > 0 ? (
+                  <ul className="space-y-2">
+                    {filtered.map((bill) => (
+                      <li
+                        key={bill.id}
+                        className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
+                      >
+                        <div>
+                          <span className="text-sm font-medium text-[var(--color-text)]">
+                            {toTitleCase(bill.merchant_name)}
+                          </span>
+                          <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
+                            {bill.next_expected_date
+                              ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })
+                              : ''}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-sm font-semibold ${
+                            billsMode === 'income' ? 'text-green-400' : 'text-[var(--color-text)]'
+                          }`}
+                        >
+                          {formatCurrency(Math.abs(bill.avg_amount))}
                         </span>
-                        <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
-                          {bill.next_expected_date
-                            ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : ''}
-                        </span>
-                      </div>
-                      <span className="text-sm font-semibold text-[var(--color-text)]">
-                        {formatCurrency(Math.abs(bill.average_amount))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No upcoming bills</p>
-              )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    No upcoming {billsMode}
+                  </p>
+                );
+              })()}
             </WidgetCard>
           </div>
 

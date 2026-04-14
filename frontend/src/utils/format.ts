@@ -62,3 +62,14 @@ export function formatDate(date: string | Date): string {
   // Default MM/DD/YYYY
   return d.toLocaleDateString('en-US', getDateOptions(dateFormat));
 }
+
+/**
+ * Convert a snake_case, kebab-case, or lowercase string to Title Case.
+ * e.g. "debt_payment" → "Debt Payment", "bank of america visa" → "Bank Of America Visa"
+ */
+export function toTitleCase(value: string): string {
+  return value
+    .split(/[_\s-]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}

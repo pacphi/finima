@@ -28,7 +28,9 @@ export function TransactionsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  const [filters, setFilters] = useState<TransactionFilters>(() =>
+    activePortfolioId ? { portfolio_id: activePortfolioId } : {},
+  );
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +45,14 @@ export function TransactionsPage() {
   } | null>(null);
   const categorizePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // When activePortfolioId becomes available, inject it into filters so the
+  // global transactions view fetches across all accounts in the portfolio.
+  useEffect(() => {
+    if (activePortfolioId) {
+      setFilters((prev) => ({ ...prev, portfolio_id: activePortfolioId }));
+    }
+  }, [activePortfolioId]);
+
   useEffect(() => {
     if (storedAccounts.length > 0) {
       setAccounts(storedAccounts);
@@ -52,6 +62,9 @@ export function TransactionsPage() {
   }, [activePortfolioId, storedAccounts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTransactions = useCallback(async () => {
+    // The backend requires at least portfolio_id or account_id.
+    if (!filters.portfolio_id && !filters.account_id) return;
+
     setLoading(true);
     try {
       const sortCol = sorting[0];
@@ -309,7 +322,7 @@ export function TransactionsPage() {
           onSortingChange={setSorting}
           onPageChange={setPage}
           onFiltersChange={(f) => {
-            setFilters(f);
+            setFilters(activePortfolioId ? { ...f, portfolio_id: activePortfolioId } : f);
             setPage(1);
           }}
           onCategoryChange={handleCategoryChange}

@@ -76,7 +76,7 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
 
   return (
     <div role="img" aria-label={summary}>
-      <ResponsiveContainer width="100%" height={250}>
+      <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis

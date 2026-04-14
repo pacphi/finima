@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { createBudgetApi } from '@/api/budgets';
 import { createSavingsGoalApi } from '@/api/savingsGoals';
-import { formatCurrencyCompact as formatCurrency } from '@/utils/format';
+import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
 import { BudgetProgress } from '@/components/charts/BudgetProgress';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import type { Budget, BudgetVsActual, BudgetSuggestion, SavingsGoal } from '@/types/models';
@@ -225,7 +225,7 @@ export function BudgetPage() {
             {suggestions.map((s) => (
               <div key={s.category} className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm text-[var(--color-text)]">{s.category}</span>
+                  <span className="text-sm text-[var(--color-text)]">{toTitleCase(s.category)}</span>
                   <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
                     Avg: {formatCurrency(s.avg_monthly)} → Suggested:{' '}
                     {formatCurrency(s.suggested_limit)}
@@ -327,7 +327,7 @@ export function BudgetPage() {
             <tbody>
               {budgetData.map((b) => (
                 <tr key={b.category} className="border-b border-[var(--color-border)]">
-                  <td className="px-4 py-3 text-[var(--color-text)]">{b.category}</td>
+                  <td className="px-4 py-3 text-[var(--color-text)]">{toTitleCase(b.category)}</td>
                   <td className="px-4 py-3 text-right text-[var(--color-text)]">
                     {editingCategory === b.category ? (
                       <input

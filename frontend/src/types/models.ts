@@ -108,19 +108,14 @@ export interface Upload {
 
 export interface RecurringGroup {
   id: string;
-  user_id: string;
+  portfolio_id: string;
   merchant_name: string;
-  normalized_name: string;
   category: string | null;
-  average_amount: number;
   frequency: Frequency;
-  last_date: string;
-  next_expected_date: string | null;
+  avg_amount: number;
   is_confirmed: boolean;
-  is_income: boolean;
-  confidence: number;
-  created_at: string;
-  updated_at: string;
+  next_expected_date: string | null;
+  metadata: Record<string, unknown>;
 }
 
 export interface Budget {
@@ -177,6 +172,7 @@ export interface TransactionFilters {
   date_from?: string;
   date_to?: string;
   account_id?: string;
+  portfolio_id?: string;
   category?: string;
   search?: string;
   amount_min?: number;

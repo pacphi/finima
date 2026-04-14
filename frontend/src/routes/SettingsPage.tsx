@@ -581,22 +581,61 @@ function CategoriesTab() {
 
 function LlmTab() {
   const config = useConfigStore.getState();
-  // The LLM connection status would normally come from a health check endpoint.
-  // For now, display the configured values and a placeholder status.
-  const [status, setStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [llmStatus, setLlmStatus] = useState<
+    'checking' | 'ready' | 'loading' | 'failed' | 'unreachable'
+  >('checking');
+  const [provider, setProvider] = useState<string>('');
+  const [model, setModel] = useState<string>('');
+  const [endpoint, setEndpoint] = useState<string>('');
 
-  // Check connection on mount.
+  // Fetch LLM info from the health endpoint on mount.
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/api/health`);
-        setStatus(response.ok ? 'connected' : 'disconnected');
+        const response = await fetch(`${config.apiBaseUrl}/health`);
+        if (response.ok) {
+          const data = await response.json();
+          setProvider(data.llm_provider ?? '');
+          setModel(data.llm_model ?? '');
+          setEndpoint(data.llm_endpoint ?? '');
+          const status = data.llm as string;
+          if (status === 'ready') setLlmStatus('ready');
+          else if (status === 'loading') setLlmStatus('loading');
+          else setLlmStatus('failed');
+        } else {
+          setLlmStatus('unreachable');
+        }
       } catch {
-        setStatus('disconnected');
+        setLlmStatus('unreachable');
       }
     };
     void checkConnection();
   }, [config.apiBaseUrl]);
+
+  const providerLabel =
+    provider === 'ollama'
+      ? 'Ollama'
+      : provider === 'candle'
+        ? 'Candle (in-process)'
+        : provider || '—';
+
+  const statusColor =
+    llmStatus === 'ready'
+      ? 'bg-[var(--color-success)]'
+      : llmStatus === 'loading'
+        ? 'bg-yellow-400 animate-pulse'
+        : 'bg-[var(--color-error)]';
+
+  const statusLabel =
+    llmStatus === 'ready'
+      ? 'Connected'
+      : llmStatus === 'loading'
+        ? 'Loading model…'
+        : llmStatus === 'failed'
+          ? 'Failed to load'
+          : llmStatus === 'unreachable'
+            ? 'Server unreachable'
+            : 'Checking…';
 
   return (
     <div className="space-y-6 max-w-md">
@@ -613,14 +652,14 @@ function LlmTab() {
             Provider
           </label>
           <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
-            Candle / Ollama
+            {llmStatus === 'checking' ? 'Loading…' : providerLabel}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Model</label>
           <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
-            gemma-4 (configured on server)
+            {llmStatus === 'checking' ? 'Loading…' : model || '—'}
           </div>
         </div>
 
@@ -629,7 +668,7 @@ function LlmTab() {
             Endpoint URL
           </label>
           <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
-            {config.apiBaseUrl || 'http://localhost:11434'}
+            {llmStatus === 'checking' ? 'Loading…' : endpoint || '—'}
           </div>
         </div>
 
@@ -641,23 +680,8 @@ function LlmTab() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg"
             aria-live="polite"
           >
-            <span
-              className={`w-3 h-3 rounded-full ${
-                status === 'connected'
-                  ? 'bg-[var(--color-success)]'
-                  : status === 'disconnected'
-                    ? 'bg-[var(--color-error)]'
-                    : 'bg-yellow-400 animate-pulse'
-              }`}
-              aria-hidden="true"
-            />
-            <span className="text-[var(--color-text)]">
-              {status === 'connected'
-                ? 'Connected'
-                : status === 'disconnected'
-                  ? 'Disconnected'
-                  : 'Checking...'}
-            </span>
+            <span className={`w-3 h-3 rounded-full ${statusColor}`} aria-hidden="true" />
+            <span className="text-[var(--color-text)]">{statusLabel}</span>
           </div>
         </div>
       </div>

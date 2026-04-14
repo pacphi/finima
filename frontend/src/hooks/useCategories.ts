@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApi } from './useApi';
 import { createCategoryApi, type CategoryEntry } from '@/api/categories';
+import { toTitleCase } from '@/utils/format';
 
 /** Map from category key (e.g. "food_dining") to display label (e.g. "Food & Dining"). */
 export type CategoryMap = Record<string, string>;
@@ -60,8 +61,5 @@ export function categoryLabel(key: string | null, map: CategoryMap): string {
   if (!key) return 'Uncategorized';
   if (map[key]) return map[key];
   // Fallback: convert snake_case to Title Case
-  return key
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  return toTitleCase(key);
 }

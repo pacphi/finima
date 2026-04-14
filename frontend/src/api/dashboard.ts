@@ -16,8 +16,10 @@ export function createDashboardApi(api: { get: <T>(path: string) => Promise<T> }
     getCashflow: (months: number = 12) =>
       api.get<MonthlyCashFlow[]>(`/api/dashboard/cashflow?months=${months}`),
 
-    getSpending: (month: string) =>
-      api.get<CategorySpend[]>(`/api/dashboard/spending?month=${month}`),
+    getSpending: (month?: string) =>
+      api.get<CategorySpend[]>(
+        month ? `/api/dashboard/spending?month=${month}` : '/api/dashboard/spending',
+      ),
 
     getHealthScore: () => api.get<HealthScore>('/api/dashboard/health-score'),
   };

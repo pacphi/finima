@@ -14,6 +14,7 @@ import { FlowsPage } from './FlowsPage';
 import { BudgetPage } from './BudgetPage';
 import { GoalsPage } from './GoalsPage';
 import { NewsPage } from './NewsPage';
+import { PortfoliosPage } from './PortfoliosPage';
 import { SettingsPage } from './SettingsPage';
 import type { ReactNode } from 'react';
 
@@ -58,6 +59,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
+        <Route path="/portfolios" element={<PortfoliosPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/accounts/:id" element={<AccountDetailPage />} />

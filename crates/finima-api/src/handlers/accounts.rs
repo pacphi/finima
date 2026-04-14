@@ -62,7 +62,8 @@ pub struct AccountDetailResponse {
 /// GET /api/accounts?portfolio_id=
 ///
 /// List all non-archived accounts for a portfolio. Verifies the authenticated
-/// user owns the portfolio.
+/// user owns the portfolio. Returns enriched data including computed balances,
+/// transaction counts, and last import dates.
 pub async fn list_accounts(
     user: AuthUser,
     State(state): State<AppState>,
@@ -78,7 +79,42 @@ pub async fn list_accounts(
         .list_by_portfolio(params.portfolio_id)
         .await?;
 
-    Ok(Json(accounts))
+    let mut results = Vec::with_capacity(accounts.len());
+    for account in accounts {
+        let id = account.id;
+
+        let computed_balance = state.account_repo().compute_balance(id).await?;
+
+        let transaction_count = sqlx::query_scalar::<_, Option<i64>>(
+            "SELECT COUNT(*) FROM transactions WHERE account_id = $1",
+        )
+        .bind(id)
+        .fetch_one(state.pool())
+        .await
+        .unwrap_or(None)
+        .unwrap_or(0);
+
+        let last_import_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+            r#"
+            SELECT MAX(u.uploaded_at)
+            FROM uploads u
+            WHERE u.account_id = $1 AND u.status IN ('complete', 'categorizing')
+            "#,
+        )
+        .bind(id)
+        .fetch_one(state.pool())
+        .await
+        .unwrap_or(None);
+
+        results.push(AccountDetailResponse {
+            account,
+            computed_balance,
+            transaction_count,
+            last_import_at,
+        });
+    }
+
+    Ok(Json(results))
 }
 
 /// POST /api/accounts

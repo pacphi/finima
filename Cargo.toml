@@ -51,7 +51,7 @@ tracing-appender = "0.2"
 # Date/time, UUID, Decimal
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal = { version = "1", features = ["serde-float"] }
 
 # Configuration
 config = "0.15"

@@ -23,8 +23,9 @@ export function createTransactionApi(api: {
       if (filters.date_from) params.set('date_from', filters.date_from);
       if (filters.date_to) params.set('date_to', filters.date_to);
       if (filters.account_id) params.set('account_id', filters.account_id);
+      if (filters.portfolio_id) params.set('portfolio_id', filters.portfolio_id);
       if (filters.category) params.set('category', filters.category);
-      if (filters.search) params.set('search', filters.search);
+      if (filters.search) params.set('search_text', filters.search);
       if (filters.amount_min !== undefined) params.set('amount_min', String(filters.amount_min));
       if (filters.amount_max !== undefined) params.set('amount_max', String(filters.amount_max));
     }
@@ -33,7 +34,7 @@ export function createTransactionApi(api: {
       params.set('per_page', String(pagination.per_page));
     }
     if (sort) {
-      params.set('sort_by', sort.sort_by);
+      params.set('sort', sort.sort_by);
       params.set('sort_dir', sort.sort_dir);
     }
     const qs = params.toString();

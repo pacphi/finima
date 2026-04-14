@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import type { CategorySpend } from '@/types/models';
+import { toTitleCase } from '@/utils/format';
 
 interface SpendingDonutProps {
   data: CategorySpend[];
@@ -40,7 +41,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   if (!entry) return null;
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-lg">
-      <p className="text-sm font-medium text-[var(--color-text)]">{entry.name}</p>
+      <p className="text-sm font-medium text-[var(--color-text)]">{toTitleCase(entry.name)}</p>
       <p className="text-sm text-[var(--color-text-secondary)]">
         {formatCurrency(entry.value)} ({entry.payload.percentage.toFixed(1)}%)
       </p>
@@ -115,7 +116,7 @@ export function SpendingDonut({ data, onCategoryClick }: SpendingDonutProps) {
                   : 'var(--color-text)';
               return (
                 <span style={{ color }} className="text-xs">
-                  {value} {item ? `${item.percentage.toFixed(0)}%` : ''}
+                  {toTitleCase(value)} {item ? `${item.percentage.toFixed(0)}%` : ''}
                 </span>
               );
             }}

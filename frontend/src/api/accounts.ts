@@ -8,10 +8,12 @@ export function createAccountApi(api: {
 }) {
   return {
     listAccounts: async (portfolioId: string): Promise<Account[]> => {
-      const raw = await api.get<Account[]>(`/api/accounts?portfolio_id=${portfolioId}`);
+      const raw = await api.get<(Account & { computed_balance?: number })[]>(
+        `/api/accounts?portfolio_id=${portfolioId}`,
+      );
       return raw.map((a) => ({
         ...a,
-        current_balance: a.current_balance ?? a.opening_balance ?? 0,
+        current_balance: a.computed_balance ?? a.current_balance ?? a.opening_balance ?? 0,
         transaction_count: a.transaction_count ?? 0,
         last_import_at: a.last_import_at ?? null,
         updated_at: a.updated_at ?? a.created_at,

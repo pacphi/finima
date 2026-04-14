@@ -246,7 +246,79 @@ pub async fn get_cashflow(
     Ok(Json(entries))
 }
 
+/// GET /api/dashboard/health-score
+pub async fn get_health_score(
+    user: AuthUser,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
+    let portfolio_id = first_portfolio_id(&user, &state).await?;
+
+    let accounts = state.account_repo().list_by_portfolio(portfolio_id).await?;
+    let txn_rows = state
+        .transaction_repo()
+        .list_for_analysis(portfolio_id, None, None)
+        .await?;
+    let txns = to_analysis(&txn_rows);
+
+    let today = Utc::now().date_naive();
+    let snapshots: Vec<AccountSnapshot> = accounts
+        .iter()
+        .map(|a| AccountSnapshot {
+            id: a.id,
+            opening_balance: a.opening_balance,
+            account_type: a.account_type,
+            is_archived: a.is_archived,
+        })
+        .collect();
+
+    let nw_series = compute_net_worth_series(&snapshots, &txns, today, today);
+    let total_assets = nw_series.first().map(|p| p.assets).unwrap_or_default();
+    let total_liabilities = nw_series.first().map(|p| p.liabilities).unwrap_or_default();
+
+    let cashflow = compute_monthly_cashflow(&txns, 1);
+    let monthly_income = cashflow.last().map(|c| c.income).unwrap_or_default();
+    let monthly_expenses = cashflow.last().map(|c| c.expenses).unwrap_or_default();
+
+    let cashflow_3 = compute_monthly_cashflow(&txns, 3);
+    let avg_expenses = if cashflow_3.is_empty() {
+        Decimal::ZERO
+    } else {
+        let total: Decimal = cashflow_3.iter().map(|c| c.expenses).sum();
+        total / Decimal::from(cashflow_3.len() as i64)
+    };
+
+    let mut liquid_savings = Decimal::ZERO;
+    for acct in &accounts {
+        if !acct.is_archived
+            && matches!(
+                acct.account_type,
+                finima_core::types::AccountType::Checking
+                    | finima_core::types::AccountType::Savings
+                    | finima_core::types::AccountType::Cash
+            )
+        {
+            let balance = state.account_repo().compute_balance(acct.id).await?;
+            liquid_savings += balance;
+        }
+    }
+
+    let last_month_expenses = cashflow.last().map(|c| c.expenses).unwrap_or_default();
+
+    let health = compute_health_score(&HealthScoreInput {
+        monthly_income,
+        monthly_expenses,
+        total_assets,
+        total_liabilities,
+        liquid_savings,
+        avg_monthly_expenses: avg_expenses,
+        last_month_expenses,
+    });
+
+    Ok(Json(health))
+}
+
 /// GET /api/dashboard/spending?month=2026-04
+/// When `month` is omitted, returns all-time spending across all transactions.
 pub async fn get_spending(
     user: AuthUser,
     State(state): State<AppState>,
@@ -254,19 +326,23 @@ pub async fn get_spending(
 ) -> Result<impl IntoResponse, AppError> {
     let portfolio_id = first_portfolio_id(&user, &state).await?;
 
-    let month = parse_month(&params.month)?;
-
-    // Get the last day of the month.
-    let end = if month.month() == 12 {
-        NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
+    let txn_rows = if let Some(ref month_str) = params.month {
+        let month = parse_month(&Some(month_str.clone()))?;
+        let end = if month.month() == 12 {
+            NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
+        } else {
+            NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
+        };
+        state
+            .transaction_repo()
+            .list_for_analysis(portfolio_id, Some(month), Some(end))
+            .await?
     } else {
-        NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
+        state
+            .transaction_repo()
+            .list_for_analysis(portfolio_id, None, None)
+            .await?
     };
-
-    let txn_rows = state
-        .transaction_repo()
-        .list_for_analysis(portfolio_id, Some(month), Some(end))
-        .await?;
 
     // Aggregate expenses by category.
     let mut by_category: std::collections::HashMap<String, Decimal> =
@@ -305,4 +381,53 @@ pub async fn get_spending(
     entries.sort_by(|a, b| b.amount.cmp(&a.amount));
 
     Ok(Json(entries))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn decimal_serializes_as_number() {
+        let summary = DashboardSummary {
+            net_worth: Decimal::from_str("12345.67").unwrap(),
+            total_assets: Decimal::from_str("50000").unwrap(),
+            total_liabilities: Decimal::from_str("37654.33").unwrap(),
+            account_count: 3,
+            monthly_income: Decimal::from_str("8000").unwrap(),
+            monthly_expenses: Decimal::from_str("5000").unwrap(),
+            savings_rate: 37.5,
+            health_score: 72,
+            upcoming_bills_count: 5,
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        println!("DashboardSummary JSON: {}", json);
+        // Verify net_worth is a number, not a string
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(
+            v["net_worth"].is_number(),
+            "net_worth should be a JSON number, got: {}",
+            v["net_worth"]
+        );
+        assert!(
+            v["total_assets"].is_number(),
+            "total_assets should be a JSON number, got: {}",
+            v["total_assets"]
+        );
+
+        let spending = SpendingEntry {
+            category: "food".into(),
+            amount: Decimal::from_str("234.56").unwrap(),
+            percentage: 15.3,
+        };
+        let json2 = serde_json::to_string(&spending).unwrap();
+        println!("SpendingEntry JSON: {}", json2);
+        let v2: serde_json::Value = serde_json::from_str(&json2).unwrap();
+        assert!(
+            v2["amount"].is_number(),
+            "amount should be a JSON number, got: {}",
+            v2["amount"]
+        );
+    }
 }

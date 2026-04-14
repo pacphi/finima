@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '@/hooks/useApi';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { formatCurrency, formatDate, toTitleCase } from '@/utils/format';
+import { useCategories, categoryLabel } from '@/hooks/useCategories';
 import type { RecurringGroup } from '@/types/models';
 
 export function RecurringPage() {
   const api = useApi();
+  const { categoryMap } = useCategories();
 
   const [groups, setGroups] = useState<RecurringGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,12 +94,6 @@ export function RecurringPage() {
                 >
                   Type
                 </th>
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)]"
-                >
-                  Confidence
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +101,7 @@ export function RecurringPage() {
                 <tr key={group.id} className="border-b border-[var(--color-border)]">
                   <td className="px-4 py-3 text-[var(--color-text)]">
                     <div>
-                      <span className="font-medium">{group.merchant_name}</span>
+                      <span className="font-medium">{toTitleCase(group.merchant_name)}</span>
                       {group.is_confirmed && (
                         <span className="ml-2 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                           Confirmed
@@ -114,13 +110,13 @@ export function RecurringPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                    {group.category ?? '--'}
+                    {group.category ? categoryLabel(group.category, categoryMap) : '--'}
                   </td>
                   <td className="px-4 py-3 capitalize text-[var(--color-text-secondary)]">
                     {group.frequency}
                   </td>
                   <td className="px-4 py-3 text-right text-[var(--color-text)]">
-                    {formatCurrency(Math.abs(group.average_amount))}
+                    {formatCurrency(Math.abs(group.avg_amount))}
                   </td>
                   <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                     {group.next_expected_date ? formatDate(group.next_expected_date) : '--'}
@@ -128,14 +124,13 @@ export function RecurringPage() {
                   <td className="px-4 py-3 text-center">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        group.is_income ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        group.avg_amount > 0
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
                       }`}
                     >
-                      {group.is_income ? 'Income' : 'Expense'}
+                      {group.avg_amount > 0 ? 'Income' : 'Expense'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-center text-[var(--color-text-secondary)]">
-                    {(group.confidence * 100).toFixed(0)}%
                   </td>
                 </tr>
               ))}

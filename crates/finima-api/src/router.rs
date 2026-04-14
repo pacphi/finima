@@ -98,6 +98,17 @@ async fn health_check(
         "loading"
     };
 
+    let llm_cfg = &state.config().llm;
+    let llm_provider = &llm_cfg.provider;
+    let llm_model = match llm_provider.as_str() {
+        "ollama" => &llm_cfg.ollama.model,
+        _ => &llm_cfg.candle.model_id,
+    };
+    let llm_endpoint = match llm_provider.as_str() {
+        "ollama" => llm_cfg.ollama.url.as_str(),
+        _ => "in-process",
+    };
+
     match sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(state.pool())
         .await
@@ -109,6 +120,9 @@ async fn health_check(
                 "version": env!("CARGO_PKG_VERSION"),
                 "db": "ok",
                 "llm": llm_status,
+                "llm_provider": llm_provider,
+                "llm_model": llm_model,
+                "llm_endpoint": llm_endpoint,
                 "feed": feed_status
             })),
         ),
@@ -119,6 +133,9 @@ async fn health_check(
                 "version": env!("CARGO_PKG_VERSION"),
                 "db": format!("error: {e}"),
                 "llm": llm_status,
+                "llm_provider": llm_provider,
+                "llm_model": llm_model,
+                "llm_endpoint": llm_endpoint,
                 "feed": feed_status
             })),
         ),
@@ -326,7 +343,8 @@ pub fn build_router(
         .route("/summary", get(dashboard::get_summary))
         .route("/net-worth", get(dashboard::get_net_worth))
         .route("/cashflow", get(dashboard::get_cashflow))
-        .route("/spending", get(dashboard::get_spending));
+        .route("/spending", get(dashboard::get_spending))
+        .route("/health-score", get(dashboard::get_health_score));
 
     // Budget routes (authentication required)
     let budget_routes = Router::new()

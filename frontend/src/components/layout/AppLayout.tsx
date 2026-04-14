@@ -5,11 +5,20 @@ import { Header } from './Header';
 import { useThemeStore } from '@/stores/themeStore';
 import { useConfigStore } from '@/stores/configStore';
 import { useHealthStore } from '@/stores/healthStore';
+import { useApi } from '@/hooks/useApi';
+import { createPortfolioApi } from '@/api/portfolios';
+import { createAccountApi } from '@/api/accounts';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 
 export function AppLayout() {
   const initTheme = useThemeStore((s) => s.initTheme);
   const apiBaseUrl = useConfigStore((s) => s.apiBaseUrl);
   const startPolling = useHealthStore((s) => s.startPolling);
+  const api = useApi();
+  const portfolios = usePortfolioStore((s) => s.portfolios);
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
+  const setPortfolios = usePortfolioStore((s) => s.setPortfolios);
+  const setAccounts = usePortfolioStore((s) => s.setAccounts);
 
   // Initialize theme on first mount.
   useEffect(() => {
@@ -20,6 +29,20 @@ export function AppLayout() {
   useEffect(() => {
     return startPolling(apiBaseUrl);
   }, [apiBaseUrl, startPolling]);
+
+  // Load portfolios once so activePortfolioId is available to all child pages.
+  useEffect(() => {
+    if (portfolios.length > 0) return;
+    const portfolioApi = createPortfolioApi(api);
+    portfolioApi.listPortfolios().then(setPortfolios).catch(console.error);
+  }, [api, portfolios.length, setPortfolios]);
+
+  // Load accounts for the active portfolio so child pages have them.
+  useEffect(() => {
+    if (!activePortfolioId) return;
+    const accountApi = createAccountApi(api);
+    accountApi.listAccounts(activePortfolioId).then(setAccounts).catch(console.error);
+  }, [api, activePortfolioId, setAccounts]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">

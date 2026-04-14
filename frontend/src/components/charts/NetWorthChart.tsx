@@ -71,8 +71,8 @@ export function NetWorthChart({ data }: NetWorthChartProps) {
 
   return (
     <div role="img" aria-label={summary}>
-      <ResponsiveContainer width="100%" height={250}>
-        <AreaChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={220}>
+        <AreaChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
           <defs>
             <linearGradient id="netWorthGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--color-accent, #3B82F6)" stopOpacity={0.3} />

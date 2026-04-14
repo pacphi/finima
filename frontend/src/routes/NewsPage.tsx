@@ -252,15 +252,37 @@ function ArticleCard({
         >
           {loadingSummary ? (
             <>
-              <svg className="w-3 h-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" />
+              <svg
+                className="w-3 h-3 animate-spin"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="8"
+                  cy="8"
+                  r="6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray="28"
+                  strokeDashoffset="8"
+                />
               </svg>
               Summarizing&hellip;
             </>
           ) : (
             <>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                  clipRule="evenodd"
+                />
               </svg>
               Get Summary
             </>

@@ -112,26 +112,26 @@ categories:
 
 The full default set:
 
-| Key               | Label            | Typical Transactions                  |
-| ----------------- | ---------------- | ------------------------------------- |
-| `housing`         | Housing          | Rent, mortgage, property tax          |
-| `transportation`  | Transportation   | Gas, parking, transit, car payment    |
-| `food_dining`     | Food & Dining    | Groceries, restaurants, coffee shops  |
-| `utilities`       | Utilities        | Electric, water, internet, phone      |
-| `healthcare`      | Healthcare       | Doctor, pharmacy, dental              |
-| `insurance`       | Insurance        | Auto, health, life, home insurance    |
-| `entertainment`   | Entertainment    | Streaming, movies, concerts, gaming   |
-| `shopping`        | Shopping         | Retail, Amazon, clothing              |
-| `personal_care`   | Personal Care    | Haircuts, gym, spa                    |
-| `education`       | Education        | Tuition, books, courses               |
-| `travel`          | Travel           | Hotels, flights, car rental           |
-| `gifts_donations` | Gifts & Donations| Charitable giving, gifts              |
-| `income`          | Income           | Salary, freelance, refunds            |
-| `transfer`        | Transfer         | Between own accounts, Venmo, Zelle    |
-| `fees_charges`    | Fees & Charges   | Bank fees, ATM fees, late fees        |
-| `investment`      | Investment       | Brokerage, crypto, 401k contributions |
-| `debt_payment`    | Debt Payment     | Student loans, credit card payments   |
-| `other`           | Other            | Anything that doesn't fit above       |
+| Key               | Label             | Typical Transactions                  |
+| ----------------- | ----------------- | ------------------------------------- |
+| `housing`         | Housing           | Rent, mortgage, property tax          |
+| `transportation`  | Transportation    | Gas, parking, transit, car payment    |
+| `food_dining`     | Food & Dining     | Groceries, restaurants, coffee shops  |
+| `utilities`       | Utilities         | Electric, water, internet, phone      |
+| `healthcare`      | Healthcare        | Doctor, pharmacy, dental              |
+| `insurance`       | Insurance         | Auto, health, life, home insurance    |
+| `entertainment`   | Entertainment     | Streaming, movies, concerts, gaming   |
+| `shopping`        | Shopping          | Retail, Amazon, clothing              |
+| `personal_care`   | Personal Care     | Haircuts, gym, spa                    |
+| `education`       | Education         | Tuition, books, courses               |
+| `travel`          | Travel            | Hotels, flights, car rental           |
+| `gifts_donations` | Gifts & Donations | Charitable giving, gifts              |
+| `income`          | Income            | Salary, freelance, refunds            |
+| `transfer`        | Transfer          | Between own accounts, Venmo, Zelle    |
+| `fees_charges`    | Fees & Charges    | Bank fees, ATM fees, late fees        |
+| `investment`      | Investment        | Brokerage, crypto, 401k contributions |
+| `debt_payment`    | Debt Payment      | Student loans, credit card payments   |
+| `other`           | Other             | Anything that doesn't fit above       |
 
 ### Custom User Categories
 
@@ -149,12 +149,12 @@ The category management UI supports:
 
 #### API Endpoints
 
-| Method   | Endpoint               | Description                                    |
-| -------- | ---------------------- | ---------------------------------------------- |
-| `GET`    | `/api/categories`      | List merged system + user custom categories    |
-| `POST`   | `/api/categories`      | Create a custom category (`key` + `label`)     |
-| `PUT`    | `/api/categories/{key}` | Update a category label (upserts override)    |
-| `DELETE` | `/api/categories/{key}` | Delete a custom category or user override     |
+| Method   | Endpoint                | Description                                 |
+| -------- | ----------------------- | ------------------------------------------- |
+| `GET`    | `/api/categories`       | List merged system + user custom categories |
+| `POST`   | `/api/categories`       | Create a custom category (`key` + `label`)  |
+| `PUT`    | `/api/categories/{key}` | Update a category label (upserts override)  |
+| `DELETE` | `/api/categories/{key}` | Delete a custom category or user override   |
 
 The `GET` endpoint returns each category with an `is_system` flag so the UI
 can distinguish system categories from user-created ones.
@@ -345,18 +345,18 @@ the task exits so it does not remain stuck in `categorizing`.
 
 ## Key Source Files
 
-| File                                               | Purpose                                        |
-| -------------------------------------------------- | ---------------------------------------------- |
-| `config/default.yaml`                              | System category definitions (key + label)      |
-| `crates/finima-llm/src/categorizer.rs`             | Orchestrates the two-layer pipeline            |
-| `crates/finima-llm/src/prompts.rs`                 | System and user prompt construction            |
-| `crates/finima-llm/src/tool_defs.rs`               | Tool schema (category enum, subcategory, etc.) |
-| `crates/finima-llm/src/tool_calling.rs`            | Parses LLM tool-call responses                 |
-| `crates/finima-llm/src/client.rs`                  | `LlmClient` trait and implementations          |
-| `crates/finima-api/src/handlers/categorization.rs` | Shared pipeline used by upload + on-demand     |
-| `crates/finima-api/src/handlers/categories.rs`     | Category CRUD endpoints                        |
-| `crates/finima-api/src/handlers/transactions.rs`   | On-demand categorization endpoints             |
-| `crates/finima-db/src/repos/transaction_repo.rs`   | `find_uncategorized`, `update_llm_results`     |
-| `crates/finima-db/src/migrations/015_custom_categories.sql` | Custom categories table           |
-| `frontend/src/hooks/useCategories.ts`              | Category map hook with cache + labels          |
-| `frontend/src/routes/SettingsPage.tsx`              | Categories management tab UI                   |
+| File                                                        | Purpose                                        |
+| ----------------------------------------------------------- | ---------------------------------------------- |
+| `config/default.yaml`                                       | System category definitions (key + label)      |
+| `crates/finima-llm/src/categorizer.rs`                      | Orchestrates the two-layer pipeline            |
+| `crates/finima-llm/src/prompts.rs`                          | System and user prompt construction            |
+| `crates/finima-llm/src/tool_defs.rs`                        | Tool schema (category enum, subcategory, etc.) |
+| `crates/finima-llm/src/tool_calling.rs`                     | Parses LLM tool-call responses                 |
+| `crates/finima-llm/src/client.rs`                           | `LlmClient` trait and implementations          |
+| `crates/finima-api/src/handlers/categorization.rs`          | Shared pipeline used by upload + on-demand     |
+| `crates/finima-api/src/handlers/categories.rs`              | Category CRUD endpoints                        |
+| `crates/finima-api/src/handlers/transactions.rs`            | On-demand categorization endpoints             |
+| `crates/finima-db/src/repos/transaction_repo.rs`            | `find_uncategorized`, `update_llm_results`     |
+| `crates/finima-db/src/migrations/015_custom_categories.sql` | Custom categories table                        |
+| `frontend/src/hooks/useCategories.ts`                       | Category map hook with cache + labels          |
+| `frontend/src/routes/SettingsPage.tsx`                      | Categories management tab UI                   |
