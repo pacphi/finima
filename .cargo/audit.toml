@@ -6,4 +6,11 @@
 # Transitive dependency via sqlx-mysql — no fixed upgrade available.
 # sqlx does not use RSA for anything security-sensitive in our context
 # (PostgreSQL-only deployment). Ignore until upstream provides a fix.
-ignore = ["RUSTSEC-2023-0071"]
+ignore = [
+    "RUSTSEC-2023-0071",
+    # RUSTSEC-2026-0097: rand unsoundness with custom logger calling rand::rng().
+    # Not applicable: the `log` feature is not enabled on our transitive rand 0.8.5,
+    # and we have no custom logger that calls rand. The vulnerable code path is
+    # compiled out entirely. Will resolve when jsonwebtoken/sqlx upgrade to rand 0.9+.
+    "RUSTSEC-2026-0097",
+]
