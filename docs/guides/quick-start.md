@@ -44,16 +44,58 @@ For a quick local setup the defaults work out of the box.
 | `APP__DATABASE__URL`    | Full DB connection string (must match `POSTGRES_PASSWORD`)   | `postgres://finima:finima_dev@localhost:5432/finima` |
 | `APP__AUTH__JWT_SECRET` | JWT signing secret (generate with `openssl rand -base64 32`) | placeholder                                          |
 | `APP__RESEND__API_KEY`  | [Resend](https://resend.com) API key for magic-link emails   | (empty)                                              |
+| `APP__AUTH__FROM_EMAIL` | Sender address for magic-link emails                         | `Finima <auth@finima.app>`                           |
+| `APP__AUTH__PUBLIC_URL` | Base URL for magic-link emails (must be the frontend origin) | `http://localhost:5173`                              |
 | `MINIO_ROOT_USER`       | MinIO username (used by Docker)                              | `finima`                                             |
 | `MINIO_ROOT_PASSWORD`   | MinIO password (used by Docker)                              | `finima_dev`                                         |
 
 If you change `POSTGRES_PASSWORD`, update the password in
-`APP__DATABASE__URL` to match. Leave `APP__RESEND__API_KEY` empty
-to have magic links printed in the backend logs instead.
+`APP__DATABASE__URL` to match.
 
 > **Do not quote values.** Both Make and Docker Compose treat
 > quotes as literal characters. Write `POSTGRES_PASSWORD=secret`,
 > not `POSTGRES_PASSWORD="secret"`.
+
+### Email setup
+
+Finima uses [Resend](https://resend.com) to deliver magic-link
+sign-in emails. Three variables control email delivery:
+
+| Variable                | What it does                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `APP__RESEND__API_KEY`  | Resend API key. When set, real emails are sent. When empty, magic links are logged to the terminal instead.            |
+| `APP__AUTH__FROM_EMAIL` | Sender address shown in the email. Must be on a verified Resend domain (or use `onboarding@resend.dev` for testing).   |
+| `APP__AUTH__PUBLIC_URL` | Base URL embedded in magic-link emails. Must point to the frontend origin so the link opens in your browser correctly. |
+
+**Development (no verified domain):**
+
+```dotenv
+APP__RESEND__API_KEY=re_your_key_here
+APP__AUTH__FROM_EMAIL=Finima <onboarding@resend.dev>
+APP__AUTH__PUBLIC_URL=http://localhost:5173
+```
+
+Using `onboarding@resend.dev` sends real emails without domain
+verification, but delivery is limited to the email address on your
+Resend account.
+
+**Production (verified domain):**
+
+```dotenv
+APP__RESEND__API_KEY=re_live_key_here
+APP__AUTH__FROM_EMAIL=Finima <auth@finima.app>
+APP__AUTH__PUBLIC_URL=https://finima.app
+```
+
+Verify the `finima.app` domain in your
+[Resend dashboard](https://resend.com/domains) first (add the DNS
+records Resend provides, then wait for verification).
+
+**No Resend key (log-only mode):**
+
+Leave `APP__RESEND__API_KEY` empty. Magic links are printed in the
+backend terminal with a `[DEV]` prefix. Copy the URL and paste it
+into your browser.
 
 ## 3. Start everything
 
@@ -116,9 +158,10 @@ backend code).
 1. Open your browser to `http://localhost:5173`.
 2. Enter your email address and select **Send Magic Link**.
 3. Check your inbox for an email from Finima and click the link.
-   - If you did not set `RESEND_API_KEY`, look in the backend
-     terminal output for a line containing the magic-link URL.
-     Copy and paste it into your browser.
+   - If you did not set `APP__RESEND__API_KEY`, Finima logs the
+     magic-link URL to the backend terminal instead of sending
+     email. Look for a `[DEV]` log line containing
+     `/auth/verify?token=` and paste the full URL into your browser.
 4. You are now signed in.
 
 ## 7. Complete onboarding

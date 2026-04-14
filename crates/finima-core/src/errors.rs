@@ -33,6 +33,9 @@ pub enum AppError {
 
     #[error("Parse error: {0}")]
     ParseError(String),
+
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
 }
 
 impl From<sqlx::Error> for AppError {
@@ -77,6 +80,7 @@ impl IntoResponse for AppError {
                 "LLM processing error".to_string(),
             ),
             AppError::ParseError(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::ServiceUnavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg.clone()),
         };
 
         let body = json!({

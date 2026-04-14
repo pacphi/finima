@@ -54,7 +54,8 @@ database:
 auth:
   jwt_secret: 'change-me-in-production'
   magic_link_expiry_minutes: 15
-  from_email: 'auth@finima.app'
+  from_email: 'Finima <auth@finima.app>'
+  public_url: 'http://localhost:5173'
   rate_limit_per_hour: 5
 
 resend:
@@ -85,8 +86,8 @@ feed:
       topic: 'budgeting'
 
 logging:
-  level: 'debug'
-  format: 'pretty' # "pretty" | "json"
+  level: 'warn'
+  format: 'json' # "pretty" | "json"
 
 cors:
   allowed_origins:
@@ -163,7 +164,7 @@ frontend:
 
 Secrets (JWT secret, Resend API key, database password) are **never stored in YAML files committed to version control**. They are injected via:
 
-1. Environment variables (override YAML values): `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__PASSWORD`.
+1. Environment variables (override YAML values): `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__PASSWORD`, `APP__AUTH__FROM_EMAIL`, `APP__AUTH__PUBLIC_URL`.
 2. Docker Compose `environment:` or `env_file:` referencing a `.env` file that is `.gitignore`d.
 3. CI/CD secret injection (GitHub Actions secrets).
 

@@ -10,3 +10,12 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
+
+/* ── Form elements: use theme variables for consistent styling ──── */
+input,
+select,
+textarea {
+  background-color: var(--color-input-bg);
+  border-color: var(--color-input-border);
+  color: var(--color-text);
+}

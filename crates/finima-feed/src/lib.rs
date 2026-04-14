@@ -3,6 +3,7 @@
 //! Fetches RSS/Atom feeds, provides LLM-powered summarization,
 //! and relevance scoring based on user portfolio.
 
+pub mod cache;
 pub mod fetcher;
 pub mod relevance;
 pub mod summarizer;
@@ -44,6 +45,7 @@ pub struct FeedArticle {
 }
 
 // Re-exports for convenience.
+pub use cache::CachedFeedService;
 pub use fetcher::FeedFetcher;
 pub use relevance::RelevanceScorer;
 pub use summarizer::ArticleSummarizer;

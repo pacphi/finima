@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useApi } from '@/hooks/useApi';
+import { useHealthStore } from '@/stores/healthStore';
 import { createUploadApi } from '@/api/uploads';
 import { ColumnMappingModal } from './ColumnMappingModal';
 import type { Upload, UploadPreview, FileFormat } from '@/types/models';
@@ -46,6 +47,8 @@ interface FileUploadProps {
 export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
   const api = useApi();
   const uploadApi = createUploadApi(api);
+  const llmStatus = useHealthStore((s) => s.llmStatus);
+  const llmReady = llmStatus === 'ready';
 
   const [file, setFile] = useState<File | null>(null);
   const [detectedFormat, setDetectedFormat] = useState<FileFormat | null>(null);
@@ -77,6 +80,7 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
     accept: ACCEPT_MAP,
     maxFiles: 1,
     multiple: false,
+    disabled: !llmReady,
   });
 
   const handleUpload = async () => {
@@ -186,13 +190,33 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
 
   return (
     <div className="space-y-4">
+      {!llmReady && (
+        <div
+          className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800"
+          role="status"
+        >
+          <span
+            className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+            aria-hidden="true"
+          />
+          {llmStatus === 'failed'
+            ? 'AI model failed to load — uploads that require categorization are unavailable.'
+            : 'AI model is loading — upload will be available once it is ready.'}
+        </div>
+      )}
+
       <div
         {...getRootProps()}
         role="button"
-        tabIndex={0}
+        tabIndex={llmReady ? 0 : -1}
+        aria-disabled={!llmReady}
         aria-label="File drop zone. Drop a file or press Enter to browse. Supported formats: CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX."
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-          isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400'
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          !llmReady
+            ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60'
+            : isDragActive
+              ? 'border-blue-500 bg-blue-50 cursor-pointer'
+              : 'border-slate-300 hover:border-slate-400 cursor-pointer'
         }`}
       >
         <input {...getInputProps()} aria-label="Choose file to upload" />
@@ -230,7 +254,10 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
           </div>
           <button
             onClick={handleUpload}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={!llmReady}
+            className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+              llmReady ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
+            }`}
           >
             Upload
           </button>

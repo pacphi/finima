@@ -28,6 +28,9 @@ docker-compose.override.yml
 *~
 .DS_Store
 
+# Runtime data / logs
+data/
+
 # Coverage
 lcov.info
 *.profraw

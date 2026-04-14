@@ -14,6 +14,7 @@ auth:
   jwt_secret: "change-me-in-production"
   magic_link_expiry_minutes: 15
   from_email: "Finima <auth@finima.app>"
+  public_url: "http://localhost:5173"
   rate_limit_per_hour: 5
 
 resend:
@@ -40,16 +41,106 @@ llm:
 feed:
   poll_interval_hours: 6
   sources:
-    - name: "Investopedia"
-      url: "https://www.investopedia.com/feedbuilder/feed/getfeed/?feedName=rss_articles"
+    # ── Investing / Stocks / Markets ──────────────────────────
+    - name: "MarketWatch Top Stories"
+      url: "https://feeds.content.dowjones.io/public/rss/mw_topstories"
       topic: "investing"
-    - name: "NerdWallet"
-      url: "https://www.nerdwallet.com/blog/feed/"
+    - name: "MarketWatch Real-Time Headlines"
+      url: "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines"
+      topic: "investing"
+    - name: "WSJ Markets"
+      url: "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain"
+      topic: "investing"
+    - name: "CNBC Investing"
+      url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069"
+      topic: "investing"
+    - name: "CNBC Stock Blog"
+      url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000114"
+      topic: "investing"
+    - name: "Seeking Alpha Market Currents"
+      url: "https://seekingalpha.com/market_currents.xml"
+      topic: "investing"
+    - name: "Yahoo Finance"
+      url: "https://finance.yahoo.com/news/rssindex"
+      topic: "investing"
+
+    # ── Budgeting / Personal Finance ──────────────────────────
+    - name: "CNBC Personal Finance"
+      url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=21324812"
+      topic: "budgeting"
+    - name: "Kiplinger Personal Finance"
+      url: "https://www.kiplinger.com/feed/all"
+      topic: "budgeting"
+    - name: "NPR Your Money"
+      url: "https://feeds.npr.org/1006/rss.xml"
+      topic: "budgeting"
+    - name: "Money.com"
+      url: "https://money.com/money/feed/"
+      topic: "budgeting"
+    - name: "r/personalfinance"
+      url: "https://www.reddit.com/r/personalfinance/.rss"
+      topic: "budgeting"
+    - name: "r/Frugal"
+      url: "https://www.reddit.com/r/Frugal/.rss"
       topic: "budgeting"
 
+    # ── Retirement ────────────────────────────────────────────
+    - name: "r/financialindependence"
+      url: "https://www.reddit.com/r/financialindependence/.rss"
+      topic: "retirement"
+    - name: "r/retirement"
+      url: "https://www.reddit.com/r/retirement/.rss"
+      topic: "retirement"
+
+    # ── Credit / Banking ──────────────────────────────────────
+    - name: "r/CreditCards"
+      url: "https://www.reddit.com/r/CreditCards/.rss"
+      topic: "credit"
+    - name: "CFPB Blog"
+      url: "https://www.consumerfinance.gov/about-us/blog/feed/"
+      topic: "credit"
+
+    # ── Taxes ─────────────────────────────────────────────────
+    - name: "Tax Foundation"
+      url: "https://taxfoundation.org/feed/"
+      topic: "taxes"
+    - name: "r/tax"
+      url: "https://www.reddit.com/r/tax/.rss"
+      topic: "taxes"
+
+    # ── Real Estate ───────────────────────────────────────────
+    - name: "CNBC Real Estate"
+      url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000115"
+      topic: "real estate"
+    - name: "r/RealEstate"
+      url: "https://www.reddit.com/r/RealEstate/.rss"
+      topic: "real estate"
+    - name: "r/realestateinvesting"
+      url: "https://www.reddit.com/r/realestateinvesting/.rss"
+      topic: "real estate"
+
+    # ── Economy / Macro ───────────────────────────────────────
+    - name: "CNBC Economy"
+      url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
+      topic: "economy"
+    - name: "Federal Reserve Press Releases"
+      url: "https://www.federalreserve.gov/feeds/press_all.xml"
+      topic: "economy"
+    - name: "SEC Press Releases"
+      url: "https://www.sec.gov/news/pressreleases.rss"
+      topic: "economy"
+    - name: "Financial Stability Board"
+      url: "https://www.fsb.org/feed/"
+      topic: "economy"
+
 logging:
-  level: "debug"
-  format: "pretty"
+  # Production-safe default: only warnings and errors.
+  # development.yaml raises this to debug with per-crate suppressions.
+  # Override at runtime with RUST_LOG env var.
+  level: "warn"
+  format: "json"
+  # Daily-rotating log file directory. Leave empty to disable file logging.
+  log_dir: ""
 
 s3:
   endpoint_url: "http://localhost:9000"

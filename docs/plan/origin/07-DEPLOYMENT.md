@@ -6,12 +6,12 @@
 
 ## 1. Deployment Targets
 
-| Target                    | Purpose                            | Tooling                             |
-| ------------------------- | ---------------------------------- | ----------------------------------- |
-| **Local Dev**             | Developer workstation              | `make dev` (cargo run + vite dev)   |
-| **Docker Compose (dev)**  | Full-stack local with all services | `make docker-infra` + `make dev`    |
-| **Docker Compose (prod)** | Self-hosted production             | `make docker-up`                    |
-| **CI/CD**                 | Automated testing + image build    | GitHub Actions                      |
+| Target                    | Purpose                            | Tooling                           |
+| ------------------------- | ---------------------------------- | --------------------------------- |
+| **Local Dev**             | Developer workstation              | `make dev` (cargo run + vite dev) |
+| **Docker Compose (dev)**  | Full-stack local with all services | `make docker-infra` + `make dev`  |
+| **Docker Compose (prod)** | Self-hosted production             | `make docker-up`                  |
+| **CI/CD**                 | Automated testing + image build    | GitHub Actions                    |
 
 ---
 

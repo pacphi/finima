@@ -94,7 +94,11 @@ export function AccountsPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!activePortfolioId) return;
+    if (!activePortfolioId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     let cancelled = false;
     accountApi
       .listAccounts(activePortfolioId)
@@ -207,12 +211,14 @@ export function AccountsPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Accounts</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + Add Account
-        </button>
+        {portfolios.length > 0 && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + Add Account
+          </button>
+        )}
       </div>
 
       {/* Portfolio selector */}
@@ -246,7 +252,7 @@ export function AccountsPage() {
         )}
         <button
           onClick={() => handleOpenPortfolioModal()}
-          className="px-3 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+          className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
         >
           + New Portfolio
         </button>
@@ -254,15 +260,16 @@ export function AccountsPage() {
 
       {loading ? (
         <div className="text-center py-12 text-slate-400">Loading accounts...</div>
+      ) : portfolios.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-slate-400 mb-2">Create a portfolio to get started</p>
+          <p className="text-sm text-slate-400">
+            You need at least one portfolio before adding accounts.
+          </p>
+        </div>
       ) : accounts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-slate-400 mb-4">No accounts yet</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Add your first account
-          </button>
+          <p className="text-slate-400">No accounts yet</p>
         </div>
       ) : (
         <>

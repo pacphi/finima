@@ -1,7 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useHealthStore, type LlmStatus } from '@/stores/healthStore';
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  /** When true the item is dimmed and unclickable while the LLM is not ready. */
+  requiresLlm?: boolean;
+}
+
+const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/accounts', label: 'Accounts' },
   { to: '/transactions', label: 'Transactions' },
@@ -17,6 +25,8 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const llmStatus = useHealthStore((s) => s.llmStatus);
+  const llmReady = llmStatus === 'ready';
 
   // Close on outside click.
   useEffect(() => {
@@ -132,27 +142,70 @@ export function Sidebar() {
           onKeyDown={handleNavKeyDown}
         >
           <ul role="menubar" aria-orientation="vertical" className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.to} role="none">
-                <NavLink
-                  to={item.to}
-                  role="menuitem"
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) =>
-                    `block px-4 py-2.5 rounded-lg text-sm transition-colors ${
-                      isActive
-                        ? 'bg-[var(--sidebar-active)] text-white font-medium'
-                        : 'text-slate-300 hover:bg-[var(--sidebar-hover)] hover:text-white'
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const disabled = item.requiresLlm && !llmReady;
+              if (disabled) {
+                return (
+                  <li key={item.to} role="none">
+                    <span
+                      role="menuitem"
+                      aria-disabled="true"
+                      title="Waiting for AI model to load"
+                      className="block px-4 py-2.5 rounded-lg text-sm text-slate-500 cursor-not-allowed select-none"
+                    >
+                      {item.label}
+                    </span>
+                  </li>
+                );
+              }
+              return (
+                <li key={item.to} role="none">
+                  <NavLink
+                    to={item.to}
+                    role="menuitem"
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `block px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                        isActive
+                          ? 'bg-[var(--sidebar-active)] text-white font-medium'
+                          : 'text-slate-300 hover:bg-[var(--sidebar-hover)] hover:text-white'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </li>
+              );
+            })}
           </ul>
         </nav>
+
+        <LlmStatusIndicator status={llmStatus} />
       </aside>
     </>
+  );
+}
+
+// ── LLM status indicator ────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<LlmStatus, { dot: string; label: string; animate?: boolean }> = {
+  loading: { dot: 'bg-amber-400', label: 'AI model loading', animate: true },
+  ready: { dot: 'bg-emerald-400', label: 'AI model ready' },
+  failed: { dot: 'bg-red-400', label: 'AI model failed to load' },
+  unknown: { dot: 'bg-slate-400', label: 'Checking AI status', animate: true },
+};
+
+function LlmStatusIndicator({ status }: { status: LlmStatus }) {
+  const cfg = STATUS_CONFIG[status];
+  return (
+    <div className="px-4 py-3 border-t border-white/10" aria-live="polite">
+      <div className="flex items-center gap-2 text-xs text-slate-400">
+        <span
+          className={`inline-block w-2 h-2 rounded-full ${cfg.dot} ${cfg.animate ? 'animate-pulse' : ''}`}
+          aria-hidden="true"
+        />
+        <span>{cfg.label}</span>
+      </div>
+    </div>
   );
 }

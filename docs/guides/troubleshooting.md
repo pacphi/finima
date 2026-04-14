@@ -13,11 +13,12 @@ error messages.
 
 **Possible causes and fixes:**
 
-- **`RESEND_API_KEY` is not set.** If you left this blank in your
-  `.env` file, Finima does not send real emails. Instead, the
-  magic-link URL is printed in the backend terminal output. Look for
-  a log line containing `/auth/verify?token=`. Copy the full URL
-  and paste it into your browser.
+- **`APP__RESEND__API_KEY` is not set.** Finima sends real emails
+  only when this key is configured. If you left it blank in your
+  `.env` file, the magic-link URL is printed in the backend terminal
+  output instead. Look for a `[DEV]` log line containing
+  `/auth/verify?token=`. Copy the full URL and paste it into your
+  browser.
 
 - **Email is in your spam folder.** Check your spam or junk folder
   for an email from "Finima" or the address configured in
@@ -26,9 +27,24 @@ error messages.
 - **Rate limit reached.** Finima limits magic-link requests to 5 per
   minute per IP address. Wait a minute and try again.
 
-- **Invalid API key.** Verify that the `RESEND_API_KEY` in your
-  `.env` file is correct. Log in to your Resend dashboard to confirm
-  the key is active.
+- **Invalid API key.** Verify that the `APP__RESEND__API_KEY` in
+  your `.env` file is correct. Log in to your Resend dashboard to
+  confirm the key is active. The backend logs will show a Resend API
+  error if the key is rejected.
+
+- **Domain not verified (403 Forbidden).** If the backend logs show
+  `"The ... domain is not verified"`, the sender domain in
+  `APP__AUTH__FROM_EMAIL` has not been verified in Resend. Either
+  verify the domain at <https://resend.com/domains>, or use
+  `APP__AUTH__FROM_EMAIL=Finima <onboarding@resend.dev>` for local
+  testing (delivers only to your Resend account email).
+
+- **Magic link opens a blank page or 404.** The link URL is built
+  from `APP__AUTH__PUBLIC_URL`. If this is set to the wrong host
+  (e.g. `0.0.0.0` or a backend address), the link will not reach
+  the frontend. Set it to the frontend origin, e.g.
+  `APP__AUTH__PUBLIC_URL=http://localhost:5173` for local dev or
+  `APP__AUTH__PUBLIC_URL=https://finima.app` for production.
 
 ---
 

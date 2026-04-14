@@ -25,7 +25,7 @@ Depends on **finima-core** for the `AppError` type (auth errors convert into it)
 - **Tokens are SHA-256 hashed before database storage**: raw tokens are only sent to the user via email; the database stores the hash. Comparison is always hash-to-hash.
 - **Access vs refresh tokens carry a `token_type` claim**: the middleware uses `decode_access_token` which rejects refresh tokens, preventing token confusion attacks.
 - **Access tokens expire in 15 minutes; refresh tokens in 7 days**. These values are hardcoded in `jwt.rs`.
-- **`LoggingEmailSender`** is the default in development -- it prints the magic link to stdout/logs instead of sending real email. Swap to `ResendClient` in production via config.
+- **`ResendClient`** is used automatically whenever `APP__RESEND__API_KEY` is set (any environment). If the key is empty, `LoggingEmailSender` prints the magic link to stdout/logs instead of sending real email.
 - The `AuthUser` extractor reads the `JwtSecret` from Axum request extensions, which is injected by middleware in the API crate's router.
 
 ## Testing
@@ -40,7 +40,7 @@ Tests cover JWT encode/decode roundtrips, token type discrimination, magic link 
 
 1. Client sends email to `POST /api/auth/magic-link`
 2. Server generates a random token, SHA-256 hashes it, stores the hash in the database
-3. Server sends the raw token via email (or logs it in dev mode)
+3. Server sends the raw token via email (or logs it when no Resend API key is configured)
 4. User clicks the link, client sends the token to `POST /api/auth/verify`
 5. Server hashes the received token, looks up the hash in the database
 6. On match, server issues an access token (15 min) and refresh token (7 days)

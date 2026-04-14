@@ -69,6 +69,8 @@ pub struct AuthConfig {
     pub jwt_secret: String,
     pub magic_link_expiry_minutes: u64,
     pub from_email: String,
+    /// Public-facing base URL used in magic link emails (e.g. the frontend origin).
+    pub public_url: String,
     /// Used by rate-limiting middleware at runtime; populated via serde.
     #[allow(dead_code)]
     pub rate_limit_per_hour: u32,
@@ -220,6 +222,10 @@ pub struct FeedConfig {
 pub struct LoggingConfig {
     pub level: String,
     pub format: String,
+    /// Directory for rolling log files. When set, a daily-rotating file
+    /// appender writes plain-text logs alongside the console output.
+    #[serde(default)]
+    pub log_dir: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -340,6 +346,7 @@ auth:
   jwt_secret: "test-secret"
   magic_link_expiry_minutes: 10
   from_email: "test@test.com"
+  public_url: "http://localhost:5173"
   rate_limit_per_hour: 3
 
 resend:
@@ -370,6 +377,7 @@ feed:
 logging:
   level: "info"
   format: "pretty"
+  log_dir: ""
 
 cors:
   allowed_origins:

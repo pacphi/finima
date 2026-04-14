@@ -1,7 +1,10 @@
 //! RSS/Atom feed fetching and parsing.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use feed_rs::parser;
+use reqwest::Url;
 use tracing::{error, info};
 
 use crate::{FeedSource, RawArticle};
@@ -27,6 +30,7 @@ impl FeedFetcher {
         Self {
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(15))
+                .user_agent("Finima/1.0 (RSS Reader; +https://github.com/pacphi/finima)")
                 .build()
                 .unwrap_or_default(),
         }
@@ -100,33 +104,54 @@ impl FeedFetcher {
         Ok(articles)
     }
 
-    /// Fetch all configured feed sources. Returns results per source;
-    /// a failure in one source does not prevent others from returning.
+    /// Fetch all configured feed sources with per-host rate limiting.
+    ///
+    /// Feeds are grouped by host. Different hosts are fetched in parallel,
+    /// but feeds sharing a host are fetched sequentially with a 1-second
+    /// delay between requests to avoid triggering rate limits.
     pub async fn fetch_all(
         &self,
         sources: &[FeedSource],
     ) -> Vec<(String, Result<Vec<RawArticle>, FetchError>)> {
-        let mut results = Vec::with_capacity(sources.len());
-
-        for source in sources {
-            if !source.enabled {
-                continue;
-            }
-
-            info!(source = %source.name, url = %source.url, "Fetching feed");
-
-            let result = self
-                .fetch_from_url(&source.url, &source.name, &source.topic)
-                .await;
-
-            if let Err(ref e) = result {
-                error!(source = %source.name, error = %e, "Failed to fetch feed");
-            }
-
-            results.push((source.name.clone(), result));
+        // Group sources by host so we can throttle per-host.
+        let mut by_host: HashMap<String, Vec<&FeedSource>> = HashMap::new();
+        for source in sources.iter().filter(|s| s.enabled) {
+            let host = Url::parse(&source.url)
+                .ok()
+                .and_then(|u| u.host_str().map(String::from))
+                .unwrap_or_else(|| "unknown".to_string());
+            by_host.entry(host).or_default().push(source);
         }
 
-        results
+        // For each host group, fetch sequentially with a delay; run host
+        // groups in parallel.
+        let host_futures: Vec<_> = by_host
+            .into_values()
+            .map(|group| async move {
+                let mut results = Vec::with_capacity(group.len());
+                for (i, source) in group.iter().enumerate() {
+                    // Delay between requests to the same host (skip first).
+                    if i > 0 {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    }
+                    info!(source = %source.name, url = %source.url, "Fetching feed");
+                    let result = self
+                        .fetch_from_url(&source.url, &source.name, &source.topic)
+                        .await;
+                    if let Err(ref e) = result {
+                        error!(source = %source.name, error = %e, "Failed to fetch feed");
+                    }
+                    results.push((source.name.clone(), result));
+                }
+                results
+            })
+            .collect();
+
+        futures::future::join_all(host_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 

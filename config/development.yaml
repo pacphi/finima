@@ -6,8 +6,11 @@ database:
   max_connections: 5
 
 logging:
-  level: "debug"
+  # App crates at debug; suppress noisy networking/db dependencies.
+  level: "debug,h2=warn,hyper_util=warn,hyper=warn,reqwest=warn,rustls=warn,tower_http=warn,sqlx=warn"
   format: "pretty"
+  # Write daily-rotating plain-text logs alongside console output.
+  log_dir: "data/logs"
 
 cors:
   allowed_origins:

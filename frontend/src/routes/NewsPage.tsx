@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { useHealthStore } from '@/stores/healthStore';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -21,24 +22,38 @@ interface FeedResponse {
   per_page: number;
 }
 
-const TOPICS = ['All', 'Budgeting', 'Investing', 'Taxes', 'Credit', 'Retirement'];
+const TOPICS = [
+  'All',
+  'Budgeting',
+  'Investing',
+  'Taxes',
+  'Credit',
+  'Retirement',
+  'Real Estate',
+  'Economy',
+];
 const PER_PAGE = 20;
 
 // ── Component ───────────────────────────────────────────────────────
 
 export function NewsPage() {
   const api = useApi();
+  const feedStatus = useHealthStore((s) => s.feedStatus);
   const [articles, setArticles] = useState<FeedArticle[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [activeTopic, setActiveTopic] = useState('All');
   const [loading, setLoading] = useState(false);
 
+  // Keep a stable ref to `api` so the fetch callback doesn't depend on it.
+  const apiRef = useRef(api);
+  apiRef.current = api;
+
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const topicParam = activeTopic === 'All' ? '' : `&topic=${activeTopic.toLowerCase()}`;
-      const result = await api.get<FeedResponse>(
+      const result = await apiRef.current.get<FeedResponse>(
         `/api/feed?page=${page}&per_page=${PER_PAGE}${topicParam}`,
       );
       setArticles(result.data);
@@ -48,13 +63,24 @@ export function NewsPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, page, activeTopic]);
+  }, [page, activeTopic]);
 
+  // Fetch on page/topic change.
   useEffect(() => {
     void fetchArticles();
   }, [fetchArticles]);
 
+  // Re-fetch once when the feed cache finishes its initial load.
+  const prevFeedStatus = useRef(feedStatus);
+  useEffect(() => {
+    if (prevFeedStatus.current === 'loading' && feedStatus === 'ready') {
+      void fetchArticles();
+    }
+    prevFeedStatus.current = feedStatus;
+  }, [feedStatus, fetchArticles]);
+
   const handleTopicChange = (topic: string) => {
+    setArticles([]);
     setActiveTopic(topic);
     setPage(1);
   };
@@ -83,19 +109,30 @@ export function NewsPage() {
         ))}
       </div>
 
-      {/* Loading state */}
-      {loading && articles.length === 0 && (
+      {/* Feed cache still loading */}
+      {feedStatus === 'loading' && articles.length === 0 && (
+        <div className="text-center py-12">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-text-secondary)] border-t-transparent mb-3" />
+          <p className="text-[var(--color-text-secondary)]">
+            Fetching news feeds from {TOPICS.length - 1} sources&hellip;
+          </p>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+            This may take a few seconds on first load.
+          </p>
+        </div>
+      )}
+
+      {/* API request in progress (cache is ready but page/filter changed) */}
+      {loading && feedStatus === 'ready' && articles.length === 0 && (
         <div className="text-center py-12 text-[var(--color-text-secondary)]">
           Loading articles...
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && articles.length === 0 && (
+      {/* Empty state — cache is ready but no articles match */}
+      {!loading && feedStatus === 'ready' && articles.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-[var(--color-text-secondary)]">
-            No articles found. Configure feed sources in your server settings.
-          </p>
+          <p className="text-[var(--color-text-secondary)]">No articles found for this topic.</p>
         </div>
       )}
 

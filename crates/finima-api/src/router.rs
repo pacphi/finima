@@ -81,14 +81,23 @@ impl RateLimiter {
 // Health check handler
 // ---------------------------------------------------------------------------
 
-/// GET /health — returns 200 with DB connectivity check.
+/// GET /health — returns 200 with DB connectivity and LLM readiness check.
 ///
 /// Returns 200 OK when the database is reachable, 503 Service Unavailable
-/// otherwise. Placed outside `/api/` so load balancers can probe it without
+/// otherwise. The `llm` field reports whether the background model load has
+/// completed so the UI can show a loading indicator or gate LLM-dependent
+/// features. Placed outside `/api/` so load balancers can probe it without
 /// authentication.
 async fn health_check(
     axum::extract::State(state): axum::extract::State<AppState>,
 ) -> impl IntoResponse {
+    let llm_status = state.llm_status();
+    let feed_status = if state.feed_service().is_ready() {
+        "ready"
+    } else {
+        "loading"
+    };
+
     match sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(state.pool())
         .await
@@ -98,7 +107,9 @@ async fn health_check(
             Json(json!({
                 "status": "healthy",
                 "version": env!("CARGO_PKG_VERSION"),
-                "db": "ok"
+                "db": "ok",
+                "llm": llm_status,
+                "feed": feed_status
             })),
         ),
         Err(e) => (
@@ -106,7 +117,9 @@ async fn health_check(
             Json(json!({
                 "status": "unhealthy",
                 "version": env!("CARGO_PKG_VERSION"),
-                "db": format!("error: {e}")
+                "db": format!("error: {e}"),
+                "llm": llm_status,
+                "feed": feed_status
             })),
         ),
     }
@@ -238,8 +251,8 @@ pub fn build_router(
     // The magic-link route gets a rate-limiting middleware layer.
     let magic_link_route = Router::new()
         .route("/magic-link", post(auth::request_magic_link))
-        .layer(axum::Extension(magic_link_limiter))
-        .layer(middleware::from_fn(rate_limit_middleware));
+        .layer(middleware::from_fn(rate_limit_middleware))
+        .layer(axum::Extension(magic_link_limiter));
 
     let auth_routes = magic_link_route
         .route("/verify", post(auth::verify_magic_link))
@@ -382,8 +395,8 @@ pub fn build_router(
             state.clone(),
             inject_jwt_secret,
         ))
-        .layer(Extension(metrics_registry))
         .layer(middleware::from_fn(metrics_middleware))
+        .layer(Extension(metrics_registry))
         .layer(
             ServiceBuilder::new()
                 // Security headers

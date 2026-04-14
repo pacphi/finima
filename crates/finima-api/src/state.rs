@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{Arc, RwLock};
 
 use sqlx::PgPool;
 
@@ -8,11 +9,17 @@ use finima_db::{
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
     PgUploadRepo, PgUserRepo,
 };
+use finima_feed::CachedFeedService;
 use finima_llm::LlmClient;
 
 use crate::config::AppConfig;
 use crate::storage::ObjectStorage;
 use crate::ws::WsConnectionManager;
+
+// LLM loading status constants.
+const LLM_LOADING: u8 = 0;
+const LLM_READY: u8 = 1;
+const LLM_FAILED: u8 = 2;
 
 /// Shared application state available to all Axum handlers.
 ///
@@ -41,16 +48,25 @@ struct InnerState {
     pub flow_repo: PgFlowRepo,
     pub flow_group_repo: PgFlowGroupRepo,
     pub ws_manager: WsConnectionManager,
-    pub llm_client: Arc<dyn LlmClient>,
+    /// LLM client loaded in the background. `None` until the model is ready
+    /// (or if loading failed).
+    pub llm_client: RwLock<Option<Arc<dyn LlmClient>>>,
+    /// LLM loading status: 0 = loading, 1 = ready, 2 = failed.
+    pub llm_status: AtomicU8,
     pub object_storage: ObjectStorage,
+    pub feed_service: CachedFeedService,
 }
 
 impl AppState {
-    pub async fn new(
+    /// Creates application state with a stub LLM client so the server can start
+    /// accepting requests immediately. Call [`spawn_llm_loader`] afterwards to
+    /// load the real backend in the background.
+    pub fn new(
         pool: PgPool,
         config: AppConfig,
         email_sender: Box<dyn EmailSender>,
         object_storage: ObjectStorage,
+        feed_service: CachedFeedService,
     ) -> Self {
         let user_repo = PgUserRepo::new(pool.clone());
         let portfolio_repo = PgPortfolioRepo::new(pool.clone());
@@ -66,51 +82,6 @@ impl AppState {
         let flow_repo = PgFlowRepo::new(pool.clone());
         let flow_group_repo = PgFlowGroupRepo::new(pool.clone());
         let ws_manager = WsConnectionManager::new();
-
-        // Build the LLM client based on configured provider.
-        let llm_client: Arc<dyn LlmClient> = match config.llm.provider.as_str() {
-            #[cfg(feature = "candle")]
-            "candle" => {
-                use finima_llm::{CandleClient, CandleConfig as LlmCandleConfig};
-                let candle_cfg = LlmCandleConfig {
-                    model_id: config.llm.candle.model_id.clone(),
-                    model_path: config.llm.candle.model_path.clone(),
-                    quantization: config.llm.candle.quantization.clone(),
-                    device: config.llm.candle.device.clone(),
-                    context_length: config.llm.candle.context_length,
-                    threads: config.llm.candle.threads,
-                };
-                match CandleClient::new(candle_cfg).await {
-                    Ok(client) => Arc::new(client),
-                    Err(e) => {
-                        tracing::warn!(
-                            "Failed to initialize Candle backend: {}. Falling back to stub.",
-                            e
-                        );
-                        Arc::new(finima_llm::StubLlmClient::new())
-                    }
-                }
-            }
-            #[cfg(not(feature = "candle"))]
-            "candle" => {
-                tracing::warn!(
-                    "Provider is 'candle' but the candle feature is not enabled. Falling back to stub."
-                );
-                Arc::new(finima_llm::StubLlmClient::new())
-            }
-            #[cfg(feature = "ollama")]
-            "ollama" if !config.llm.ollama.url.is_empty() => Arc::new(
-                finima_llm::OllamaClient::new(&config.llm.ollama.url, &config.llm.ollama.model),
-            ),
-            #[cfg(not(feature = "ollama"))]
-            "ollama" => {
-                tracing::warn!(
-                    "Provider is 'ollama' but the ollama feature is not enabled. Falling back to stub."
-                );
-                Arc::new(finima_llm::StubLlmClient::new())
-            }
-            _ => Arc::new(finima_llm::StubLlmClient::new()),
-        };
 
         Self {
             inner: Arc::new(InnerState {
@@ -131,10 +102,41 @@ impl AppState {
                 flow_repo,
                 flow_group_repo,
                 ws_manager,
-                llm_client,
+                llm_client: RwLock::new(None),
+                llm_status: AtomicU8::new(LLM_LOADING),
                 object_storage,
+                feed_service,
             }),
         }
+    }
+
+    /// Set the LLM client after successful background loading.
+    pub fn set_llm_client(&self, client: Arc<dyn LlmClient>) {
+        *self
+            .inner
+            .llm_client
+            .write()
+            .expect("llm_client lock poisoned") = Some(client);
+        self.inner.llm_status.store(LLM_READY, Ordering::Release);
+    }
+
+    /// Mark the LLM backend as failed (init error, feature not enabled, etc.).
+    pub fn set_llm_failed(&self) {
+        self.inner.llm_status.store(LLM_FAILED, Ordering::Release);
+    }
+
+    /// LLM loading status: `"loading"`, `"ready"`, or `"failed"`.
+    pub fn llm_status(&self) -> &'static str {
+        match self.inner.llm_status.load(Ordering::Acquire) {
+            LLM_READY => "ready",
+            LLM_FAILED => "failed",
+            _ => "loading",
+        }
+    }
+
+    /// Returns `true` once the real LLM backend has been loaded.
+    pub fn is_llm_ready(&self) -> bool {
+        self.inner.llm_status.load(Ordering::Acquire) == LLM_READY
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -205,11 +207,20 @@ impl AppState {
         &self.inner.ws_manager
     }
 
-    pub fn llm_client(&self) -> Arc<dyn LlmClient> {
-        Arc::clone(&self.inner.llm_client)
+    /// Returns the LLM client if loaded, or `None` while still loading / on failure.
+    pub fn llm_client(&self) -> Option<Arc<dyn LlmClient>> {
+        self.inner
+            .llm_client
+            .read()
+            .expect("llm_client lock poisoned")
+            .clone()
     }
 
     pub fn object_storage(&self) -> &ObjectStorage {
         &self.inner.object_storage
+    }
+
+    pub fn feed_service(&self) -> &CachedFeedService {
+        &self.inner.feed_service
     }
 }

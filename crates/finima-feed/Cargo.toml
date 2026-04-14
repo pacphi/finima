@@ -10,6 +10,7 @@ rust_decimal = { workspace = true }
 finima-core = { path = "../finima-core" }
 finima-llm = { path = "../finima-llm", default-features = false }
 feed-rs = { workspace = true }
+futures = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

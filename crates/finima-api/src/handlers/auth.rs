@@ -78,14 +78,8 @@ pub async fn request_magic_link(
         .create_magic_link(&email, &token_hash, expires_at)
         .await?;
 
-    // Build the verification URL. In production this would be the frontend URL;
-    // for now we use the server address.
-    let base_url = format!(
-        "http://{}:{}",
-        state.config().server.host,
-        state.config().server.port
-    );
-    let link_url = magic_link::build_magic_link_url(&base_url, &raw_token, &email);
+    let link_url =
+        magic_link::build_magic_link_url(&state.config().auth.public_url, &raw_token, &email);
 
     state
         .email_sender()

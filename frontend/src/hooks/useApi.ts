@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useConfigStore } from '@/stores/configStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -100,5 +100,5 @@ export function useApi() {
     [apiBaseUrl, accessToken, refreshToken, setTokens, logout],
   );
 
-  return { get, post, put, del };
+  return useMemo(() => ({ get, post, put, del }), [get, post, put, del]);
 }

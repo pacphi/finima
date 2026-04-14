@@ -3,14 +3,23 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useThemeStore } from '@/stores/themeStore';
+import { useConfigStore } from '@/stores/configStore';
+import { useHealthStore } from '@/stores/healthStore';
 
 export function AppLayout() {
   const initTheme = useThemeStore((s) => s.initTheme);
+  const apiBaseUrl = useConfigStore((s) => s.apiBaseUrl);
+  const startPolling = useHealthStore((s) => s.startPolling);
 
   // Initialize theme on first mount.
   useEffect(() => {
     initTheme();
   }, [initTheme]);
+
+  // Poll /health to track LLM backend readiness.
+  useEffect(() => {
+    return startPolling(apiBaseUrl);
+  }, [apiBaseUrl, startPolling]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
