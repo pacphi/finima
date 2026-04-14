@@ -76,18 +76,26 @@ pub async fn list_feed(
         .collect();
 
     // Score and convert to response articles.
+    // Use content_snippet as an initial summary so tiles aren't empty.
+    // The separate /api/feed/:id/summary endpoint provides LLM-generated
+    // summaries on demand for richer content.
     let feed_articles: Vec<FeedArticle> = page_articles
         .into_iter()
         .enumerate()
         .map(|(i, raw)| {
             let score = RelevanceScorer::score(raw, &[], &[]);
+            let summary = if raw.content_snippet.is_empty() {
+                None
+            } else {
+                Some(raw.content_snippet.clone())
+            };
             FeedArticle {
                 id: format!("article-{}-{}", params.page, i),
                 title: raw.title.clone(),
                 url: raw.url.clone(),
                 source: raw.source_name.clone(),
                 date: raw.published_at.map(|d| d.to_rfc3339()),
-                summary: None,
+                summary,
                 relevance_score: score,
                 topics: raw.topics.clone(),
             }

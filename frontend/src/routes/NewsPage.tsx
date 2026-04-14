@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { useHealthStore } from '@/stores/healthStore';
 
+interface SummaryResponse {
+  article_id: string;
+  summary: string;
+}
+
 // ── Types ───────────────────────────────────────────────────────────
 
 interface FeedArticle {
@@ -139,7 +144,7 @@ export function NewsPage() {
       {/* Article card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {articles.map((article) => (
-          <ArticleCard key={article.id} article={article} />
+          <ArticleCard key={article.id} article={article} api={apiRef.current} />
         ))}
       </div>
 
@@ -171,7 +176,16 @@ export function NewsPage() {
 
 // ── Article Card ────────────────────────────────────────────────────
 
-function ArticleCard({ article }: { article: FeedArticle }) {
+function ArticleCard({
+  article,
+  api,
+}: {
+  article: FeedArticle;
+  api: { get: <T>(path: string) => Promise<T> };
+}) {
+  const [llmSummary, setLlmSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
   const formattedDate = article.date
     ? new Date(article.date).toLocaleDateString('en-US', {
         month: 'short',
@@ -179,6 +193,24 @@ function ArticleCard({ article }: { article: FeedArticle }) {
         year: 'numeric',
       })
     : null;
+
+  const displaySummary = llmSummary ?? article.summary;
+
+  const handleSummarize = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLoadingSummary(true);
+    try {
+      const result = await api.get<SummaryResponse>(
+        `/api/feed/${encodeURIComponent(article.id)}/summary`,
+      );
+      setLlmSummary(result.summary);
+    } catch (err) {
+      console.error('Failed to generate summary:', err);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   return (
     <a
@@ -203,10 +235,37 @@ function ArticleCard({ article }: { article: FeedArticle }) {
       </h3>
 
       {/* Summary (2-line clamp) */}
-      {article.summary && (
-        <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 mb-3">
-          {article.summary}
+      {displaySummary && (
+        <p
+          className={`text-sm text-[var(--color-text-secondary)] mb-3 ${llmSummary ? '' : 'line-clamp-2'}`}
+        >
+          {displaySummary}
         </p>
+      )}
+
+      {/* AI Summarize button */}
+      {!llmSummary && (
+        <button
+          onClick={handleSummarize}
+          disabled={loadingSummary}
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline mb-3 disabled:opacity-50"
+        >
+          {loadingSummary ? (
+            <>
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" />
+              </svg>
+              Summarizing&hellip;
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+              </svg>
+              Get Summary
+            </>
+          )}
+        </button>
       )}
 
       {/* Relevance stars + topics */}
