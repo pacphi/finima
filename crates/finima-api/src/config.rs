@@ -18,6 +18,14 @@ pub struct AppConfig {
     pub cors: CorsConfig,
     #[serde(default)]
     pub s3: S3Config,
+    #[serde(default)]
+    pub categories: Vec<CategoryEntry>,
+}
+
+#[derive(Debug, Deserialize, Clone, serde::Serialize)]
+pub struct CategoryEntry {
+    pub key: String,
+    pub label: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -390,6 +398,12 @@ s3:
   access_key_id: "minioadmin"
   secret_access_key: "minioadmin"
   force_path_style: true
+
+categories:
+  - key: housing
+    label: Housing
+  - key: other
+    label: Other
 "#;
         let default_path = config_dir.join("default.yaml");
         let mut file = std::fs::File::create(&default_path).unwrap();

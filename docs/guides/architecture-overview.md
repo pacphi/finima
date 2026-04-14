@@ -228,8 +228,11 @@ Finima supports importing transactions from CSV, OFX/QFX, QIF, and Excel files
 
 ## LLM Integration
 
-Transaction categorization uses a two-tier approach (see
-[ADR-003](../ADRs/ADR-003-local-llm-gemma4-categorization.md)):
+Transaction categorization uses a two-tier approach. For the full pipeline
+walkthrough — prompt structure, tool schema, confidence scoring, on-demand
+triggers, and source file map — see the
+[Categorization Guide](./categorization.md). Architecture decision:
+[ADR-003](../ADRs/ADR-003-local-llm-gemma4-categorization.md).
 
 ### Tier 1: Pattern Matching
 
@@ -249,8 +252,9 @@ If Ollama is unavailable, no model is loaded, or neither the `ollama` nor
 instead. The stub returns `category="other"` with `confidence=0.5` for all
 categorization requests and placeholder values for enrichment and
 summarization. This is logged at startup (`Using STUB LLM client`).
-Transactions imported during stub mode can be re-categorized later by
-re-importing the file after Ollama is available.
+Transactions imported during stub mode can be re-categorized later using the
+on-demand categorization trigger (`POST /api/transactions/categorize`) once a
+real LLM backend is available.
 
 ### Article Summarization
 

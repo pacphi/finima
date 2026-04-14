@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
+import type { CategoryMap } from '@/hooks/useCategories';
+import { categoryLabel } from '@/hooks/useCategories';
 
 interface CategoryCellProps {
   value: string | null;
   confidence: number | null;
   userOverridden: boolean;
   allCategories: string[];
+  categoryMap: CategoryMap;
   onChange: (category: string) => void;
 }
 
@@ -13,6 +16,7 @@ export function CategoryCell({
   confidence,
   userOverridden,
   allCategories,
+  categoryMap,
   onChange,
 }: CategoryCellProps) {
   const [editing, setEditing] = useState(false);
@@ -23,7 +27,11 @@ export function CategoryCell({
 
   const isLowConfidence = confidence !== null && confidence < 0.7 && !userOverridden;
 
-  const filtered = allCategories.filter((c) => c.toLowerCase().includes(search.toLowerCase()));
+  const displayLabel = categoryLabel(value, categoryMap);
+  const filtered = allCategories.filter((c) => {
+    const label = categoryLabel(c, categoryMap).toLowerCase();
+    return label.includes(search.toLowerCase()) || c.toLowerCase().includes(search.toLowerCase());
+  });
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -57,7 +65,7 @@ export function CategoryCell({
       <button
         onClick={() => setEditing(true)}
         className="flex items-center gap-1 text-left w-full group"
-        aria-label={`Category: ${value ?? 'Uncategorized'}${confidenceText}. Click to change.`}
+        aria-label={`Category: ${displayLabel}${confidenceText}. Click to change.`}
       >
         {isLowConfidence && (
           <span
@@ -69,7 +77,7 @@ export function CategoryCell({
           </span>
         )}
         <span className="group-hover:text-[var(--color-primary)] transition-colors">
-          {value ?? 'Uncategorized'}
+          {displayLabel}
         </span>
         {isLowConfidence && <span className="sr-only"> (low confidence)</span>}
       </button>
@@ -91,7 +99,7 @@ export function CategoryCell({
           setActiveIndex(-1);
         }}
         placeholder="Search categories..."
-        className="w-full px-2 py-1 text-sm border border-[var(--color-primary)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+        className="w-full px-2 py-1 text-sm border border-[var(--color-primary)] rounded bg-[var(--color-dropdown-bg,var(--color-surface))] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
         role="combobox"
         aria-expanded={true}
         aria-controls="category-listbox"
@@ -123,7 +131,7 @@ export function CategoryCell({
         id="category-listbox"
         role="listbox"
         aria-label="Available categories"
-        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-lg"
+        className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--color-dropdown-bg,var(--color-surface))] border border-[var(--color-border)] rounded-lg shadow-lg"
       >
         {filtered.map((cat, index) => (
           <li
@@ -141,7 +149,7 @@ export function CategoryCell({
               }`}
               tabIndex={-1}
             >
-              {cat}
+              {categoryLabel(cat, categoryMap)}
             </button>
           </li>
         ))}

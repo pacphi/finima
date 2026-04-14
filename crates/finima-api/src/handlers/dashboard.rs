@@ -41,6 +41,9 @@ pub struct MonthQuery {
 #[derive(Debug, Serialize)]
 pub struct DashboardSummary {
     pub net_worth: Decimal,
+    pub total_assets: Decimal,
+    pub total_liabilities: Decimal,
+    pub account_count: usize,
     pub monthly_income: Decimal,
     pub monthly_expenses: Decimal,
     pub savings_rate: f64,
@@ -156,8 +159,13 @@ pub async fn get_summary(
         .await?;
     let upcoming_bills_count = recurring_groups.iter().filter(|g| g.is_confirmed).count() as i64;
 
+    let account_count = accounts.iter().filter(|a| !a.is_archived).count();
+
     Ok(Json(DashboardSummary {
         net_worth,
+        total_assets,
+        total_liabilities,
+        account_count,
         monthly_income,
         monthly_expenses,
         savings_rate: health.savings_rate,

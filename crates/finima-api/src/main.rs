@@ -152,7 +152,7 @@ async fn main() {
     tracing::info!("Prometheus metrics registry initialized");
 
     // Build router
-    let app = router::build_router(state, &app_config, metrics_registry);
+    let app = router::build_router(state.clone(), &app_config, metrics_registry);
 
     // Start server
     let bind_addr = format!("{}:{}", app_config.server.host, app_config.server.port);
@@ -163,7 +163,7 @@ async fn main() {
     tracing::info!(address = %bind_addr, "Finima API server listening");
 
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(state))
         .await
         .expect("Server error");
 }
@@ -224,11 +224,13 @@ fn spawn_llm_loader(state: state::AppState, config: &config::AppConfig) {
     });
 }
 
-/// Wait for a Ctrl-C (SIGINT) signal, then log and return so `axum::serve`
-/// can drain in-flight connections gracefully.
-async fn shutdown_signal() {
+/// Wait for a Ctrl-C (SIGINT) signal, then signal background tasks to stop
+/// and return so `axum::serve` can drain in-flight connections gracefully.
+async fn shutdown_signal(state: state::AppState) {
     tokio::signal::ctrl_c()
         .await
         .expect("Failed to listen for ctrl_c signal");
+    tracing::info!("Shutdown signal received — cancelling background tasks...");
+    state.signal_shutdown();
     tracing::info!("Shutting down gracefully...");
 }

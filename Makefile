@@ -79,11 +79,29 @@ else
   CARGO_LLM_FEATURES :=
 endif
 
-# When NOT using Ollama, skip the ollama container in docker-infra.
+# ── Ollama detection ──────────────────────────────────────────
+# When LLM=ollama, detect whether a local Ollama is already serving
+# on port 11434 so we can skip the Docker container.
+OLLAMA_PORT     ?= 11434
+OLLAMA_MODEL    ?= gemma4:26b-a4b-it-q4_K_M
+OLLAMA_LOCAL    := $(shell curl -sf http://localhost:$(OLLAMA_PORT)/api/version >/dev/null 2>&1 && echo 1 || echo 0)
+OLLAMA_DOCKER   := $(shell docker inspect -f '{{.State.Running}}' finima-ollama 2>/dev/null)
+
+# Determine infrastructure services to start.
+# - LLM != ollama  → postgres + minio only (no ollama needed)
+# - LLM  = ollama  → postgres + minio + ollama UNLESS a local Ollama is
+#                     already responding (avoids port conflicts)
 ifeq ($(LLM),ollama)
-  INFRA_SERVICES :=
+  ifeq ($(OLLAMA_LOCAL),1)
+    INFRA_SERVICES := postgres minio
+    OLLAMA_SOURCE  := local
+  else
+    INFRA_SERVICES := postgres minio ollama
+    OLLAMA_SOURCE  := docker
+  endif
 else
   INFRA_SERVICES := postgres minio
+  OLLAMA_SOURCE  := none
 endif
 
 LYCHEE := $(shell command -v lychee 2>/dev/null)
@@ -118,9 +136,9 @@ help:
 	@echo "  make ci                - Run full CI pipeline"
 	@echo "  make test              - Run all tests"
 	@echo ""
-	@echo "$(BOLD)LLM Backend (current: $(LLM)):$(RESET)"
+	@echo "$(BOLD)LLM Backend (current: $(LLM)$(if $(filter ollama,$(LLM)), — $(OLLAMA_SOURCE),)):$(RESET)"
 	@echo "  LLM=candle  make dev   - In-process inference (auto-detects Metal/CUDA/CPU)"
-	@echo "  LLM=ollama  make dev   - HTTP inference via Ollama container"
+	@echo "  LLM=ollama  make dev   - HTTP inference (auto-detects local vs Docker)"
 	@echo "  LLM=stub    make dev   - No LLM (stub mode)"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Install & Build ═════════════════════════════════════════════════$(RESET)"
@@ -211,6 +229,7 @@ help:
 	@echo "  dev-stub               - Start without any LLM (stub mode)"
 	@echo "  models                 - List downloaded models (set LLM=candle or ollama)"
 	@echo "  download-model         - Download the default model (set LLM=candle or ollama)"
+	@echo "  check-ollama           - Diagnose Ollama setup (local vs Docker)"
 	@echo ""
 	@echo "  Run '$(BOLD)make -C frontend$(RESET)' for frontend-specific targets."
 
@@ -241,7 +260,7 @@ start: docker-infra ## Start everything (infra + backend + frontend)
 
 dev: ## Start backend + frontend (assumes infra is running)
 	@echo "$(GREEN)Backend: http://localhost:3000  Frontend: http://localhost:5173$(RESET)"
-	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
+	@echo "$(CYAN)LLM backend: $(LLM)$(if $(filter ollama,$(LLM)), ($(OLLAMA_SOURCE)),)$(RESET)"
 	@trap 'kill 0' INT TERM EXIT; \
 		APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES) & \
 		$(MAKE) -C $(FRONTEND_DIR) dev & \
@@ -445,6 +464,17 @@ db-seed: ## Load test seed data (dev/test only)
 .PHONY: docker-infra docker-infra-down docker-infra-restart docker-infra-logs docker-infra-ps docker-infra-health
 
 docker-infra: ## Start dev infrastructure (services depend on LLM setting)
+ifeq ($(LLM),ollama)
+ifeq ($(OLLAMA_SOURCE),local)
+	@echo "$(GREEN)Ollama: using local instance on port $(OLLAMA_PORT)$(RESET)"
+	@if docker inspect -f '{{.State.Running}}' finima-ollama 2>/dev/null | grep -q true; then \
+		echo "$(YELLOW)Stopping Docker Ollama (finima-ollama) to avoid port conflict...$(RESET)"; \
+		docker stop finima-ollama >/dev/null 2>&1; \
+	fi
+else
+	@echo "$(CYAN)Ollama: starting Docker container (no local instance detected)$(RESET)"
+endif
+endif
 	$(COMPOSE_DEV) up -d $(INFRA_SERVICES)
 
 docker-infra-down: ## Stop dev infrastructure
@@ -533,7 +563,7 @@ deadcode: ## Check for dead code
 #  LLM / AI Models
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: dev-candle dev-ollama dev-stub models download-model
+.PHONY: dev-candle dev-ollama dev-stub models download-model check-ollama
 
 dev-candle: ## Start with Candle in-process LLM (auto-detects Metal/CUDA/CPU)
 	@$(MAKE) dev LLM=candle
@@ -547,7 +577,18 @@ dev-stub: ## Start without any LLM (stub mode)
 models: ## List downloaded models (set LLM=candle or LLM=ollama)
 ifeq ($(filter candle candle-metal candle-cuda,$(LLM)),)
 ifeq ($(LLM),ollama)
-	@ollama list 2>/dev/null || echo "Ollama not running. Start with: make docker-infra LLM=ollama"
+	@if docker inspect -f '{{.State.Running}}' finima-ollama 2>/dev/null | grep -q true; then \
+		echo "$(CYAN)Models in Docker Ollama (finima-ollama):$(RESET)"; \
+		docker exec finima-ollama ollama list; \
+	fi
+	@if command -v ollama >/dev/null 2>&1 && ollama list >/dev/null 2>&1; then \
+		echo "$(CYAN)Models in local Ollama:$(RESET)"; \
+		ollama list; \
+	fi
+	@if ! docker inspect -f '{{.State.Running}}' finima-ollama 2>/dev/null | grep -q true \
+		&& ! (command -v ollama >/dev/null 2>&1 && ollama list >/dev/null 2>&1); then \
+		echo "No Ollama instance found. Start with: make docker-infra LLM=ollama"; \
+	fi
 else
 	$(error Set LLM to candle or ollama (current: $(LLM)))
 endif
@@ -572,13 +613,65 @@ endif
 download-model: ## Download the default model (set LLM=candle or LLM=ollama)
 ifeq ($(filter candle candle-metal candle-cuda,$(LLM)),)
 ifeq ($(LLM),ollama)
-	ollama pull gemma4:26b-a4b-it-q4_K_M
+	@if [ "$(OLLAMA_SOURCE)" = "docker" ]; then \
+		echo "$(CYAN)Pulling $(OLLAMA_MODEL) into Docker Ollama...$(RESET)"; \
+		docker exec finima-ollama ollama pull $(OLLAMA_MODEL); \
+	elif [ "$(OLLAMA_SOURCE)" = "local" ]; then \
+		echo "$(CYAN)Pulling $(OLLAMA_MODEL) into local Ollama...$(RESET)"; \
+		ollama pull $(OLLAMA_MODEL); \
+	else \
+		echo "No Ollama instance found. Start with: make docker-infra LLM=ollama"; \
+		exit 1; \
+	fi
 else
 	$(error Set LLM to candle or ollama (current: $(LLM)))
 endif
 else
 	cargo run -p finima-llm --features candle --bin download_model
 endif
+
+check-ollama: ## Diagnose Ollama setup (local vs Docker, model availability)
+	@echo "$(BOLD)Ollama Diagnostics$(RESET)"
+	@echo ""
+	@echo "$(BOLD)Local Ollama:$(RESET)"
+	@if command -v ollama >/dev/null 2>&1; then \
+		ver=$$(ollama --version 2>/dev/null || echo "unknown"); \
+		echo "  Installed: yes ($$ver)"; \
+		if ollama list >/dev/null 2>&1; then \
+			echo "  Status:    running"; \
+			echo "  Models:"; \
+			ollama list 2>/dev/null | sed 's/^/    /'; \
+		else \
+			echo "  Status:    not running"; \
+		fi; \
+	else \
+		echo "  Installed: no"; \
+	fi
+	@echo ""
+	@echo "$(BOLD)Docker Ollama (finima-ollama):$(RESET)"
+	@if docker inspect -f '{{.State.Running}}' finima-ollama 2>/dev/null | grep -q true; then \
+		echo "  Status:    running"; \
+		port=$$(docker port finima-ollama 11434 2>/dev/null | head -1); \
+		echo "  Port:      $$port"; \
+		echo "  Models:"; \
+		docker exec finima-ollama ollama list 2>/dev/null | sed 's/^/    /'; \
+	else \
+		echo "  Status:    not running"; \
+	fi
+	@echo ""
+	@echo "$(BOLD)Backend connects to:$(RESET) http://localhost:$(OLLAMA_PORT)"
+	@if curl -sf http://localhost:$(OLLAMA_PORT)/api/version >/dev/null 2>&1; then \
+		echo "  Port $(OLLAMA_PORT): $(GREEN)responding$(RESET)"; \
+		if curl -sf http://localhost:$(OLLAMA_PORT)/api/tags 2>/dev/null \
+			| grep -q '"$(OLLAMA_MODEL)"'; then \
+			echo "  Model $(OLLAMA_MODEL): $(GREEN)available$(RESET)"; \
+		else \
+			echo "  Model $(OLLAMA_MODEL): $(YELLOW)NOT FOUND$(RESET)"; \
+			echo "  Run: make download-model LLM=ollama"; \
+		fi; \
+	else \
+		echo "  Port $(OLLAMA_PORT): $(YELLOW)not responding$(RESET)"; \
+	fi
 
 # ═══════════════════════════════════════════════════════════════
 #  Infrastructure (MinIO, Backups, Observability)

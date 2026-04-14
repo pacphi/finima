@@ -11,11 +11,10 @@ use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::types::UploadStatus;
 use finima_core::{AppError, FileFormat};
-use finima_db::{LlmCategorizationUpdate, NewTransaction};
+use finima_db::NewTransaction;
 use finima_ingest::{
     compute_dedup_hash, detect_format, generate_preview, ColumnMapping, FileParser,
 };
-use finima_llm::{Categorizer, OverridePattern, TransactionInput};
 
 use crate::state::AppState;
 use crate::ws::WsMessage;
@@ -466,12 +465,12 @@ pub async fn confirm_upload(
 
     let duplicates = total - imported;
 
-    // Update upload status
+    // Set status to Categorizing so the frontend knows work is still in progress.
     state
         .upload_repo()
         .update_status(
             upload.id,
-            UploadStatus::Complete,
+            UploadStatus::Categorizing,
             Some(total as i32),
             Some(imported as i32),
             Some(duplicates as i32),
@@ -489,21 +488,32 @@ pub async fn confirm_upload(
         );
     }
 
-    // Spawn async categorization pipeline
+    // Spawn async categorization pipeline — it will set status to Complete when done.
     let categorization_state = state.clone();
     let user_id = user.user_id;
     let upload_id = upload.id;
     let account_id = upload.account_id;
 
     tokio::spawn(async move {
-        if let Err(e) =
-            run_categorization_pipeline(categorization_state, user_id, upload_id, account_id).await
+        if let Err(e) = run_categorization_pipeline(
+            categorization_state.clone(),
+            user_id,
+            upload_id,
+            account_id,
+        )
+        .await
         {
             tracing::error!(
                 upload_id = %upload_id,
                 error = %e,
                 "Async categorization pipeline failed"
             );
+            // Still mark upload as complete — the import succeeded, categorization
+            // can be retried later via the on-demand endpoint.
+            let _ = categorization_state
+                .upload_repo()
+                .update_status(upload_id, UploadStatus::Complete, None, None, None, None)
+                .await;
         }
     });
 
@@ -547,62 +557,30 @@ pub async fn get_upload_status(
 
 /// Background task that categorizes uncategorized transactions after an upload.
 ///
-/// Steps:
-/// 1. Fetch uncategorized transactions for the account
-/// 2. Load user overrides
-/// 3. Create a Categorizer and call categorize_transactions
-/// 4. Update transaction records with LLM results
-/// 5. Send WebSocket progress events throughout
-/// 6. Trigger recurring detection for the portfolio
-/// 7. Send final WebSocket event
+/// Delegates to the shared categorization pipeline and wraps it with
+/// upload-specific WebSocket progress events.
 async fn run_categorization_pipeline(
     state: AppState,
     user_id: Uuid,
     upload_id: Uuid,
     account_id: Uuid,
 ) -> Result<(), AppError> {
-    // Step 1: Fetch uncategorized transactions
-    let uncategorized = state
+    // Send initial progress (upload-specific: includes upload_id)
+    let uncategorized_count = state
         .transaction_repo()
         .find_uncategorized(account_id)
-        .await?;
+        .await?
+        .len();
 
-    if uncategorized.is_empty() {
+    if uncategorized_count == 0 {
         tracing::info!(upload_id = %upload_id, "No uncategorized transactions to process");
+        state
+            .upload_repo()
+            .update_status(upload_id, UploadStatus::Complete, None, None, None, None)
+            .await?;
         return Ok(());
     }
 
-    let total = uncategorized.len();
-
-    // Step 2: Load user overrides
-    let user_overrides = state.override_repo().list_by_user(user_id).await?;
-    let override_patterns: Vec<OverridePattern> = user_overrides
-        .iter()
-        .map(|o| OverridePattern {
-            pattern: o.description_pattern.clone(),
-            category: o.category.clone(),
-            subcategory: o.subcategory.clone(),
-        })
-        .collect();
-
-    // Step 3: Build transaction inputs
-    let transaction_inputs: Vec<TransactionInput> = uncategorized
-        .iter()
-        .map(|t| TransactionInput {
-            id: t.id,
-            date: t.date,
-            amount: t.amount,
-            description: t.description.clone(),
-        })
-        .collect();
-
-    // Step 4: Categorize using the LLM client
-    let llm_client = state
-        .llm_client()
-        .ok_or_else(|| AppError::ServiceUnavailable("LLM backend not available".to_string()))?;
-    let categorizer = Categorizer::new(llm_client);
-
-    // Send initial progress
     state
         .ws_manager()
         .send_to_user(
@@ -610,124 +588,48 @@ async fn run_categorization_pipeline(
             WsMessage::CategorizationProgress {
                 upload_id,
                 categorized: 0,
-                total,
+                total: uncategorized_count,
                 flagged: 0,
             },
         )
         .await;
 
-    let report = categorizer
-        .categorize_transactions(transaction_inputs, override_patterns)
-        .await
-        .map_err(|e| AppError::InternalError(format!("Categorization failed: {}", e)))?;
+    // Run the shared pipeline with upload_id for per-batch progress events.
+    let outcome = super::categorization::run_categorization_for_account_with_upload(
+        &state,
+        user_id,
+        account_id,
+        Some(upload_id),
+    )
+    .await?;
 
-    // Step 5: Update transaction records with results
-    let updates: Vec<LlmCategorizationUpdate> = report
-        .results
-        .iter()
-        .map(|r| LlmCategorizationUpdate {
-            transaction_id: r.transaction_id,
-            category: r.category.clone(),
-            subcategory: r.subcategory.clone(),
-            merchant_name: r.merchant_name.clone(),
-            llm_confidence: r.confidence,
-        })
-        .collect();
-
-    state
-        .transaction_repo()
-        .update_llm_results(&updates)
-        .await?;
-
-    let flagged = report.flagged;
-
-    // Send completion progress
-    state
-        .ws_manager()
-        .send_to_user(
-            user_id,
-            WsMessage::CategorizationComplete {
-                upload_id,
-                total: report.results.len(),
-                flagged,
-            },
-        )
-        .await;
-
-    // Step 6: Trigger recurring detection for the portfolio
-    let account = state.account_repo().find_by_id(account_id).await?;
-    let portfolio_id = account.portfolio_id;
-
-    // Fetch all transactions for the portfolio to detect recurring patterns
-    let (all_txns, _) = state
-        .transaction_repo()
-        .list(
-            &finima_db::TransactionFilters {
-                portfolio_id: Some(portfolio_id),
-                ..Default::default()
-            },
-            &finima_db::Pagination {
-                page: 1,
-                per_page: 10_000,
-            },
-            &finima_db::Sort::default(),
-        )
-        .await?;
-
-    let analysis_txns: Vec<finima_analysis::TransactionForAnalysis> = all_txns
-        .iter()
-        .map(|t| finima_analysis::TransactionForAnalysis {
-            id: t.id,
-            date: t.date,
-            amount: t.amount,
-            description: t.description.clone(),
-            merchant_name: t.merchant_name.clone(),
-            category: t.category.clone(),
-            account_id: Some(t.account_id),
-        })
-        .collect();
-
-    let recurring_candidates = finima_analysis::detect_recurring(&analysis_txns);
-
-    // Upsert recurring groups
-    for candidate in &recurring_candidates {
-        let insert = finima_db::RecurringGroupInsert {
-            merchant_name: candidate.merchant_name.clone(),
-            category: candidate
-                .category
-                .clone()
-                .unwrap_or_else(|| "other".to_string()),
-            frequency: candidate.frequency,
-            avg_amount: candidate.avg_amount,
-            next_expected_date: candidate.next_expected_date,
-            metadata: serde_json::json!({
-                "transaction_count": candidate.transaction_count,
-                "annual_cost": candidate.annual_cost.to_string(),
-            }),
-        };
-        let _ = state.recurring_repo().upsert(portfolio_id, insert).await;
-    }
-
-    // Step 7: Send recurring detection event
-    if !recurring_candidates.is_empty() {
+    if let Some(outcome) = outcome {
+        // Send upload-specific completion event
         state
             .ws_manager()
             .send_to_user(
                 user_id,
-                WsMessage::RecurringDetected {
-                    count: recurring_candidates.len(),
+                WsMessage::CategorizationComplete {
+                    upload_id,
+                    total: outcome.total,
+                    flagged: outcome.flagged,
                 },
             )
             .await;
+
+        tracing::info!(
+            upload_id = %upload_id,
+            categorized = outcome.total,
+            flagged = outcome.flagged,
+            "Categorization pipeline complete"
+        );
     }
 
-    tracing::info!(
-        upload_id = %upload_id,
-        categorized = report.results.len(),
-        flagged,
-        recurring = recurring_candidates.len(),
-        "Categorization pipeline complete"
-    );
+    // Mark the upload as fully complete now that categorization has finished.
+    state
+        .upload_repo()
+        .update_status(upload_id, UploadStatus::Complete, None, None, None, None)
+        .await?;
 
     Ok(())
 }

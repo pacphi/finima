@@ -21,8 +21,8 @@ use finima_auth::middleware::JwtSecret;
 
 use crate::config::AppConfig;
 use crate::handlers::{
-    accounts, auth, budgets, dashboard, feed, flows, overrides, portfolios, recurring, savings,
-    transactions, uploads, users,
+    accounts, auth, budgets, categories, dashboard, feed, flows, overrides, portfolios, recurring,
+    savings, transactions, uploads, users,
 };
 use crate::metrics::{HttpDurationLabels, HttpRequestLabels, MetricsRegistry};
 use crate::state::AppState;
@@ -296,6 +296,8 @@ pub fn build_router(
         .route("/", get(transactions::list_transactions))
         .route("/search", get(transactions::search_transactions))
         .route("/bulk-update", post(transactions::bulk_update_transactions))
+        .route("/categorize", post(transactions::categorize_uncategorized))
+        .route("/categorize/status", get(transactions::categorize_status))
         .route("/{id}", put(transactions::update_transaction));
 
     // Recurring routes (authentication required)
@@ -389,6 +391,14 @@ pub fn build_router(
         .nest("/api/savings-goals", savings_routes)
         .nest("/api/flows", flow_routes)
         .nest("/api/flow-groups", flow_group_routes)
+        .route(
+            "/api/categories",
+            get(categories::list_categories).post(categories::create_category),
+        )
+        .route(
+            "/api/categories/{key}",
+            put(categories::update_category).delete(categories::delete_category),
+        )
         // WebSocket route — auth via query param, not middleware
         .route("/api/ws", get(ws::ws_handler))
         .layer(middleware::from_fn_with_state(

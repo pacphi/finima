@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import type { CategoryMap } from '@/hooks/useCategories';
+import { categoryLabel } from '@/hooks/useCategories';
 
 interface BulkEditBarProps {
   selectedCount: number;
   allCategories: string[];
+  categoryMap: CategoryMap;
   onBulkCategoryChange: (category: string) => void;
   onClearSelection: () => void;
 }
@@ -10,6 +13,7 @@ interface BulkEditBarProps {
 export function BulkEditBar({
   selectedCount,
   allCategories,
+  categoryMap,
   onBulkCategoryChange,
   onClearSelection,
 }: BulkEditBarProps) {
@@ -18,7 +22,10 @@ export function BulkEditBar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  const filtered = allCategories.filter((c) => c.toLowerCase().includes(search.toLowerCase()));
+  const filtered = allCategories.filter((c) => {
+    const label = categoryLabel(c, categoryMap).toLowerCase();
+    return label.includes(search.toLowerCase()) || c.toLowerCase().includes(search.toLowerCase());
+  });
 
   // Focus search input when picker opens
   useEffect(() => {
@@ -76,7 +83,7 @@ export function BulkEditBar({
 
         {showCategoryPicker && (
           <div
-            className="absolute z-50 top-full left-0 mt-1 w-64 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-lg"
+            className="absolute z-50 top-full left-0 mt-1 w-64 bg-[var(--color-dropdown-bg,var(--color-surface))] border border-[var(--color-border)] rounded-lg shadow-lg"
             role="dialog"
             aria-label="Select a category"
           >
@@ -128,7 +135,7 @@ export function BulkEditBar({
                         : ''
                     }`}
                   >
-                    {cat}
+                    {categoryLabel(cat, categoryMap)}
                   </button>
                 </li>
               ))}

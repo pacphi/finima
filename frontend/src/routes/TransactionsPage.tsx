@@ -1,11 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { useApi } from '@/hooks/useApi';
 import { createTransactionApi } from '@/api/transactions';
 import { createAccountApi } from '@/api/accounts';
 import { usePortfolioStore } from '@/stores/portfolioStore';
-import type { Transaction, TransactionFilters, PaginatedResponse, Account } from '@/types/models';
+import { useCategories, categoryLabel } from '@/hooks/useCategories';
+import type {
+  Transaction,
+  TransactionFilters,
+  PaginatedResponse,
+  Account,
+  CategoryCount,
+} from '@/types/models';
 
 const PER_PAGE = 30;
 
@@ -13,6 +20,7 @@ export function TransactionsPage() {
   const api = useApi();
   const txApi = createTransactionApi(api);
   const accountApi = createAccountApi(api);
+  const { categoryMap } = useCategories();
   const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
   const storedAccounts = usePortfolioStore((s) => s.accounts);
 
@@ -26,6 +34,14 @@ export function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Transaction[] | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // Categorization state
+  const [categorizing, setCategorizing] = useState(false);
+  const [categorizationSummary, setCategorizationSummary] = useState<{
+    total: number;
+    categories: CategoryCount[];
+  } | null>(null);
+  const categorizePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (storedAccounts.length > 0) {
@@ -104,6 +120,62 @@ export function TransactionsPage() {
     }
   }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clean up categorization polling on unmount
+  useEffect(() => {
+    return () => {
+      if (categorizePollRef.current) clearInterval(categorizePollRef.current);
+    };
+  }, []);
+
+  const handleCategorize = async () => {
+    // Use the first account filter, or the first account in the list
+    const accountId = filters.account_id ?? accounts[0]?.id;
+    if (!accountId) return;
+
+    setCategorizing(true);
+    setCategorizationSummary(null);
+
+    try {
+      await txApi.categorizeUncategorized(accountId);
+
+      // Poll for completion
+      categorizePollRef.current = setInterval(async () => {
+        try {
+          const status = await txApi.getCategorizeStatus(accountId);
+          if (status.status === 'complete') {
+            if (categorizePollRef.current) clearInterval(categorizePollRef.current);
+            categorizePollRef.current = null;
+            setCategorizing(false);
+
+            if (status.total > 0) {
+              setCategorizationSummary({
+                total: status.total,
+                categories: status.categories,
+              });
+              // Auto-dismiss after 15 seconds
+              setTimeout(() => setCategorizationSummary(null), 15000);
+            }
+
+            // Refresh the transaction list
+            void fetchTransactions();
+          } else if (status.status === 'failed') {
+            if (categorizePollRef.current) clearInterval(categorizePollRef.current);
+            categorizePollRef.current = null;
+            setCategorizing(false);
+            console.error('Categorization failed:', status.error);
+          }
+        } catch {
+          if (categorizePollRef.current) clearInterval(categorizePollRef.current);
+          categorizePollRef.current = null;
+          setCategorizing(false);
+        }
+      }, 2000);
+    } catch (err) {
+      setCategorizing(false);
+      console.error('Failed to start categorization:', err);
+    }
+  };
+
   const handleExportCsv = () => {
     const headers = ['Date', 'Description', 'Category', 'Amount', 'Account'];
     const rows = transactions.map((t) => [
@@ -129,8 +201,8 @@ export function TransactionsPage() {
         Transactions
       </h1>
 
-      {/* Quick search */}
-      <div className="mb-4 flex gap-2">
+      {/* Toolbar: search + categorize */}
+      <div className="mb-4 flex flex-wrap gap-2 items-center">
         <input
           type="text"
           value={searchQuery}
@@ -162,7 +234,55 @@ export function TransactionsPage() {
             Clear
           </button>
         )}
+
+        <div className="ml-auto">
+          <button
+            onClick={() => void handleCategorize()}
+            disabled={categorizing || accounts.length === 0}
+            title="Run AI categorization on all uncategorized transactions in this account"
+            className="px-4 py-2 text-sm border border-[var(--color-primary)] text-[var(--color-primary)] rounded-lg hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50 transition-colors"
+          >
+            {categorizing ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Categorizing...
+              </span>
+            ) : (
+              'Categorize'
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Categorization summary banner */}
+      {categorizationSummary && (
+        <div
+          className="mb-4 p-3 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-primary)]">
+                Categorized {categorizationSummary.total} transaction
+                {categorizationSummary.total !== 1 ? 's' : ''}
+              </p>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                {categorizationSummary.categories
+                  .map((c) => `${categoryLabel(c.category, categoryMap)} (${c.count})`)
+                  .join(', ')}
+              </p>
+            </div>
+            <button
+              onClick={() => setCategorizationSummary(null)}
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text)] text-sm ml-4"
+              aria-label="Dismiss categorization summary"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
 
       {searchResults !== null && (
         <div className="mb-4 text-sm text-[var(--color-text-secondary)]">
@@ -185,6 +305,7 @@ export function TransactionsPage() {
           filters={filters}
           accounts={accounts}
           allCategories={allCategories}
+          categoryMap={categoryMap}
           onSortingChange={setSorting}
           onPageChange={setPage}
           onFiltersChange={(f) => {

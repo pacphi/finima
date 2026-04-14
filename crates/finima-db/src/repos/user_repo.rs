@@ -25,6 +25,7 @@ impl UserRepo for PgUserRepo {
             r#"
             INSERT INTO users (id, email, display_name, preferences, created_at, updated_at)
             VALUES ($1, $2, $3, $4, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
             RETURNING id, email, display_name, preferences, created_at, updated_at
             "#,
         )

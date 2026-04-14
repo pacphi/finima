@@ -272,7 +272,7 @@ export function DashboardPage() {
           />
           <SummaryCard
             label="Accounts"
-            value={String(summary.account_count)}
+            value={String(summary.account_count ?? 0)}
             icon={
               <svg
                 className="w-5 h-5"

@@ -123,6 +123,7 @@ impl FromStr for Frequency {
 pub enum UploadStatus {
     Pending,
     Processing,
+    Categorizing,
     Complete,
     Error,
 }
@@ -132,6 +133,7 @@ impl fmt::Display for UploadStatus {
         let s = match self {
             Self::Pending => "pending",
             Self::Processing => "processing",
+            Self::Categorizing => "categorizing",
             Self::Complete => "complete",
             Self::Error => "error",
         };
@@ -146,6 +148,7 @@ impl FromStr for UploadStatus {
         match s {
             "pending" => Ok(Self::Pending),
             "processing" => Ok(Self::Processing),
+            "categorizing" => Ok(Self::Categorizing),
             "complete" => Ok(Self::Complete),
             "error" => Ok(Self::Error),
             _ => Err(format!("Unknown upload status: {}", s)),
@@ -260,6 +263,7 @@ mod tests {
         let variants = [
             UploadStatus::Pending,
             UploadStatus::Processing,
+            UploadStatus::Categorizing,
             UploadStatus::Complete,
             UploadStatus::Error,
         ];

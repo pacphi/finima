@@ -24,7 +24,11 @@ function formatCurrency(value: number): string {
 }
 
 function formatMonth(month: string): string {
-  const d = new Date(month + '-01');
+  // Backend may return full date (YYYY-MM-DD) or month (YYYY-MM).
+  // Normalize to YYYY-MM-DD before parsing.
+  const normalized = month.length <= 7 ? month + '-01' : month;
+  const d = new Date(normalized + 'T00:00:00');
+  if (isNaN(d.getTime())) return month;
   return d.toLocaleDateString('en-US', { month: 'short' });
 }
 

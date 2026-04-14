@@ -18,7 +18,7 @@ pub mod tool_defs;
 pub mod candle_backend;
 
 // Re-export primary types for convenience.
-pub use categorizer::{CategorizationReport, Categorizer};
+pub use categorizer::{CategorizationProgress, CategorizationReport, Categorizer};
 pub use client::{
     CategorizationBatch, CategorizationResult, LlmClient, OverridePattern, RecurringEnrichment,
     RecurringGroupCandidate, RecurringTransactionSummary, TransactionInput,

@@ -137,7 +137,9 @@ impl CsvParser {
                 let debit = if debit_str.is_empty() {
                     Decimal::ZERO
                 } else {
-                    parse_amount(debit_str).map_err(|_| {
+                    // Use absolute value: some banks export debits as negative
+                    // numbers, but the column itself already indicates direction.
+                    parse_amount(debit_str).map(|d| d.abs()).map_err(|_| {
                         IngestError::InvalidAmount(format!(
                             "Row {}: debit '{}'",
                             row_idx + 1,
@@ -148,7 +150,7 @@ impl CsvParser {
                 let credit = if credit_str.is_empty() {
                     Decimal::ZERO
                 } else {
-                    parse_amount(credit_str).map_err(|_| {
+                    parse_amount(credit_str).map(|d| d.abs()).map_err(|_| {
                         IngestError::InvalidAmount(format!(
                             "Row {}: credit '{}'",
                             row_idx + 1,
@@ -472,6 +474,33 @@ mod tests {
         };
         let txns = CsvParser::parse_all(data, b',', &mapping).unwrap();
         assert_eq!(txns.len(), 2); // middle row skipped
+    }
+
+    #[test]
+    fn parse_csv_debit_credit_negative_values() {
+        // Some banks export debit values as negative numbers.
+        // We should take abs() so the column determines the sign.
+        let data = b"Date,Description,Debit,Credit\n\
+            01/15/2024,Withdrawal,-45.99,\n\
+            01/16/2024,Deposit,,2500.00\n\
+            01/17/2024,Refund,,-15.00\n";
+        let mapping = ColumnMapping {
+            date_col: 0,
+            amount_col: None,
+            debit_col: Some(2),
+            credit_col: Some(3),
+            description_col: 1,
+            memo_col: None,
+            category_col: None,
+        };
+        let txns = CsvParser::parse_all(data, b',', &mapping).unwrap();
+        assert_eq!(txns.len(), 3);
+        // Debit with negative value should still be negative (outflow)
+        assert_eq!(txns[0].amount, Decimal::from_str("-45.99").unwrap());
+        // Credit positive stays positive (inflow)
+        assert_eq!(txns[1].amount, Decimal::from_str("2500.00").unwrap());
+        // Credit with negative value should still be positive (inflow)
+        assert_eq!(txns[2].amount, Decimal::from_str("15.00").unwrap());
     }
 
     #[test]

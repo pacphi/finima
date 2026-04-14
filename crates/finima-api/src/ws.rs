@@ -42,6 +42,19 @@ pub enum WsMessage {
     RecurringDetected {
         count: usize,
     },
+    ManualCategorizationComplete {
+        account_id: Uuid,
+        total: usize,
+        flagged: usize,
+        categories: Vec<CategoryCount>,
+    },
+}
+
+/// Per-category count included in manual categorization summaries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryCount {
+    pub category: String,
+    pub count: usize,
 }
 
 // ---------------------------------------------------------------------------

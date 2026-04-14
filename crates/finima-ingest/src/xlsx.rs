@@ -141,15 +141,17 @@ impl XlsxParser {
                 if is_empty_cell(debit_cell) && is_empty_cell(credit_cell) {
                     continue;
                 }
+                // Use absolute value: some banks export debits as negative
+                // numbers, but the column itself already indicates direction.
                 let debit = match debit_cell {
                     Some(c) if !matches!(c, Data::Empty) => {
-                        parse_cell_amount(c).unwrap_or(Decimal::ZERO)
+                        parse_cell_amount(c).unwrap_or(Decimal::ZERO).abs()
                     }
                     _ => Decimal::ZERO,
                 };
                 let credit = match credit_cell {
                     Some(c) if !matches!(c, Data::Empty) => {
-                        parse_cell_amount(c).unwrap_or(Decimal::ZERO)
+                        parse_cell_amount(c).unwrap_or(Decimal::ZERO).abs()
                     }
                     _ => Decimal::ZERO,
                 };

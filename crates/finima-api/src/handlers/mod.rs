@@ -1,6 +1,8 @@
 pub mod accounts;
 pub mod auth;
 pub mod budgets;
+pub mod categories;
+pub mod categorization;
 pub mod dashboard;
 pub mod feed;
 pub mod flows;

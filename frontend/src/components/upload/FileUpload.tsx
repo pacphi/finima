@@ -42,9 +42,16 @@ function formatFileSize(bytes: number): string {
 interface FileUploadProps {
   accountId: string;
   onImportComplete?: () => void;
+  onTransactionsImported?: () => void;
+  onCategorizationProgress?: () => void;
 }
 
-export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
+export function FileUpload({
+  accountId,
+  onImportComplete,
+  onTransactionsImported,
+  onCategorizationProgress,
+}: FileUploadProps) {
   const api = useApi();
   const uploadApi = createUploadApi(api);
   const llmStatus = useHealthStore((s) => s.llmStatus);
@@ -111,10 +118,29 @@ export function FileUpload({ accountId, onImportComplete }: FileUploadProps) {
 
     if (currentUpload) {
       setProcessingStatus(currentUpload);
+      let importedFired = false;
+      let categorizationTickCount = 0;
       pollRef.current = setInterval(async () => {
         try {
           const status = await uploadApi.getUploadStatus(currentUpload.id);
           setProcessingStatus(status);
+
+          // Fire onTransactionsImported once when status first becomes 'categorizing'
+          // (transactions are in the DB, categorization has started)
+          if (status.status === 'categorizing' && !importedFired) {
+            importedFired = true;
+            onTransactionsImported?.();
+          }
+
+          // Periodically refresh during categorization so user sees categories appearing
+          if (status.status === 'categorizing' && importedFired) {
+            categorizationTickCount++;
+            // Refresh every 3rd poll (~6 seconds) to avoid excessive requests
+            if (categorizationTickCount % 3 === 0) {
+              onCategorizationProgress?.();
+            }
+          }
+
           if (status.status === 'complete' || status.status === 'error') {
             if (pollRef.current) clearInterval(pollRef.current);
             pollRef.current = null;

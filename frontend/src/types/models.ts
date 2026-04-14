@@ -256,6 +256,9 @@ export type ColumnMappingTarget = (typeof COLUMN_MAPPING_OPTIONS)[number];
 
 export interface DashboardSummary {
   net_worth: number;
+  total_assets: number;
+  total_liabilities: number;
+  account_count: number;
   monthly_income: number;
   monthly_expenses: number;
   savings_rate: number;
@@ -344,3 +347,21 @@ export interface WaterfallSegment {
   name: string;
   amount: number;
 }
+
+// ── Categorization ──────────────────────────────────────────────────
+
+export interface CategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface CategorizeAccepted {
+  message: string;
+  account_id: string;
+  uncategorized_count: number;
+}
+
+export type CategorizationJobStatus =
+  | { status: 'running' }
+  | { status: 'complete'; total: number; flagged: number; categories: CategoryCount[] }
+  | { status: 'failed'; error: string };

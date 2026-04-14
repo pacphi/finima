@@ -7,6 +7,7 @@ import { useApi } from '@/hooks/useApi';
 import { createAccountApi } from '@/api/accounts';
 import { createTransactionApi } from '@/api/transactions';
 import { formatCurrency } from '@/utils/format';
+import { useCategories } from '@/hooks/useCategories';
 import type { Account, Transaction, TransactionFilters, PaginatedResponse } from '@/types/models';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ICONS } from '@/types/models';
 import {
@@ -30,42 +31,95 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
-function computeBalanceOverTime(
-  transactions: Transaction[],
-  currentBalance: number,
-): { month: string; balance: number }[] {
+type ChartPoint = { label: string; balance: number };
+
+/** Parse amount safely — backend sends Decimal as JSON string. */
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return parseFloat(v) || 0;
+  return 0;
+}
+
+function computeBalanceOverTime(transactions: Transaction[], currentBalance: number): ChartPoint[] {
   if (transactions.length === 0) return [];
 
-  // Group transactions by month
-  const monthlyNet = new Map<string, number>();
-  for (const t of transactions) {
-    const month = t.date.slice(0, 7); // YYYY-MM
-    monthlyNet.set(month, (monthlyNet.get(month) ?? 0) + t.amount);
-  }
+  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  const firstDate = sorted[0]!.date;
+  const lastDate = sorted[sorted.length - 1]!.date;
+  const startMs = new Date(firstDate).getTime();
+  const endMs = new Date(lastDate).getTime();
+  const spanDays = Math.max(1, (endMs - startMs) / (1000 * 60 * 60 * 24));
 
-  // Sort months
-  const months = Array.from(monthlyNet.keys()).sort();
-  if (months.length === 0) return [];
+  const { bucketKey, formatLabel } = pickGranularity(spanDays);
 
-  // Work backwards from current balance to build historical balances
-  const allMonths = months.slice(-12); // Last 12 months max
-  let balance = currentBalance;
-  const balances: { month: string; balance: number }[] = [];
+  return buildChartPoints(sorted, currentBalance, bucketKey, formatLabel, 60);
+}
 
-  // Start from newest, subtract to get older balances
-  for (let i = allMonths.length - 1; i >= 0; i--) {
-    const m = allMonths[i]!;
-    balances.unshift({
-      month: new Date(m + '-01').toLocaleDateString('en-US', {
+function pickGranularity(spanDays: number) {
+  let bucketKey: (d: string) => string;
+  let formatLabel: (key: string) => string;
+
+  if (spanDays <= 90) {
+    bucketKey = (d) => d;
+    formatLabel = (key) =>
+      new Date(key + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else if (spanDays <= 365) {
+    bucketKey = (d) => {
+      const date = new Date(d + 'T00:00:00');
+      const day = date.getDay();
+      const monday = new Date(date);
+      monday.setDate(date.getDate() - day + (day === 0 ? -6 : 1));
+      return monday.toISOString().slice(0, 10);
+    };
+    formatLabel = (key) =>
+      new Date(key + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else if (spanDays <= 365 * 5) {
+    bucketKey = (d) => d.slice(0, 7);
+    formatLabel = (key) =>
+      new Date(key + '-01T00:00:00').toLocaleDateString('en-US', {
         month: 'short',
         year: '2-digit',
-      }),
-      balance: Math.round(balance * 100) / 100,
-    });
-    balance -= monthlyNet.get(m) ?? 0;
+      });
+  } else {
+    // Yearly buckets for very long ranges
+    bucketKey = (d) => d.slice(0, 4);
+    formatLabel = (key) => key;
   }
 
-  return balances;
+  return { bucketKey, formatLabel };
+}
+
+function buildChartPoints(
+  sortedTxns: Transaction[],
+  currentBalance: number,
+  bucketKey: (d: string) => string,
+  formatLabel: (key: string) => string,
+  maxBuckets: number,
+): ChartPoint[] {
+  const bucketNet = new Map<string, number>();
+  for (const t of sortedTxns) {
+    const key = bucketKey(t.date);
+    bucketNet.set(key, (bucketNet.get(key) ?? 0) + toNum(t.amount));
+  }
+
+  const keys = Array.from(bucketNet.keys()).sort();
+  if (keys.length === 0) return [];
+
+  const displayKeys = keys.slice(-maxBuckets);
+
+  // Work backwards through displayKeys to find balance at end of each period
+  const endBalances = new Map<string, number>();
+  let temp = toNum(currentBalance);
+  for (let i = displayKeys.length - 1; i >= 0; i--) {
+    const k = displayKeys[i]!;
+    endBalances.set(k, Math.round(temp * 100) / 100);
+    temp -= bucketNet.get(k) ?? 0;
+  }
+
+  return displayKeys.map((k) => ({
+    label: formatLabel(k),
+    balance: endBalances.get(k) ?? 0,
+  }));
 }
 
 export function AccountDetailPage() {
@@ -74,6 +128,7 @@ export function AccountDetailPage() {
   const accountApi = createAccountApi(api);
   const txApi = createTransactionApi(api);
 
+  const { categoryMap } = useCategories();
   const [account, setAccount] = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
@@ -85,6 +140,7 @@ export function AccountDetailPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartTransactions, setChartTransactions] = useState<Transaction[]>([]);
+  const [chartMode, setChartMode] = useState<'page' | 'all'>('page');
 
   useEffect(() => {
     if (!id) return;
@@ -127,10 +183,41 @@ export function AccountDetailPage() {
     void fetchTransactions();
   }, [fetchTransactions]);
 
-  const chartData = useMemo(
-    () => (account ? computeBalanceOverTime(chartTransactions, account.current_balance) : []),
+  // "Page" mode: chart for transactions on the current page
+  const pageChartData = useMemo(() => {
+    if (!account || transactions.length === 0) return [];
+
+    const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+    const firstDate = sorted[0]!.date;
+    const lastDate = sorted[sorted.length - 1]!.date;
+    const spanDays = Math.max(
+      1,
+      (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const { bucketKey, formatLabel } = pickGranularity(spanDays);
+
+    // For page mode we need to figure out the balance at the end of this page's
+    // date range. We compute it by: currentBalance minus the sum of all
+    // transactions AFTER this page's latest date.
+    // Since chartTransactions has all txns sorted asc, sum amounts after lastDate.
+    let balanceAtEnd = toNum(account.current_balance);
+    for (let i = chartTransactions.length - 1; i >= 0; i--) {
+      const ct = chartTransactions[i]!;
+      if (ct.date <= lastDate) break;
+      balanceAtEnd -= toNum(ct.amount);
+    }
+
+    return buildChartPoints(sorted, balanceAtEnd, bucketKey, formatLabel, 60);
+  }, [transactions, chartTransactions, account]);
+
+  // "All" mode: chart for entire transaction history
+  const allChartData = useMemo(
+    () =>
+      account ? computeBalanceOverTime(chartTransactions, toNum(account.current_balance)) : [],
     [chartTransactions, account],
   );
+
+  const chartData = chartMode === 'page' ? pageChartData : allChartData;
 
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -161,6 +248,26 @@ export function AccountDetailPage() {
       console.error('Failed to bulk update:', err);
     }
   };
+
+  const refreshAccountAndTransactions = useCallback(() => {
+    if (!id) return;
+    // Refresh account tiles (balance, transaction count, last import)
+    accountApi.getAccount(id).then(setAccount).catch(console.error);
+    // Refresh transactions list
+    void fetchTransactions();
+    // Refresh chart data
+    txApi
+      .listTransactions(
+        { account_id: id },
+        { page: 1, per_page: 5000 },
+        { sort_by: 'date', sort_dir: 'asc' },
+      )
+      .then((res) => {
+        const response = res as PaginatedResponse<Transaction>;
+        setChartTransactions(response.data);
+      })
+      .catch(console.error);
+  }, [id, fetchTransactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExportCsv = () => {
     const headers = ['Date', 'Description', 'Category', 'Amount'];
@@ -265,9 +372,11 @@ export function AccountDetailPage() {
           </h2>
           <FileUpload
             accountId={account.id}
+            onTransactionsImported={refreshAccountAndTransactions}
+            onCategorizationProgress={() => void fetchTransactions()}
             onImportComplete={() => {
               setShowUpload(false);
-              void fetchTransactions();
+              refreshAccountAndTransactions();
             }}
           />
         </div>
@@ -275,19 +384,43 @@ export function AccountDetailPage() {
 
       {/* Balance over time chart */}
       <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-[var(--color-border)] p-6 shadow-[var(--card-shadow)]">
-        <h2 className="text-lg font-semibold text-[var(--color-text)] mb-4">Balance Over Time</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">Balance Over Time</h2>
+          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-xs">
+            <button
+              onClick={() => setChartMode('page')}
+              className={`px-3 py-1.5 transition-colors ${
+                chartMode === 'page'
+                  ? 'bg-[var(--color-primary)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              Current Page
+            </button>
+            <button
+              onClick={() => setChartMode('all')}
+              className={`px-3 py-1.5 transition-colors ${
+                chartMode === 'all'
+                  ? 'bg-[var(--color-primary)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+        </div>
         <div
           role="img"
           aria-label={
             chartData.length > 0
-              ? `Balance over time chart showing ${chartData.length} months of data.`
+              ? `Balance over time chart showing ${chartData.length} data points.`
               : 'Balance over time chart. Data will appear after importing transactions.'
           }
         >
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={chartData.length > 0 ? chartData : [{ month: '', balance: 0 }]}>
+            <LineChart data={chartData.length > 0 ? chartData : [{ label: '', balance: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
               <YAxis tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
               <Tooltip
                 formatter={(value) =>
@@ -305,7 +438,7 @@ export function AccountDetailPage() {
                 dataKey="balance"
                 stroke="var(--color-primary)"
                 strokeWidth={2}
-                dot={chartData.length <= 12}
+                dot={chartData.length <= 24}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -329,6 +462,7 @@ export function AccountDetailPage() {
           filters={filters}
           accounts={account ? [account] : []}
           allCategories={allCategories}
+          categoryMap={categoryMap}
           lockedAccountId={id}
           onSortingChange={setSorting}
           onPageChange={setPage}

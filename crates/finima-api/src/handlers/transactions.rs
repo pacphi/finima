@@ -1,4 +1,5 @@
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,8 @@ use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::AppError;
 use finima_db::{Pagination, Sort, TransactionFilters};
 
-use crate::state::AppState;
+use crate::state::{AppState, CategorizationJobStatus};
+use crate::ws::WsMessage;
 
 // ---------------------------------------------------------------------------
 // Request / response types
@@ -262,4 +264,184 @@ pub async fn search_transactions(
         .await?;
 
     Ok(Json(results))
+}
+
+// ---------------------------------------------------------------------------
+// On-demand categorization
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct CategorizeRequest {
+    pub account_id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CategorizeAccepted {
+    pub message: String,
+    pub account_id: Uuid,
+    pub uncategorized_count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CategorizeStatusQuery {
+    pub account_id: Uuid,
+}
+
+/// POST /api/transactions/categorize
+///
+/// Trigger categorization of uncategorized transactions for an account.
+/// Returns 202 Accepted and runs categorization in the background.
+pub async fn categorize_uncategorized(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Json(body): Json<CategorizeRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    // Verify ownership: account -> portfolio -> user
+    let account = state.account_repo().find_by_id(body.account_id).await?;
+    state
+        .portfolio_repo()
+        .verify_ownership(account.portfolio_id, user.user_id)
+        .await?;
+
+    // Check if a job is already running for this account
+    if let Some(CategorizationJobStatus::Running) =
+        state.get_categorization_status(user.user_id, body.account_id)
+    {
+        return Err(AppError::BadRequest(
+            "Categorization is already running for this account".to_string(),
+        ));
+    }
+
+    // Count uncategorized transactions
+    let uncategorized = state
+        .transaction_repo()
+        .find_uncategorized(body.account_id)
+        .await?;
+
+    if uncategorized.is_empty() {
+        return Err(AppError::BadRequest(
+            "No uncategorized transactions found for this account".to_string(),
+        ));
+    }
+
+    let uncategorized_count = uncategorized.len();
+
+    // Mark job as running
+    state.set_categorization_status(
+        user.user_id,
+        body.account_id,
+        CategorizationJobStatus::Running,
+    );
+
+    // Spawn background task
+    let bg_state = state.clone();
+    let user_id = user.user_id;
+    let account_id = body.account_id;
+    tokio::spawn(async move {
+        match super::categorization::run_categorization_for_account(&bg_state, user_id, account_id)
+            .await
+        {
+            Ok(Some(outcome)) => {
+                // Send WS notification with summary
+                bg_state
+                    .ws_manager()
+                    .send_to_user(
+                        user_id,
+                        WsMessage::ManualCategorizationComplete {
+                            account_id,
+                            total: outcome.total,
+                            flagged: outcome.flagged,
+                            categories: outcome.categories.clone(),
+                        },
+                    )
+                    .await;
+
+                bg_state.set_categorization_status(
+                    user_id,
+                    account_id,
+                    CategorizationJobStatus::Complete {
+                        total: outcome.total,
+                        flagged: outcome.flagged,
+                        categories: outcome.categories,
+                    },
+                );
+
+                tracing::info!(
+                    account_id = %account_id,
+                    total = outcome.total,
+                    flagged = outcome.flagged,
+                    "Manual categorization complete"
+                );
+            }
+            Ok(None) => {
+                bg_state.set_categorization_status(
+                    user_id,
+                    account_id,
+                    CategorizationJobStatus::Complete {
+                        total: 0,
+                        flagged: 0,
+                        categories: vec![],
+                    },
+                );
+            }
+            Err(e) => {
+                tracing::error!(
+                    account_id = %account_id,
+                    error = %e,
+                    "Manual categorization failed"
+                );
+                bg_state.set_categorization_status(
+                    user_id,
+                    account_id,
+                    CategorizationJobStatus::Failed {
+                        error: e.to_string(),
+                    },
+                );
+            }
+        }
+    });
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(CategorizeAccepted {
+            message: "Categorization started".to_string(),
+            account_id: body.account_id,
+            uncategorized_count,
+        }),
+    ))
+}
+
+/// GET /api/transactions/categorize/status?account_id=...
+///
+/// Poll the status of an on-demand categorization job.
+/// Returns the job status and clears it once a terminal state is read.
+pub async fn categorize_status(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Query(params): Query<CategorizeStatusQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    // Verify ownership
+    let account = state.account_repo().find_by_id(params.account_id).await?;
+    state
+        .portfolio_repo()
+        .verify_ownership(account.portfolio_id, user.user_id)
+        .await?;
+
+    let status = state.get_categorization_status(user.user_id, params.account_id);
+
+    match &status {
+        Some(s @ CategorizationJobStatus::Complete { .. })
+        | Some(s @ CategorizationJobStatus::Failed { .. }) => {
+            let response = s.clone();
+            // Clear the status after it's been read (one-shot)
+            state.clear_categorization_status(user.user_id, params.account_id);
+            Ok(Json(response))
+        }
+        Some(s) => Ok(Json(s.clone())),
+        None => Ok(Json(CategorizationJobStatus::Complete {
+            total: 0,
+            flagged: 0,
+            categories: vec![],
+        })),
+    }
 }

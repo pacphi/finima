@@ -9,6 +9,8 @@ import {
 import { CategoryCell } from './CategoryCell';
 import { BulkEditBar } from './BulkEditBar';
 import type { Transaction, TransactionFilters, Account } from '@/types/models';
+import type { CategoryMap } from '@/hooks/useCategories';
+import { categoryLabel } from '@/hooks/useCategories';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -47,6 +49,7 @@ interface TransactionTableProps {
   filters: TransactionFilters;
   accounts: Account[];
   allCategories: string[];
+  categoryMap: CategoryMap;
   lockedAccountId?: string;
   onSortingChange: (sorting: SortingState) => void;
   onPageChange: (page: number) => void;
@@ -65,6 +68,7 @@ export function TransactionTable({
   filters,
   accounts,
   allCategories,
+  categoryMap,
   lockedAccountId,
   onSortingChange,
   onPageChange,
@@ -141,6 +145,7 @@ export function TransactionTable({
             confidence={row.original.llm_confidence}
             userOverridden={row.original.user_overridden}
             allCategories={allCategories}
+            categoryMap={categoryMap}
             onChange={(cat) => onCategoryChange(row.original.id, cat)}
           />
         ),
@@ -176,7 +181,7 @@ export function TransactionTable({
     }
 
     return cols;
-  }, [allCategories, onCategoryChange, lockedAccountId, accountLookup]);
+  }, [allCategories, categoryMap, onCategoryChange, lockedAccountId, accountLookup]);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- opted out via "use no memo"; tracked by tanstack/table#5567
   const table = useReactTable({
@@ -277,7 +282,7 @@ export function TransactionTable({
                 <option value="">All Categories</option>
                 {allCategories.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {categoryLabel(c, categoryMap)}
                   </option>
                 ))}
               </select>
@@ -349,6 +354,7 @@ export function TransactionTable({
           <BulkEditBar
             selectedCount={selectedIds.length}
             allCategories={allCategories}
+            categoryMap={categoryMap}
             onBulkCategoryChange={(cat) => {
               onBulkCategoryChange(selectedIds, cat);
               setRowSelection({});

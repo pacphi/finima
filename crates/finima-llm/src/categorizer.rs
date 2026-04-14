@@ -13,6 +13,19 @@ pub struct CategorizationReport {
     pub llm_categorized: usize,
     pub flagged: usize,
     pub failed: usize,
+    /// `true` if the run was cancelled before completing all batches.
+    pub cancelled: bool,
+}
+
+/// Progress update emitted after each batch completes.
+#[derive(Debug, Clone)]
+pub struct CategorizationProgress {
+    /// Number of transactions categorized so far.
+    pub categorized: usize,
+    /// Total number of transactions being processed.
+    pub total: usize,
+    /// Number of low-confidence results so far.
+    pub flagged: usize,
 }
 
 /// Orchestrates batch categorization of transactions.
@@ -37,6 +50,23 @@ impl Categorizer {
         self
     }
 
+    /// Categorize transactions, calling `on_progress` after each batch.
+    ///
+    /// The callback returns `true` to continue or `false` to cancel.
+    /// Partial results are returned in the report with `cancelled = true`.
+    pub async fn categorize_transactions_with_progress<F>(
+        &self,
+        transactions: Vec<TransactionInput>,
+        overrides: Vec<OverridePattern>,
+        on_progress: F,
+    ) -> Result<CategorizationReport, LlmError>
+    where
+        F: Fn(&CategorizationProgress) -> bool,
+    {
+        self.categorize_inner(transactions, overrides, Some(&on_progress))
+            .await
+    }
+
     /// Categorize transactions using pattern matching and LLM.
     ///
     /// 1. Apply override pattern matching (substring, case-insensitive).
@@ -48,11 +78,29 @@ impl Categorizer {
         transactions: Vec<TransactionInput>,
         overrides: Vec<OverridePattern>,
     ) -> Result<CategorizationReport, LlmError> {
+        self.categorize_inner(
+            transactions,
+            overrides,
+            None::<&fn(&CategorizationProgress) -> bool>,
+        )
+        .await
+    }
+
+    async fn categorize_inner<F>(
+        &self,
+        transactions: Vec<TransactionInput>,
+        overrides: Vec<OverridePattern>,
+        on_progress: Option<&F>,
+    ) -> Result<CategorizationReport, LlmError>
+    where
+        F: Fn(&CategorizationProgress) -> bool,
+    {
         let mut all_results: Vec<CategorizationResult> = Vec::new();
         let mut pattern_matched: usize = 0;
         let mut llm_categorized: usize = 0;
         let mut flagged: usize = 0;
         let mut failed: usize = 0;
+        let mut cancelled = false;
 
         let mut remaining: Vec<TransactionInput> = Vec::new();
 
@@ -81,6 +129,30 @@ impl Categorizer {
             }
         }
 
+        let total = transactions.len();
+
+        // Report pattern-match progress before starting LLM batches.
+        if pattern_matched > 0 {
+            if let Some(cb) = on_progress {
+                let progress = CategorizationProgress {
+                    categorized: pattern_matched,
+                    total,
+                    flagged,
+                };
+                if !cb(&progress) {
+                    tracing::info!("Categorization cancelled after pattern matching");
+                    return Ok(CategorizationReport {
+                        results: all_results,
+                        pattern_matched,
+                        llm_categorized,
+                        flagged,
+                        failed,
+                        cancelled: true,
+                    });
+                }
+            }
+        }
+
         // Step 2: batch remaining transactions
         let batches: Vec<&[TransactionInput]> = remaining.chunks(self.batch_size).collect();
 
@@ -106,6 +178,24 @@ impl Categorizer {
                     failed += batch_slice.len();
                 }
             }
+
+            // Report progress after each batch; stop if callback returns false.
+            if let Some(cb) = on_progress {
+                let progress = CategorizationProgress {
+                    categorized: pattern_matched + llm_categorized + failed,
+                    total,
+                    flagged,
+                };
+                if !cb(&progress) {
+                    tracing::info!(
+                        categorized = pattern_matched + llm_categorized,
+                        total,
+                        "Categorization cancelled mid-run"
+                    );
+                    cancelled = true;
+                    break;
+                }
+            }
         }
 
         Ok(CategorizationReport {
@@ -114,6 +204,7 @@ impl Categorizer {
             llm_categorized,
             flagged,
             failed,
+            cancelled,
         })
     }
 }

@@ -2,8 +2,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use sqlx;
 use uuid::Uuid;
 
 use finima_auth::middleware::AuthUser;
@@ -49,6 +51,8 @@ pub struct AccountDetailResponse {
     #[serde(flatten)]
     pub account: Account,
     pub computed_balance: Decimal,
+    pub transaction_count: i64,
+    pub last_import_at: Option<DateTime<Utc>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -131,9 +135,32 @@ pub async fn get_account(
 
     let computed_balance = state.account_repo().compute_balance(id).await?;
 
+    let transaction_count = sqlx::query_scalar::<_, Option<i64>>(
+        "SELECT COUNT(*) FROM transactions WHERE account_id = $1",
+    )
+    .bind(id)
+    .fetch_one(state.pool())
+    .await
+    .unwrap_or(None)
+    .unwrap_or(0);
+
+    let last_import_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        r#"
+        SELECT MAX(u.uploaded_at)
+        FROM uploads u
+        WHERE u.account_id = $1 AND u.status IN ('complete', 'categorizing')
+        "#,
+    )
+    .bind(id)
+    .fetch_one(state.pool())
+    .await
+    .unwrap_or(None);
+
     Ok(Json(AccountDetailResponse {
         account,
         computed_balance,
+        transaction_count,
+        last_import_at,
     }))
 }
 

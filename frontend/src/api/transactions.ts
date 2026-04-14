@@ -4,6 +4,8 @@ import type {
   PaginationParams,
   SortParams,
   PaginatedResponse,
+  CategorizeAccepted,
+  CategorizationJobStatus,
 } from '@/types/models';
 
 export function createTransactionApi(api: {
@@ -58,5 +60,15 @@ export function createTransactionApi(api: {
 
     searchTransactions: (query: string) =>
       api.get<Transaction[]>(`/api/transactions/search?q=${encodeURIComponent(query)}`),
+
+    categorizeUncategorized: (accountId: string) =>
+      api.post<CategorizeAccepted>('/api/transactions/categorize', {
+        account_id: accountId,
+      }),
+
+    getCategorizeStatus: (accountId: string) =>
+      api.get<CategorizationJobStatus>(
+        `/api/transactions/categorize/status?account_id=${encodeURIComponent(accountId)}`,
+      ),
   };
 }

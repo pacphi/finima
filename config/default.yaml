@@ -133,6 +133,44 @@ feed:
       url: "https://www.fsb.org/feed/"
       topic: "economy"
 
+categories:
+  - key: housing
+    label: Housing
+  - key: transportation
+    label: Transportation
+  - key: food_dining
+    label: Food & Dining
+  - key: utilities
+    label: Utilities
+  - key: healthcare
+    label: Healthcare
+  - key: insurance
+    label: Insurance
+  - key: entertainment
+    label: Entertainment
+  - key: shopping
+    label: Shopping
+  - key: personal_care
+    label: Personal Care
+  - key: education
+    label: Education
+  - key: travel
+    label: Travel
+  - key: gifts_donations
+    label: Gifts & Donations
+  - key: income
+    label: Income
+  - key: transfer
+    label: Transfer
+  - key: fees_charges
+    label: Fees & Charges
+  - key: investment
+    label: Investment
+  - key: debt_payment
+    label: Debt Payment
+  - key: other
+    label: Other
+
 logging:
   # Production-safe default: only warnings and errors.
   # development.yaml raises this to debug with per-crate suppressions.

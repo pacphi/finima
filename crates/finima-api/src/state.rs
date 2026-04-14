@@ -1,7 +1,9 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, RwLock};
 
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use finima_auth::EmailSender;
 use finima_db::{
@@ -15,6 +17,21 @@ use finima_llm::LlmClient;
 use crate::config::AppConfig;
 use crate::storage::ObjectStorage;
 use crate::ws::WsConnectionManager;
+
+/// Status of an on-demand categorization job.
+#[derive(Clone, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CategorizationJobStatus {
+    Running,
+    Complete {
+        total: usize,
+        flagged: usize,
+        categories: Vec<crate::ws::CategoryCount>,
+    },
+    Failed {
+        error: String,
+    },
+}
 
 // LLM loading status constants.
 const LLM_LOADING: u8 = 0;
@@ -55,6 +72,12 @@ struct InnerState {
     pub llm_status: AtomicU8,
     pub object_storage: ObjectStorage,
     pub feed_service: CachedFeedService,
+    /// Tracks in-flight and completed on-demand categorization jobs.
+    /// Key is (user_id, account_id).
+    pub categorization_jobs: RwLock<HashMap<(Uuid, Uuid), CategorizationJobStatus>>,
+    /// Set to `true` when the application is shutting down.
+    /// Background tasks should check this and stop work promptly.
+    pub shutdown: AtomicBool,
 }
 
 impl AppState {
@@ -106,6 +129,8 @@ impl AppState {
                 llm_status: AtomicU8::new(LLM_LOADING),
                 object_storage,
                 feed_service,
+                categorization_jobs: RwLock::new(HashMap::new()),
+                shutdown: AtomicBool::new(false),
             }),
         }
     }
@@ -222,5 +247,52 @@ impl AppState {
 
     pub fn feed_service(&self) -> &CachedFeedService {
         &self.inner.feed_service
+    }
+
+    /// Get the status of an on-demand categorization job.
+    pub fn get_categorization_status(
+        &self,
+        user_id: Uuid,
+        account_id: Uuid,
+    ) -> Option<CategorizationJobStatus> {
+        self.inner
+            .categorization_jobs
+            .read()
+            .expect("categorization_jobs lock poisoned")
+            .get(&(user_id, account_id))
+            .cloned()
+    }
+
+    /// Set the status of an on-demand categorization job.
+    pub fn set_categorization_status(
+        &self,
+        user_id: Uuid,
+        account_id: Uuid,
+        status: CategorizationJobStatus,
+    ) {
+        self.inner
+            .categorization_jobs
+            .write()
+            .expect("categorization_jobs lock poisoned")
+            .insert((user_id, account_id), status);
+    }
+
+    /// Signal all background tasks to stop.
+    pub fn signal_shutdown(&self) {
+        self.inner.shutdown.store(true, Ordering::Release);
+    }
+
+    /// Returns `true` if the application is shutting down.
+    pub fn is_shutting_down(&self) -> bool {
+        self.inner.shutdown.load(Ordering::Acquire)
+    }
+
+    /// Remove a completed/failed categorization job (after the client has polled it).
+    pub fn clear_categorization_status(&self, user_id: Uuid, account_id: Uuid) {
+        self.inner
+            .categorization_jobs
+            .write()
+            .expect("categorization_jobs lock poisoned")
+            .remove(&(user_id, account_id));
     }
 }
