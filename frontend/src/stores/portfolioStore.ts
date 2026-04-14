@@ -13,6 +13,7 @@ interface PortfolioState {
   setAccounts: (accounts: Account[]) => void;
   addPortfolio: (portfolio: Portfolio) => void;
   addAccount: (account: Account) => void;
+  removeAccount: (id: string) => void;
   updateAccount: (id: string, data: Partial<Account>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -42,6 +43,8 @@ export const usePortfolioStore = create<PortfolioState>()((set) => ({
     })),
 
   addAccount: (account) => set((state) => ({ accounts: [...state.accounts, account] })),
+
+  removeAccount: (id) => set((state) => ({ accounts: state.accounts.filter((a) => a.id !== id) })),
 
   updateAccount: (id, data) =>
     set((state) => ({

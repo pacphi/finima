@@ -84,14 +84,15 @@ impl AccountRepo for PgAccountRepo {
         let result = sqlx::query_as::<_, Account>(
             r#"
             UPDATE accounts
-            SET name = $2, institution = $3, account_type = $4, currency = $5,
-                opening_balance = $6, is_primary_income = $7, notes = $8
+            SET portfolio_id = $2, name = $3, institution = $4, account_type = $5,
+                currency = $6, opening_balance = $7, is_primary_income = $8, notes = $9
             WHERE id = $1
             RETURNING id, portfolio_id, name, institution, account_type, currency,
                       opening_balance, is_primary_income, is_archived, notes, created_at
             "#,
         )
         .bind(account.id)
+        .bind(account.portfolio_id)
         .bind(&account.name)
         .bind(&account.institution)
         .bind(account.account_type.to_string())

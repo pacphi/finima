@@ -44,6 +44,8 @@ pub struct UpdateAccountRequest {
     pub currency: Option<String>,
     pub opening_balance: Option<Decimal>,
     pub notes: Option<String>,
+    /// Move the account to a different portfolio.
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -217,9 +219,18 @@ pub async fn update_account(
         .verify_ownership(existing.portfolio_id, user.user_id)
         .await?;
 
+    // If moving to a different portfolio, verify the user owns the target too.
+    let target_portfolio_id = body.portfolio_id.unwrap_or(existing.portfolio_id);
+    if target_portfolio_id != existing.portfolio_id {
+        state
+            .portfolio_repo()
+            .verify_ownership(target_portfolio_id, user.user_id)
+            .await?;
+    }
+
     let updated_account = Account {
         id: existing.id,
-        portfolio_id: existing.portfolio_id,
+        portfolio_id: target_portfolio_id,
         name: body.name.unwrap_or(existing.name),
         institution: body.institution.or(existing.institution),
         account_type: body.account_type.unwrap_or(existing.account_type),

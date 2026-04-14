@@ -59,6 +59,7 @@ export function createAccountApi(api: {
         currency: string;
         is_primary_income: boolean;
         notes: string;
+        portfolio_id: string;
       }>,
     ) => api.put<Account>(`/api/accounts/${id}`, data),
 

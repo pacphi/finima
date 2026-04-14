@@ -225,7 +225,9 @@ export function BudgetPage() {
             {suggestions.map((s) => (
               <div key={s.category} className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm text-[var(--color-text)]">{toTitleCase(s.category)}</span>
+                  <span className="text-sm text-[var(--color-text)]">
+                    {toTitleCase(s.category)}
+                  </span>
                   <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
                     Avg: {formatCurrency(s.avg_monthly)} → Suggested:{' '}
                     {formatCurrency(s.suggested_limit)}

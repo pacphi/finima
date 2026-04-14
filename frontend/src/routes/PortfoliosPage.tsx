@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '@/hooks/useApi';
 import { createPortfolioApi } from '@/api/portfolios';
+import { createAccountApi } from '@/api/accounts';
 import { usePortfolioStore } from '@/stores/portfolioStore';
 import { formatCurrency } from '@/utils/format';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ICONS } from '@/types/models';
@@ -11,6 +12,7 @@ export function PortfoliosPage() {
   const navigate = useNavigate();
   const api = useApi();
   const portfolioApi = createPortfolioApi(api);
+  const accountApi = createAccountApi(api);
 
   const portfolios = usePortfolioStore((s) => s.portfolios);
   const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
@@ -18,12 +20,26 @@ export function PortfoliosPage() {
   const selectPortfolio = usePortfolioStore((s) => s.selectPortfolio);
   const setPortfolios = usePortfolioStore((s) => s.setPortfolios);
   const addPortfolio = usePortfolioStore((s) => s.addPortfolio);
+  const removeAccount = usePortfolioStore((s) => s.removeAccount);
 
   const [showModal, setShowModal] = useState(false);
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  const [movingAccountId, setMovingAccountId] = useState<string | null>(null);
+
+  const handleMoveAccount = async (accountId: string, targetPortfolioId: string) => {
+    setMovingAccountId(accountId);
+    try {
+      await accountApi.updateAccount(accountId, { portfolio_id: targetPortfolioId });
+      removeAccount(accountId);
+    } catch (err) {
+      console.error('Failed to move account:', err);
+    } finally {
+      setMovingAccountId(null);
+    }
+  };
 
   const openModal = (portfolio?: Portfolio) => {
     if (portfolio) {
@@ -154,30 +170,60 @@ export function PortfoliosPage() {
                     </div>
                     <div className="space-y-1.5">
                       {portfolioAccounts.map((account) => (
-                        <button
+                        <div
                           key={account.id}
-                          onClick={() => navigate(`/accounts/${account.id}`)}
-                          className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--color-surface)] transition-colors"
                         >
-                          <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => navigate(`/accounts/${account.id}`)}
+                            className="flex items-center gap-2 text-left min-w-0 flex-1"
+                          >
                             <span className="text-sm">
                               {ACCOUNT_TYPE_ICONS[account.account_type]}
                             </span>
-                            <span className="text-sm text-[var(--color-text)]">{account.name}</span>
-                            <span className="text-xs text-[var(--color-text-secondary)]">
+                            <span className="text-sm text-[var(--color-text)] truncate">
+                              {account.name}
+                            </span>
+                            <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
                               {ACCOUNT_TYPE_LABELS[account.account_type]}
                             </span>
+                          </button>
+                          <div className="flex items-center gap-3 shrink-0 ml-3">
+                            {portfolios.length > 1 && (
+                              <select
+                                aria-label={`Move ${account.name} to another portfolio`}
+                                value=""
+                                disabled={movingAccountId === account.id}
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    void handleMoveAccount(account.id, e.target.value);
+                                  }
+                                }}
+                                className="text-xs bg-transparent text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg px-2 py-1 hover:border-[var(--color-primary-muted)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] outline-none cursor-pointer"
+                              >
+                                <option value="">
+                                  {movingAccountId === account.id ? 'Moving…' : 'Move to…'}
+                                </option>
+                                {portfolios
+                                  .filter((p) => p.id !== portfolio.id)
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            )}
+                            <span
+                              className={`text-sm font-medium ${
+                                account.current_balance >= 0
+                                  ? 'text-[var(--color-text)]'
+                                  : 'text-[var(--color-error)]'
+                              }`}
+                            >
+                              {formatCurrency(account.current_balance)}
+                            </span>
                           </div>
-                          <span
-                            className={`text-sm font-medium ${
-                              account.current_balance >= 0
-                                ? 'text-[var(--color-text)]'
-                                : 'text-[var(--color-error)]'
-                            }`}
-                          >
-                            {formatCurrency(account.current_balance)}
-                          </span>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
