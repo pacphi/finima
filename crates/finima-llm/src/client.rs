@@ -181,8 +181,9 @@ impl OllamaClient {
             let mut join_set = JoinSet::new();
 
             // Spawn up to `parallel` tasks.
-            for batch_idx in offset..chunk_end {
-                let batch = batches[batch_idx].clone();
+            for (batch_idx, batch) in batches[offset..chunk_end].iter().enumerate() {
+                let batch_idx = offset + batch_idx;
+                let batch = batch.clone();
                 let base_url = self.base_url.clone();
                 let model = self.model.clone();
                 let http_client = self.http_client.clone();

@@ -18,6 +18,7 @@ The categorization engine introduces two new bounded contexts alongside the exis
 **Responsibility:** Execute the four-tier cascade and produce `CategoryAssignment` values for uncategorized transactions.
 
 **Aggregate: `CategorizationJob`**
+
 ```rust
 pub struct CategorizationJob {
     id: Uuid,
@@ -59,6 +60,7 @@ pub struct TierStats {
 ```
 
 **Aggregate: `MerchantRegistry`**
+
 ```rust
 pub struct MerchantRegistry {
     /// Exact name → (category, subcategory) for O(1) lookup
@@ -88,6 +90,7 @@ pub enum MerchantSource {
 ```
 
 **Domain Events:**
+
 ```rust
 pub enum CategorizationEvent {
     /// Emitted when any tier assigns a category to a transaction.
@@ -124,6 +127,7 @@ pub enum CategorizationEvent {
 **Responsibility:** Process feedback signals from user corrections and LLM results to continuously improve all tiers.
 
 **Aggregate: `FeedbackProcessor`**
+
 ```rust
 pub struct FeedbackProcessor {
     merchant_registry: Arc<RwLock<MerchantRegistry>>,
@@ -162,13 +166,15 @@ impl FeedbackProcessor {
 ### 2.1 Tier 0: Merchant Lookup
 
 **Data Sources:**
+
 - `greggles/mcc-codes` — 800+ MCC codes in JSON
 - `seed_merchants.json` — curated list of ~500 common merchants
 - Plaid PFC taxonomy — category hierarchy reference
 - Runtime learned — auto-populated from Tier 3 and user corrections
 
 **Algorithm:**
-```
+
+```text
 1. Normalize description: lowercase, strip numbers/punctuation, collapse whitespace
 2. Exact match against merchant_registry.exact_map → O(1)
 3. If no exact match: extract prefix (first 3 chars normalized)
@@ -178,6 +184,7 @@ impl FeedbackProcessor {
 ```
 
 **Rust Implementation:**
+
 ```rust
 pub trait MerchantLookup: Send + Sync {
     fn lookup(&self, description: &str, mcc: Option<u16>) -> Option<CategoryAssignment>;
@@ -189,7 +196,8 @@ pub trait MerchantLookup: Send + Sync {
 ### 2.2 Tier 1: Pattern Engine
 
 **Algorithm:**
-```
+
+```text
 1. Compile all patterns into a RegexSet (evaluated in single pass)
 2. For each unmatched transaction, test against RegexSet
 3. First matching pattern wins (priority-ordered)
@@ -200,6 +208,7 @@ pub trait MerchantLookup: Send + Sync {
 ```
 
 **Rust Implementation:**
+
 ```rust
 pub trait PatternMatcher: Send + Sync {
     fn match_pattern(&self, description: &str, amount: Decimal) -> Option<CategoryAssignment>;
@@ -211,7 +220,8 @@ pub trait PatternMatcher: Send + Sync {
 ### 2.3 Tier 2: RuVector Semantic Search
 
 **Architecture:**
-```
+
+```text
 Transaction Description
     │
     ▼
@@ -231,6 +241,7 @@ CategoryAssignment (if confidence ≥ 0.85)
 ```
 
 **Bootstrap Process:**
+
 1. Take all categorized transactions from DB (initially from LLM Tier 3)
 2. Embed each description using RuVector's ONNX model
 3. Insert into HNSW index with metadata: `{category, subcategory, confidence}`
@@ -238,6 +249,7 @@ CategoryAssignment (if confidence ≥ 0.85)
 5. SONA automatically adjusts weights based on which neighbors produce correct predictions
 
 **Rust Implementation:**
+
 ```rust
 pub trait SemanticCategorizer: Send + Sync {
     async fn categorize(&self, description: &str) -> Option<CategoryAssignment>;
@@ -247,6 +259,7 @@ pub trait SemanticCategorizer: Send + Sync {
 
 **GNN Enhancement:**
 RuVector's GNN layer models relationships beyond simple embedding similarity:
+
 - Merchant → Category edges (weighted by frequency)
 - Amount-range → Subcategory edges (e.g., Starbucks $5 = coffee, $45 = catering)
 - Temporal patterns (e.g., monthly recurring = bill, weekly = groceries)
@@ -256,17 +269,18 @@ RuVector's GNN layer models relationships beyond simple embedding similarity:
 
 **Key changes from current implementation:**
 
-| Aspect | Current | Optimized |
-|--------|---------|-----------|
-| Protocol | Tool-calling (1 call per txn) | Batch JSON array |
-| Parallelism | Sequential batches | `OLLAMA_NUM_PARALLEL=4` |
-| Context window | 262K (default) | 4096 tokens |
-| Output mode | Free-form | `format: "json"` constrained |
-| Thinking | Model-dependent | `think: false` |
-| Batch size | 25 txns | 50 txns (with smaller context) |
-| Transactions reaching T3 | 100% | 3-8% |
+| Aspect                   | Current                       | Optimized                      |
+| ------------------------ | ----------------------------- | ------------------------------ |
+| Protocol                 | Tool-calling (1 call per txn) | Batch JSON array               |
+| Parallelism              | Sequential batches            | `OLLAMA_NUM_PARALLEL=4`        |
+| Context window           | 262K (default)                | 4096 tokens                    |
+| Output mode              | Free-form                     | `format: "json"` constrained   |
+| Thinking                 | Model-dependent               | `think: false`                 |
+| Batch size               | 25 txns                       | 50 txns (with smaller context) |
+| Transactions reaching T3 | 100%                          | 3-8%                           |
 
 **Batch JSON Protocol:**
+
 ```json
 // System prompt: "Return a JSON array of categorizations..."
 // User prompt: lists 50 transactions
@@ -279,6 +293,7 @@ RuVector's GNN layer models relationships beyond simple embedding similarity:
 ```
 
 **Throughput math (optimized):**
+
 - 50 txns per request, ~3-5s per request (with small model, no thinking)
 - 4 parallel requests = 200 txns / 5s = 40 txn/s
 - 500 remaining transactions = 12.5 seconds
@@ -287,7 +302,7 @@ RuVector's GNN layer models relationships beyond simple embedding similarity:
 
 ## 3. Self-Learning Feedback Loop
 
-```
+```text
                     ┌─────────────────────┐
                     │   USER CORRECTION   │
                     │  (payee rule, edit) │
@@ -316,12 +331,14 @@ RuVector's GNN layer models relationships beyond simple embedding similarity:
 ```
 
 **Learning triggers:**
+
 1. **Every LLM result** → Add embedding to Tier 2 index. If confidence ≥ 0.9, promote merchant to Tier 0.
 2. **Every user correction** → Update Tier 0 merchant entry (highest priority). Update Tier 2 embedding with boosted weight. Add regex pattern to Tier 1 if description is pattern-like.
 3. **Every Tier 2 query** → SONA micro-updates LoRA weights. EWC++ prevents forgetting previously learned patterns.
 4. **Weekly batch** → Validate Tier 0 merchants against recent LLM labels. Prune stale entries not seen in 90 days.
 
 **Cold-start bootstrap:**
+
 1. Minute 0: Load MCC codes + seed merchants → Tier 0 works immediately
 2. Minute 1: Load existing payee rules → Tier 1 works immediately
 3. Minutes 2-10: First 10K transactions flow through. Tier 3 handles 100%. Results feed back to Tiers 0 and 2.
@@ -373,13 +390,13 @@ CREATE INDEX idx_merchant_registry_category ON merchant_registry (category);
 
 **No new crate.** Optimize existing `finima-llm` for maximum LLM throughput.
 
-| Task | File | Change |
-|------|------|--------|
-| Batch JSON protocol | `finima-llm/src/prompts.rs` | New prompt returning JSON array instead of tool calls |
-| JSON output parser | `finima-llm/src/batch_json.rs` | Parse `[{idx, cat, sub, conf}]` array |
-| Parallel requests | `finima-llm/src/client.rs` | Send N concurrent batch requests via `tokio::JoinSet` |
-| Reduced context | `finima-llm/src/client.rs` | Add `num_ctx: 4096` to Ollama request body |
-| Config | `config/llm.yaml` | Add `parallel_requests: 4`, `num_ctx: 4096` |
+| Task                | File                           | Change                                                |
+| ------------------- | ------------------------------ | ----------------------------------------------------- |
+| Batch JSON protocol | `finima-llm/src/prompts.rs`    | New prompt returning JSON array instead of tool calls |
+| JSON output parser  | `finima-llm/src/batch_json.rs` | Parse `[{idx, cat, sub, conf}]` array                 |
+| Parallel requests   | `finima-llm/src/client.rs`     | Send N concurrent batch requests via `tokio::JoinSet` |
+| Reduced context     | `finima-llm/src/client.rs`     | Add `num_ctx: 4096` to Ollama request body            |
+| Config              | `config/llm.yaml`              | Add `parallel_requests: 4`, `num_ctx: 4096`           |
 
 **Validation:** Categorize 706 transactions. Measure total time. Target: under 5 minutes.
 
@@ -387,14 +404,14 @@ CREATE INDEX idx_merchant_registry_category ON merchant_registry (category);
 
 **New crate:** `finima-categorize` with Tier 0 only.
 
-| Task | File | Change |
-|------|------|--------|
-| Create crate | `crates/finima-categorize/` | Cargo.toml, lib.rs |
-| MCC loader | `tier0/mcc_loader.rs` | Parse `greggles/mcc-codes` JSON |
-| Merchant DB | `tier0/merchant_db.rs` | HashMap + prefix index + fuzzy match |
-| Seed data | `data/seed_merchants.json` | 500 common merchants with categories |
-| DB migration | `finima-db/migrations/018_merchant_registry.sql` | Persistent merchant storage |
-| Integration | `finima-api/handlers/categorization.rs` | Try Tier 0 before LLM |
+| Task         | File                                             | Change                               |
+| ------------ | ------------------------------------------------ | ------------------------------------ |
+| Create crate | `crates/finima-categorize/`                      | Cargo.toml, lib.rs                   |
+| MCC loader   | `tier0/mcc_loader.rs`                            | Parse `greggles/mcc-codes` JSON      |
+| Merchant DB  | `tier0/merchant_db.rs`                           | HashMap + prefix index + fuzzy match |
+| Seed data    | `data/seed_merchants.json`                       | 500 common merchants with categories |
+| DB migration | `finima-db/migrations/018_merchant_registry.sql` | Persistent merchant storage          |
+| Integration  | `finima-api/handlers/categorization.rs`          | Try Tier 0 before LLM                |
 
 **Validation:** Import 10K transactions. Verify Tier 0 resolves 60%+ without LLM. Total time under 2 minutes.
 
@@ -402,14 +419,14 @@ CREATE INDEX idx_merchant_registry_category ON merchant_registry (category);
 
 **Add Tier 2 to `finima-categorize`.**
 
-| Task | File | Change |
-|------|------|--------|
-| RuVector dep | `finima-categorize/Cargo.toml` | Add `ruvector` dependency |
-| Embedder | `tier2/embedder.rs` | ONNX text embedding via RuVector |
-| HNSW index | `tier2/ruvector_backend.rs` | Build/query HNSW with category metadata |
-| SONA config | `tier2/ruvector_backend.rs` | Enable self-learning on queries |
-| Bootstrap | `tier2/mod.rs` | Seed index from existing categorized transactions |
-| Integration | `engine.rs` | Wire Tier 2 between Tier 1 and Tier 3 |
+| Task         | File                           | Change                                            |
+| ------------ | ------------------------------ | ------------------------------------------------- |
+| RuVector dep | `finima-categorize/Cargo.toml` | Add `ruvector` dependency                         |
+| Embedder     | `tier2/embedder.rs`            | ONNX text embedding via RuVector                  |
+| HNSW index   | `tier2/ruvector_backend.rs`    | Build/query HNSW with category metadata           |
+| SONA config  | `tier2/ruvector_backend.rs`    | Enable self-learning on queries                   |
+| Bootstrap    | `tier2/mod.rs`                 | Seed index from existing categorized transactions |
+| Integration  | `engine.rs`                    | Wire Tier 2 between Tier 1 and Tier 3             |
 
 **Validation:** Re-categorize 10K transactions. Verify Tier 2 handles 10-15% of previously-LLM-only transactions. HNSW query latency < 1ms p99.
 
@@ -417,15 +434,15 @@ CREATE INDEX idx_merchant_registry_category ON merchant_registry (category);
 
 **Complete the self-learning cycle.**
 
-| Task | File | Change |
-|------|------|--------|
-| Feedback processor | `feedback/mod.rs` | Route events to all tiers |
-| LLM → Tier 0 | `feedback/merchant_learner.rs` | Auto-promote high-confidence merchants |
-| LLM → Tier 2 | `feedback/vector_learner.rs` | Add embeddings to HNSW index |
-| User → all tiers | `feedback/user_correction.rs` | Override propagation |
-| Pattern engine | `tier1/regex_engine.rs` | RegexSet-based pattern matching |
-| Source tracking | Migration 017 | `source_tier` column on transactions |
-| Dashboard | Frontend | Tier distribution chart |
+| Task               | File                           | Change                                 |
+| ------------------ | ------------------------------ | -------------------------------------- |
+| Feedback processor | `feedback/mod.rs`              | Route events to all tiers              |
+| LLM → Tier 0       | `feedback/merchant_learner.rs` | Auto-promote high-confidence merchants |
+| LLM → Tier 2       | `feedback/vector_learner.rs`   | Add embeddings to HNSW index           |
+| User → all tiers   | `feedback/user_correction.rs`  | Override propagation                   |
+| Pattern engine     | `tier1/regex_engine.rs`        | RegexSet-based pattern matching        |
+| Source tracking    | Migration 017                  | `source_tier` column on transactions   |
+| Dashboard          | Frontend                       | Tier distribution chart                |
 
 **Validation:** Run 3 consecutive categorization batches of 10K. Verify Tier 3 (LLM) percentage decreases with each batch. System should reach <8% LLM dependency by batch 3.
 
@@ -433,26 +450,26 @@ CREATE INDEX idx_merchant_registry_category ON merchant_registry (category);
 
 ## 6. Observability & Metrics
 
-| Metric | Source | Alert Threshold |
-|--------|--------|-----------------|
-| `categorize_total_duration_ms` | CategorizationJob | > 600,000ms (10 min) |
-| `categorize_tier_distribution` | TierStats | Tier 3 > 20% after 50K txns |
-| `categorize_tier_latency_p99` | Per-tier timing | Tier 0 > 10ms, Tier 2 > 50ms |
-| `merchant_registry_size` | MerchantRegistry | < 100 after 10K txns |
-| `ruvector_index_size` | EmbeddingIndex | Unexpectedly low growth |
-| `llm_batch_error_rate` | Tier 3 | > 10% failures |
-| `sona_adaptation_count` | RuVector SONA | 0 (learning stopped) |
-| `user_override_rate` | Corrections | > 15% (tiers are inaccurate) |
+| Metric                         | Source            | Alert Threshold              |
+| ------------------------------ | ----------------- | ---------------------------- |
+| `categorize_total_duration_ms` | CategorizationJob | > 600,000ms (10 min)         |
+| `categorize_tier_distribution` | TierStats         | Tier 3 > 20% after 50K txns  |
+| `categorize_tier_latency_p99`  | Per-tier timing   | Tier 0 > 10ms, Tier 2 > 50ms |
+| `merchant_registry_size`       | MerchantRegistry  | < 100 after 10K txns         |
+| `ruvector_index_size`          | EmbeddingIndex    | Unexpectedly low growth      |
+| `llm_batch_error_rate`         | Tier 3            | > 10% failures               |
+| `sona_adaptation_count`        | RuVector SONA     | 0 (learning stopped)         |
+| `user_override_rate`           | Corrections       | > 15% (tiers are inaccurate) |
 
 ---
 
 ## 7. Risk Mitigation
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| RuVector API instability | Tier 2 unavailable | Feature-flag Tier 2; degrade to Tier 1 → Tier 3 |
-| SONA drift | Decreasing accuracy | EWC++ memory preservation; weekly validation against LLM labels |
-| Merchant DB bloat | Memory pressure | Cap at 50K entries; LRU eviction on `last_seen` |
-| MCC data staleness | Wrong categories | Community-sourced; auto-validate against LLM quarterly |
-| Batch JSON parsing | LLM returns malformed JSON | `format: "json"` constrains output; fallback to tool-calling |
-| Cold start on new deploy | No learned data | Merchant DB persisted in PostgreSQL; HNSW index serialized to disk |
+| Risk                     | Impact                     | Mitigation                                                         |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------ |
+| RuVector API instability | Tier 2 unavailable         | Feature-flag Tier 2; degrade to Tier 1 → Tier 3                    |
+| SONA drift               | Decreasing accuracy        | EWC++ memory preservation; weekly validation against LLM labels    |
+| Merchant DB bloat        | Memory pressure            | Cap at 50K entries; LRU eviction on `last_seen`                    |
+| MCC data staleness       | Wrong categories           | Community-sourced; auto-validate against LLM quarterly             |
+| Batch JSON parsing       | LLM returns malformed JSON | `format: "json"` constrains output; fallback to tool-calling       |
+| Cold start on new deploy | No learned data            | Merchant DB persisted in PostgreSQL; HNSW index serialized to disk |

@@ -12,7 +12,7 @@
 //!   OLLAMA_TEST_MODEL  - Model to use for tests (default: gemma4:e4b-it-q4_K_M)
 
 use chrono::NaiveDate;
-use finima_llm::{CategorizationBatch, LlmClient, StubLlmClient, TransactionInput};
+use finima_llm::{CategorizationBatch, LlmClient, TransactionInput};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -65,58 +65,7 @@ fn make_recurring_group() -> finima_llm::RecurringGroupCandidate {
 }
 
 // ===========================================================================
-// 1. Stub Client Tests (always runnable, NOT ignored)
-// ===========================================================================
-
-#[tokio::test]
-async fn stub_client_categorizes_all_as_other() {
-    let client = StubLlmClient;
-    let batch = make_test_batch(vec![
-        "STARBUCKS STORE #1234",
-        "WALMART SUPERCENTER",
-        "SHELL OIL 57442",
-    ]);
-
-    let results = client.categorize_batch(&batch).await.unwrap();
-
-    assert_eq!(results.len(), 3);
-    for result in &results {
-        assert_eq!(result.category, "other");
-        assert_eq!(result.subcategory, "uncategorized");
-        assert_eq!(result.confidence, 0.5);
-    }
-}
-
-#[tokio::test]
-async fn stub_client_enriches_with_defaults() {
-    let client = StubLlmClient;
-    let group = make_recurring_group();
-
-    let enrichment = client.enrich_recurring(&group).await.unwrap();
-
-    assert_eq!(enrichment.merchant_full_name, "Netflix");
-    assert_eq!(enrichment.category, "other");
-    assert!(!enrichment.is_subscription);
-    assert!(!enrichment.is_bill);
-    assert!(!enrichment.is_income);
-    assert_eq!(enrichment.annual_cost, Decimal::ZERO);
-    assert_eq!(enrichment.confidence, 0.5);
-}
-
-#[tokio::test]
-async fn stub_client_insight_returns_placeholder() {
-    let client = StubLlmClient;
-
-    let insight = client
-        .generate_insight("Monthly spending: $3000 on housing, $500 on food")
-        .await
-        .unwrap();
-
-    assert_eq!(insight, "Insight generation requires a real LLM backend.");
-}
-
-// ===========================================================================
-// 2. Hardware Detection Tests (always runnable, NOT ignored)
+// 1. Hardware Detection Tests (always runnable, NOT ignored)
 // ===========================================================================
 
 #[test]

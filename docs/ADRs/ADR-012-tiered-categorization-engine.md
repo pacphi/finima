@@ -22,7 +22,7 @@ Replace the single-tier LLM pipeline with a **four-tier cascade** where each tie
 
 ### Architecture: The Categorization Cascade
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    CATEGORIZATION ENGINE                        │
 │                                                                 │
@@ -83,18 +83,18 @@ Replace the single-tier LLM pipeline with a **four-tier cascade** where each tie
 
 ### Throughput Budget (10K transactions)
 
-| Tier | Transactions | Per-txn Latency | Wall Clock | Cumulative |
-|------|-------------|-----------------|------------|------------|
-| T0   | 7,000       | 0.1ms           | 0.7s       | 0.7s       |
-| T1   | 1,500       | 0.5ms           | 0.75s      | 1.45s      |
-| T2   | 1,000       | 0.1ms           | 0.1s       | 1.55s      |
-| T3   | 500 (10 batches of 50) | ~2s/batch | 20s | **21.5s** |
+| Tier | Transactions           | Per-txn Latency | Wall Clock | Cumulative |
+| ---- | ---------------------- | --------------- | ---------- | ---------- |
+| T0   | 7,000                  | 0.1ms           | 0.7s       | 0.7s       |
+| T1   | 1,500                  | 0.5ms           | 0.75s      | 1.45s      |
+| T2   | 1,000                  | 0.1ms           | 0.1s       | 1.55s      |
+| T3   | 500 (10 batches of 50) | ~2s/batch       | 20s        | **21.5s**  |
 
 **Total: ~22 seconds** — 27x under the 10-minute budget, leaving margin for cold starts, I/O, and DB writes.
 
 ### Domain Model (DDD Bounded Contexts)
 
-```
+```text
 ┌──────────────────────────────┐
 │  CATEGORIZATION CONTEXT      │  ← New bounded context
 │                              │
@@ -162,23 +162,23 @@ Replace the single-tier LLM pipeline with a **four-tier cascade** where each tie
 
 ## Technology Mapping
 
-| Component | Technology | Rationale |
-|-----------|-----------|-----------|
-| **Tier 0 store** | In-memory `HashMap` + `strsim` crate | Sub-microsecond exact match, Jaro-Winkler fuzzy at ~0.1ms |
-| **Tier 0 data** | `greggles/mcc-codes` JSON + Plaid PFC taxonomy | 800+ MCC codes, community-maintained, CC-0 license |
-| **Tier 1 engine** | `regex` crate with compiled `RegexSet` | Evaluate hundreds of patterns in a single pass |
-| **Tier 2 embeddings** | RuVector built-in ONNX models | <10ms inference, Metal/CUDA/ANE acceleration, Rust-native |
-| **Tier 2 search** | RuVector HNSW | 80K QPS, 61µs p50, SIMD-accelerated, 32x quantization |
-| **Tier 2 learning** | RuVector SONA (LoRA + EWC++) | <1ms adaptation, no retraining, prevents catastrophic forgetting |
-| **Tier 2 relations** | RuVector GNN | Multi-head attention on merchant→category graph |
-| **Tier 3 inference** | Ollama with `qwen3:4b` | 88% tool-call accuracy, `format: "json"`, `NUM_PARALLEL=4` |
-| **Tier 3 protocol** | Batch JSON (not tool-calling) | 3-5x throughput vs per-transaction tool calls |
-| **Feedback bus** | Tokio `broadcast` channel | In-process event distribution, zero-copy |
-| **Persistence** | PostgreSQL + existing repos | Transactions table already has category/subcategory/confidence |
+| Component             | Technology                                     | Rationale                                                        |
+| --------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| **Tier 0 store**      | In-memory `HashMap` + `strsim` crate           | Sub-microsecond exact match, Jaro-Winkler fuzzy at ~0.1ms        |
+| **Tier 0 data**       | `greggles/mcc-codes` JSON + Plaid PFC taxonomy | 800+ MCC codes, community-maintained, CC-0 license               |
+| **Tier 1 engine**     | `regex` crate with compiled `RegexSet`         | Evaluate hundreds of patterns in a single pass                   |
+| **Tier 2 embeddings** | RuVector built-in ONNX models                  | <10ms inference, Metal/CUDA/ANE acceleration, Rust-native        |
+| **Tier 2 search**     | RuVector HNSW                                  | 80K QPS, 61µs p50, SIMD-accelerated, 32x quantization            |
+| **Tier 2 learning**   | RuVector SONA (LoRA + EWC++)                   | <1ms adaptation, no retraining, prevents catastrophic forgetting |
+| **Tier 2 relations**  | RuVector GNN                                   | Multi-head attention on merchant→category graph                  |
+| **Tier 3 inference**  | Ollama with `qwen3:4b`                         | 88% tool-call accuracy, `format: "json"`, `NUM_PARALLEL=4`       |
+| **Tier 3 protocol**   | Batch JSON (not tool-calling)                  | 3-5x throughput vs per-transaction tool calls                    |
+| **Feedback bus**      | Tokio `broadcast` channel                      | In-process event distribution, zero-copy                         |
+| **Persistence**       | PostgreSQL + existing repos                    | Transactions table already has category/subcategory/confidence   |
 
 ## New Crate Structure
 
-```
+```text
 crates/
   finima-categorize/          ← NEW CRATE
     src/

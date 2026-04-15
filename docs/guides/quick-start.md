@@ -233,10 +233,10 @@ make start LLM=ollama     # starts Ollama container + pulls model
 make download-model LLM=ollama   # pull the default Gemma 4 model
 ```
 
-To run **without any LLM** (stub mode):
+To run **without any LLM**:
 
 ```bash
-make start LLM=stub
+make start LLM=none
 ```
 
 See the `.env.example` file and the
@@ -244,11 +244,13 @@ See the `.env.example` file and the
 for full configuration details (model selection, quantization,
 device, etc.).
 
-> **Note:** In stub mode all transactions are categorized as "other"
-> with a confidence of 0.5. The app is fully functional otherwise.
-> You can switch to a real LLM later and re-import files to get AI
-> categorization. See the
-> [Troubleshooting Guide](troubleshooting.md#2a-degraded-mode--running-without-ollama)
+> **Note:** Without an LLM, Tiers 0-2 (merchant lookup, pattern
+> engine, semantic search) still categorize 80-95% of transactions.
+> The rest remain uncategorized until you configure a real LLM or
+> manually categorize them. You can switch to a real LLM later and
+> re-process uncategorized transactions via the on-demand
+> categorization endpoint. See the
+> [Troubleshooting Guide](troubleshooting.md#2a-running-without-an-llm)
 > for details.
 
 ## 9. Explore the dashboard

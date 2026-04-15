@@ -126,20 +126,20 @@ export function TransactionsPage() {
   };
 
   const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || !activePortfolioId) {
       setSearchResults(null);
       return;
     }
     setSearching(true);
     try {
-      const results = await txApi.searchTransactions(searchQuery.trim());
+      const results = await txApi.searchTransactions(searchQuery.trim(), activePortfolioId);
       setSearchResults(results);
     } catch (err) {
       console.error('Search failed:', err);
     } finally {
       setSearching(false);
     }
-  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchQuery, activePortfolioId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clean up categorization polling on unmount
   useEffect(() => {

@@ -6,6 +6,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore';
 import { categoryLabel as catLabel } from '@/hooks/useCategories';
 
 type SortField = 'transaction_count' | 'merchant_name' | 'category';
+type SortDir = 'asc' | 'desc';
 
 /** Encode category + subcategory into a single select value. */
 function encodeValue(category: string, subcategory?: string | null): string {
@@ -32,7 +33,8 @@ export function PayeeRulesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sortBy, setSortBy] = useState<SortField>('transaction_count');
+  const [sortBy, setSortBy] = useState<SortField>('merchant_name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Track which row is being edited: merchant_name -> encoded "category::subcategory" value
   const [editing, setEditing] = useState<Record<string, string>>({});
@@ -51,6 +53,18 @@ export function PayeeRulesPage() {
     return map;
   }, [categories]);
 
+  /** Set of all valid encoded option values for the category select. */
+  const validEncodedValues = useMemo(() => {
+    const set = new Set<string>(['']);
+    for (const cat of categories) {
+      set.add(encodeValue(cat.key));
+      for (const sub of cat.subcategories ?? []) {
+        set.add(encodeValue(cat.key, sub.key));
+      }
+    }
+    return set;
+  }, [categories]);
+
   useEffect(() => {
     if (!activePortfolioId) {
       setLoading(false);
@@ -60,7 +74,16 @@ export function PayeeRulesPage() {
     Promise.all([payeeApi.listPayeeRules(activePortfolioId), categoryApi.listCategories()])
       .then(([p, c]) => {
         setPayees(p);
-        setCategories(c);
+        // Sort categories and subcategories alphabetically
+        const sorted = [...c]
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .map((cat) => ({
+            ...cat,
+            subcategories: cat.subcategories
+              ? [...cat.subcategories].sort((a, b) => a.label.localeCompare(b.label))
+              : cat.subcategories,
+          }));
+        setCategories(sorted);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -82,6 +105,20 @@ export function PayeeRulesPage() {
     return Array.from(set).sort();
   }, [payees]);
 
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDir(field === 'transaction_count' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortIndicator = (field: SortField) => {
+    if (sortBy !== field) return ' \u2195';
+    return sortDir === 'asc' ? ' \u2191' : ' \u2193';
+  };
+
   const filtered = useMemo(() => {
     let result = payees;
 
@@ -96,14 +133,15 @@ export function PayeeRulesPage() {
       result = result.filter((p) => p.category === categoryFilter);
     }
 
+    const dir = sortDir === 'asc' ? 1 : -1;
     result = [...result].sort((a, b) => {
-      if (sortBy === 'transaction_count') return b.transaction_count - a.transaction_count;
-      if (sortBy === 'merchant_name') return a.merchant_name.localeCompare(b.merchant_name);
-      return (a.category ?? '').localeCompare(b.category ?? '');
+      if (sortBy === 'transaction_count') return dir * (a.transaction_count - b.transaction_count);
+      if (sortBy === 'merchant_name') return dir * a.merchant_name.localeCompare(b.merchant_name);
+      return dir * (a.category ?? '').localeCompare(b.category ?? '');
     });
 
     return result;
-  }, [payees, search, categoryFilter, sortBy]);
+  }, [payees, search, categoryFilter, sortBy, sortDir]);
 
   const totalTransactions = useMemo(
     () => filtered.reduce((sum, p) => sum + p.transaction_count, 0),
@@ -212,20 +250,6 @@ export function PayeeRulesPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-            Sort by
-          </label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortField)}
-            className="input-themed"
-          >
-            <option value="transaction_count">Transaction count</option>
-            <option value="merchant_name">Payee name</option>
-            <option value="category">Category</option>
-          </select>
-        </div>
       </div>
 
       {loading ? (
@@ -247,14 +271,23 @@ export function PayeeRulesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--color-border)]">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-                    Payee
+                  <th
+                    onClick={() => handleSort('merchant_name')}
+                    className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
+                  >
+                    Payee{sortIndicator('merchant_name')}
                   </th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-                    Category
+                  <th
+                    onClick={() => handleSort('category')}
+                    className="text-left px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
+                  >
+                    Category{sortIndicator('category')}
                   </th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-                    Transactions
+                  <th
+                    onClick={() => handleSort('transaction_count')}
+                    className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
+                  >
+                    Transactions{sortIndicator('transaction_count')}
                   </th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider w-[140px]">
                     Action
@@ -289,6 +322,13 @@ export function PayeeRulesPage() {
                           className="input-themed text-sm py-1"
                         >
                           <option value="">Uncategorized</option>
+                          {!isEditing &&
+                            !validEncodedValues.has(originalEncoded) &&
+                            originalEncoded && (
+                              <option value={originalEncoded}>
+                                {displayLabel(payee.category, payee.subcategory)} (unknown)
+                              </option>
+                            )}
                           {categories.map((cat) => (
                             <optgroup key={cat.key} label={cat.label}>
                               <option value={encodeValue(cat.key)}>{cat.label} (general)</option>

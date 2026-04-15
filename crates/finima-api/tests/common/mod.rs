@@ -23,6 +23,36 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use tower::ServiceExt;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+
+/// Minimal LLM client for tests — returns errors, never called in unit tests.
+struct NoOpLlmClient;
+
+#[async_trait::async_trait]
+impl finima_llm::LlmClient for NoOpLlmClient {
+    async fn categorize_batch(
+        &self,
+        _batch: &finima_llm::CategorizationBatch,
+    ) -> Result<Vec<finima_llm::CategorizationResult>, finima_llm::LlmError> {
+        Err(finima_llm::LlmError::Configuration(
+            "No LLM configured in test".to_string(),
+        ))
+    }
+
+    async fn enrich_recurring(
+        &self,
+        _group: &finima_llm::RecurringGroupCandidate,
+    ) -> Result<finima_llm::RecurringEnrichment, finima_llm::LlmError> {
+        Err(finima_llm::LlmError::Configuration(
+            "No LLM configured in test".to_string(),
+        ))
+    }
+
+    async fn generate_insight(&self, _prompt: &str) -> Result<String, finima_llm::LlmError> {
+        Err(finima_llm::LlmError::Configuration(
+            "No LLM configured in test".to_string(),
+        ))
+    }
+}
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
@@ -93,7 +123,7 @@ impl TestAppState {
                 flow_group_repo: finima_db::PgFlowGroupRepo::new(pool.clone()),
                 email_sender: Box::new(LoggingEmailSender),
                 jwt_secret: TEST_JWT_SECRET.to_string(),
-                llm_client: Arc::new(finima_llm::StubLlmClient::new()),
+                llm_client: Arc::new(NoOpLlmClient),
                 pool,
             }),
         }

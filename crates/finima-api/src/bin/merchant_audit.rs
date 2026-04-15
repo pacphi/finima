@@ -7,12 +7,14 @@
 //! can be appended to `seed_merchants.json`.
 
 #[path = "../config.rs"]
+#[allow(dead_code)]
 mod config;
 
 use finima_categorize::{MerchantRegistry, SEED_MERCHANTS_JSON};
 
 /// A categorized merchant row from the database.
 #[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
 struct CategorizedMerchant {
     merchant_name: String,
     category: String,
@@ -144,10 +146,7 @@ async fn main() {
     if !tiers.is_empty() {
         println!("Tier Distribution:");
         for tier in &tiers {
-            let label = tier
-                .source_tier
-                .as_deref()
-                .unwrap_or("(none)");
+            let label = tier.source_tier.as_deref().unwrap_or("(none)");
             let tier_pct = if categorized > 0 {
                 (tier.cnt as f64 / categorized as f64) * 100.0
             } else {

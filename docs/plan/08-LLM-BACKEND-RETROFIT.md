@@ -18,7 +18,7 @@ All items complete. 52 tests passing (44 unit + 8 integration), 9 ignored (requi
 | **Phase 4: Tool Calling Engine**       | DONE   | `tool_calling.rs` extracts shared parsing from `OllamaClient`. Both Ollama and OpenAI response formats supported. 7 tests passing.                                                                       |
 | **Config YAML**                        | DONE   | `config/llm.yaml` updated: `provider: "candle"`, `model: "auto"`, full `candle` block, removed `llamacpp`.                                                                                               |
 | **Config Structs**                     | DONE   | `finima-api/src/config.rs`: `CandleConfig` struct, `LlamaCppConfig` removed, serde defaults.                                                                                                             |
-| **State Provider Selection**           | DONE   | `finima-api/src/state.rs`: Three-way match (`candle`/`ollama`/`stub`) with feature gates and fallback. `AppState::new()` now async.                                                                      |
+| **State Provider Selection**           | DONE   | `finima-api/src/state.rs`: Three-way match (`candle`/`ollama`/`none`) with feature gates. `AppState::new()` now async.                                                                                   |
 | **ADR-010**                            | DONE   | New ADR documenting Candle/mistral.rs decision at `docs/ADRs/ADR-010-candle-mistralrs-inference-backend.md`.                                                                                             |
 | **DDD-004 Update**                     | DONE   | Added Backend/Provider, Hardware Profile, Model Resolution, Grammar-Constrained Decoding terms. Updated LlmClient implementations and added Hardware Detection service.                                  |
 | **ADR-001 Update**                     | DONE   | `finima-llm` description updated from "Ollama + llama.cpp" to "Candle/mistral.rs + Ollama".                                                                                                              |
@@ -31,7 +31,7 @@ All items complete. 52 tests passing (44 unit + 8 integration), 9 ignored (requi
 | **Workspace Compilation**              | DONE   | `cargo check --workspace` and `cargo check -p finima-llm --features candle` both pass (0 errors).                                                                                                        |
 | **mistral.rs Pipeline Wiring**         | DONE   | `mistralrs` 0.8.1 wired into `CandleClient`. Uses `ModelBuilder` (HF Hub + ISQ) or `GgufModelBuilder` (local GGUF). Tool defs converted to `mistralrs::Tool`, responses converted to shared JSON format. |
 | **GGUF Model Download**                | DONE   | `model_download.rs` module with `download_model()`, `download_default_model()`, `is_model_cached()`, `available_models()`. Uses `hf-hub` sync API. 6 tests.                                              |
-| **Integration Tests**                  | DONE   | `tests/integration.rs` with 17 tests: 8 always-run (stub + hardware), 4 Ollama `#[ignore]`, 5 Candle `#[ignore]`.                                                                                        |
+| **Integration Tests**                  | DONE   | `tests/integration.rs` with 17 tests: 8 always-run (no-LLM + hardware), 4 Ollama `#[ignore]`, 5 Candle `#[ignore]`.                                                                                      |
 
 ---
 
@@ -94,11 +94,11 @@ pub trait LlmClient: Send + Sync {
 
 ### 2.2 Implementations
 
-| Implementation  | Status                                  | Mechanism                                    |
-| --------------- | --------------------------------------- | -------------------------------------------- |
-| `OllamaClient`  | Active                                  | HTTP POST to `localhost:11434/api/chat`      |
-| `StubLlmClient` | Active (fallback)                       | Returns `category="other"`, `confidence=0.5` |
-| `llama.cpp`     | Configured in YAML, **not implemented** | `llamacpp.model_path: ""` placeholder        |
+| Implementation | Status                                  | Mechanism                                                                                 |
+| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `OllamaClient` | Active                                  | HTTP POST to `localhost:11434/api/chat`                                                   |
+| _(none)_       | When `provider = "none"`                | No LLM loaded; Tiers 0-2 handle categorization; remaining transactions stay uncategorized |
+| `llama.cpp`    | Configured in YAML, **not implemented** | `llamacpp.model_path: ""` placeholder                                                     |
 
 ### 2.3 Provider Selection (`finima-api/src/state.rs:71-81`)
 
@@ -107,7 +107,7 @@ let llm_client: Arc<dyn LlmClient> =
     if config.llm.provider == "ollama" && !config.llm.ollama.url.is_empty() {
         Arc::new(finima_llm::OllamaClient::new(&config.llm.ollama.url, &config.llm.ollama.model))
     } else {
-        Arc::new(finima_llm::StubLlmClient::new())
+        // No LLM loaded; Tiers 0-2 handle categorization
     };
 ```
 
@@ -259,7 +259,7 @@ Extend the existing `LlmClient` trait to support three concrete backends:
               ┌──────────────┼──────────────┐
               │              │              │
      ┌────────▼───────┐ ┌───▼────────┐ ┌──▼──────────────┐
-     │ OllamaClient   │ │ CandleClient│ │ StubLlmClient   │
+     │ OllamaClient   │ │ CandleClient│ │ (none/disabled) │
      │ (HTTP, existing)│ │ (in-process)│ │ (fallback)      │
      └────────────────┘ └────────────┘ └─────────────────┘
                               │
@@ -334,7 +334,7 @@ Users can override via config (`llm.model` in YAML or `APP__LLM__MODEL` env var)
 
 ### 5.1 Phase 1: Refactor Provider Abstraction
 
-**Goal:** Generalize the provider selection to support `candle` as a third option alongside `ollama` and `stub`.
+**Goal:** Generalize the provider selection to support `candle` as a third option alongside `ollama` and `none`.
 
 **Files changed:**
 
@@ -350,7 +350,7 @@ Users can override via config (`llm.model` in YAML or `APP__LLM__MODEL` env var)
 
 ```yaml
 llm:
-  provider: 'candle' # "ollama" | "candle" | "stub"
+  provider: 'candle' # "ollama" | "candle" | "none"
   model: 'auto' # "auto" | specific model identifier
 
   candle:
@@ -628,7 +628,7 @@ This means **zero changes to our prompts or tool definitions**. The same `catego
 
 ```yaml
 llm:
-  # Which backend to use: "candle" (in-process), "ollama" (HTTP), "stub" (no LLM)
+  # Which backend to use: "candle" (in-process), "ollama" (HTTP), "none" (no LLM)
   provider: 'candle'
 
   # Model selection: "auto" detects hardware and picks optimal variant

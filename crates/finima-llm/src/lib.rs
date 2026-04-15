@@ -11,7 +11,6 @@ pub mod error;
 pub mod hardware;
 pub mod model_download;
 pub mod prompts;
-pub mod stub;
 pub mod tool_calling;
 pub mod tool_defs;
 
@@ -31,7 +30,6 @@ pub use client::{
 pub use enricher::normalize_merchant;
 pub use error::LlmError;
 pub use hardware::{detect_hardware, resolve_model, HardwareProfile, ModelSelection};
-pub use stub::StubLlmClient;
 
 #[cfg(feature = "ollama")]
 pub use client::OllamaClient;

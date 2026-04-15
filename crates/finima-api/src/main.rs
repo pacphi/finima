@@ -134,7 +134,7 @@ async fn main() {
         u64::from(app_config.feed.poll_interval_hours) * 3600,
     ));
 
-    // Build application state (starts with a stub LLM client so the server
+    // Build application state (starts without an LLM client so the server
     // can accept requests immediately while the model loads in the background).
     let state = state::AppState::new(
         pool,
@@ -178,11 +178,14 @@ fn spawn_llm_loader(state: state::AppState, config: &config::AppConfig) {
     tokio::spawn(async move {
         tracing::info!(provider = %llm_config.provider, "Loading LLM backend in background...");
 
-        // If the provider is explicitly "none", empty, or "stub", skip LLM
-        // entirely. Categorization will use Tiers 0-2 only.
+        // If the provider is explicitly "none" or empty, skip LLM entirely.
+        // Categorization will use Tiers 0-2 only.
         match llm_config.provider.as_str() {
-            "none" | "" | "stub" => {
-                tracing::info!("LLM provider set to '{}' — categorization uses Tiers 0-2 only", llm_config.provider);
+            "none" | "" => {
+                tracing::info!(
+                    "LLM provider set to '{}' — categorization uses Tiers 0-2 only",
+                    llm_config.provider
+                );
                 state.set_llm_disabled();
                 return;
             }

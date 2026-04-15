@@ -242,7 +242,8 @@ impl LlmClient for CandleClient {
         batch: &CategorizationBatch,
     ) -> Result<Vec<CategorizationResult>, LlmError> {
         // Try batch JSON first -- faster for models that support plain JSON output.
-        let json_system = crate::batch_json::build_batch_json_system_prompt(&batch.category_hierarchy);
+        let json_system =
+            crate::batch_json::build_batch_json_system_prompt(&batch.category_hierarchy);
         let json_user = crate::batch_json::build_batch_json_user_prompt(
             &batch.transactions,
             &batch.user_overrides,
@@ -254,15 +255,23 @@ impl LlmClient for CandleClient {
                 match crate::batch_json::parse_batch_json_response(&content, &batch.transactions) {
                     Ok(results) if !results.is_empty() => return Ok(results),
                     Ok(_) => {
-                        tracing::warn!("Batch JSON returned empty results, falling back to tool-calling");
+                        tracing::warn!(
+                            "Batch JSON returned empty results, falling back to tool-calling"
+                        );
                     }
                     Err(e) => {
-                        tracing::warn!("Batch JSON parse failed, falling back to tool-calling: {}", e);
+                        tracing::warn!(
+                            "Batch JSON parse failed, falling back to tool-calling: {}",
+                            e
+                        );
                     }
                 }
             }
             Err(e) => {
-                tracing::warn!("Batch JSON chat failed, falling back to tool-calling: {}", e);
+                tracing::warn!(
+                    "Batch JSON chat failed, falling back to tool-calling: {}",
+                    e
+                );
             }
         }
 

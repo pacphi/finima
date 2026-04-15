@@ -55,11 +55,11 @@ Multiple docs describe AI categorization as a core feature without disclosing de
 
 | Doc                     | Claim                                                                                   | Reality                                                                                                                                              |
 | ----------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| README line 8           | "Local AI categorization — Ollama-powered LLM classifies transactions on-device"        | True **only if** Ollama is running and model is pulled. Otherwise `StubLlmClient` returns category="other" with confidence=0.5 for ALL transactions. |
+| README line 8           | "Local AI categorization — Ollama-powered LLM classifies transactions on-device"        | True **only if** Ollama is running and model is pulled. Otherwise the tiered categorization engine (Tiers 0-2) handles classification; unmatched transactions remain uncategorized. |
 | README line 19          | "AI-powered categorization — local LLM via Ollama, no cloud API calls"                  | Same — silently degrades.                                                                                                                            |
 | User Guide line 149–152 | "If Ollama is running and a model has been pulled, Finima automatically categorizes..." | This is the **only** doc that hedges correctly.                                                                                                      |
 
-The `StubLlmClient` fallback is clearly documented in code comments (`stub.rs:5`: "This is clearly marked as a stub and should be replaced") but **zero user-facing docs** mention that without Ollama the system silently degrades. The Settings > LLM tab shows connection status, but a new user following the quick-start who skips the optional `make download-model` step will get all transactions categorized as "other" with no warning.
+The stub client has been removed. When `provider = "none"`, no LLM is loaded; Tiers 0-2 (merchant lookup, pattern matching, embedding similarity) handle categorization and unmatched transactions remain uncategorized. The Settings > LLM tab shows connection status.
 
 ### 1.5 MISLEADING: "Dashboard widgets can be rearranged by dragging them"
 
@@ -113,11 +113,11 @@ There is **no REST API documentation** anywhere. The backend has 15+ handler fil
 
 **Impact: MEDIUM**
 
-The `finima-llm` crate has compile-time features `candle` and `ollama`. When neither is enabled, the stub client is used silently. The `finima-api/src/state.rs` initialization logic:
+The `finima-llm` crate has compile-time features `candle` and `ollama`. When neither is enabled, no LLM client is loaded and Tiers 0-2 handle categorization. The `finima-api/src/state.rs` initialization logic:
 
-- `candle` feature enabled → tries Candle, falls back to stub on failure
-- `ollama` feature enabled → uses Ollama client
-- Neither → stub
+- `candle` feature enabled → tries Candle in-process inference
+- `ollama` feature enabled → uses Ollama HTTP client
+- Neither → no LLM; tiered categorization only
 
 This is invisible to anyone building from source. `maintainer-guide.md` should document available feature flags and their effects.
 
@@ -356,7 +356,7 @@ The first audit (april-2026-audit-01.md) focused on **code quality, security, an
 ### Verification Tools
 
 - `grep`/`rg` pattern matching across all `.rs`, `.ts`, `.tsx`, `.md` files
-- Direct source code reads of key files (state.rs, router.rs, stub.rs, DashboardPage.tsx, SettingsPage.tsx)
+- Direct source code reads of key files (state.rs, router.rs, DashboardPage.tsx, SettingsPage.tsx)
 - Package.json dependency verification
 - Config file cross-referencing
 

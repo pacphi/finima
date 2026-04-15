@@ -54,6 +54,7 @@ cuda = ["candle", "finima-llm/cuda"]
 ollama = ["finima-llm/ollama"]
 
 [dev-dependencies]
+async-trait = "0.1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 http = "1"

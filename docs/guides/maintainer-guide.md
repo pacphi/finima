@@ -86,7 +86,7 @@ The default configuration in `config/llm.yaml` is `provider: "none"`. Three LLM
 backends are available, selected by the `llm.provider` field in `config/llm.yaml`
 (or the `APP__LLM__PROVIDER` environment variable):
 
-- `make start` -- runs without LLM (default, `LLM=stub`)
+- `make start` -- runs without LLM (default, `LLM=none`)
 - `make start LLM=ollama` -- enables Ollama for AI categorization
 - `make start LLM=candle` -- enables Candle for AI categorization
 
@@ -168,28 +168,26 @@ Configuration keys (YAML path / env var):
 | `llm.ollama.url`   | `APP__LLM__OLLAMA__URL`   | `http://localhost:11434`   |
 | `llm.ollama.model` | `APP__LLM__OLLAMA__MODEL` | `gemma4:26b-a4b-it-q4_K_M` |
 
-#### Option 3: Stub (no LLM)
+#### Option 3: No LLM
 
 ```sh
-make dev LLM=stub        # compiles without any LLM feature
-make dev-stub             # explicit alias
+make dev LLM=none         # compiles without any LLM feature
+make dev-no-llm           # explicit alias
 ```
 
 If neither the `candle` nor `ollama` feature is enabled at compile time, or if
-the configured provider cannot be initialized (e.g., model download fails),
-Finima falls back to a **stub LLM client**. In stub mode:
+the provider is set to `"none"`, no LLM is loaded. In this mode:
 
-- All transactions are categorized as `other` with confidence `0.5`.
-- Recurring payment enrichment returns default values.
-- Insight generation returns a placeholder string.
+- Tiers 0-2 (merchant lookup, pattern engine, semantic search) still categorize
+  transactions normally, handling 80-95% of common transactions.
+- Transactions that do not match any tier remain uncategorized (category = NULL).
+- Recurring payment enrichment and insight generation are unavailable.
 
 The application is fully functional otherwise -- you can import statements, view
-transactions, set budgets, and manually categorize entries. Look for this log
-line at startup to confirm stub mode:
-
-```text
-WARN finima_llm::stub: Using STUB LLM client
-```
+transactions, set budgets, and manually categorize entries. Uncategorized
+transactions can be re-processed once a real LLM is configured, either by
+re-importing the file or using the on-demand categorization endpoint
+(`POST /api/transactions/categorize`).
 
 #### Feature flag summary
 

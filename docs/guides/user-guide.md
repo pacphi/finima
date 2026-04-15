@@ -433,9 +433,10 @@ reference:
   - **Candle** -- in-process inference via mistral.rs. Lower latency,
     no sidecar container required. Needs the `candle` compile-time
     feature flag (with `metal` or `cuda` for GPU acceleration).
-  - **Stub** -- no real LLM. All categorization returns "other" with
-    confidence 0.5. Active when neither feature is compiled in, or
-    when the configured backend fails to initialize.
+  - **None** -- no LLM loaded. Categorization relies on Tiers 0-2
+    (merchant lookup, pattern engine, semantic search). Transactions
+    that do not match any tier remain uncategorized until a real LLM
+    is configured or the user manually categorizes them.
 - **Model** -- the model name (for example, Gemma 4).
 - **Endpoint URL** -- the Ollama server address (shown only when
   the provider is Ollama).

@@ -69,7 +69,7 @@ resend:
   api_key: ''
 
 llm:
-  provider: 'candle' # "candle" | "ollama" | "stub"
+  provider: 'candle' # "candle" | "ollama" | "none"
   model: 'auto' # "auto" | explicit model name
   candle:
     model_id: 'google/gemma-4-E4B-it'

@@ -52,11 +52,11 @@ COMPOSE_OBS  := $(COMPOSE) -f docker-compose.yml -f docker-compose.observability
 #   candle-metal  – in-process inference (Apple Metal GPU)
 #   candle-cuda   – in-process inference (NVIDIA CUDA GPU)
 #   ollama        – HTTP inference via Ollama container
-#   stub          – no real LLM; all categorization returns defaults
+#   none          – no LLM; categorization uses Tiers 0-2 only
 #
-# Default: stub (no LLM — categorization uses Tiers 0-2 only).
+# Default: none (no LLM — categorization uses Tiers 0-2 only).
 # Override with: make start LLM=ollama  or  make start LLM=candle
-LLM ?= stub
+LLM ?= none
 
 # Auto-promote bare "candle" to the best accelerator for this machine.
 ifeq ($(LLM),candle)
@@ -140,7 +140,7 @@ help:
 	@echo "$(BOLD)LLM Backend (current: $(LLM)$(if $(filter ollama,$(LLM)), — $(OLLAMA_SOURCE),)):$(RESET)"
 	@echo "  LLM=candle  make dev   - In-process inference (auto-detects Metal/CUDA/CPU)"
 	@echo "  LLM=ollama  make dev   - HTTP inference (auto-detects local vs Docker)"
-	@echo "  LLM=stub    make dev   - No LLM (stub mode)"
+	@echo "  LLM=none    make dev   - No LLM (Tiers 0-2 only)"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Install & Build ═════════════════════════════════════════════════$(RESET)"
 	@echo "  install                - Install all dependencies (backend + frontend)"
@@ -227,7 +227,7 @@ help:
 	@echo "$(BOLD)$(BLUE)═══ AI & Models ═════════════════════════════════════════════════════$(RESET)"
 	@echo "  dev-candle             - Start with Candle LLM (auto-detects GPU)"
 	@echo "  dev-ollama             - Start with Ollama LLM"
-	@echo "  dev-stub               - Start without any LLM (stub mode)"
+	@echo "  dev-no-llm             - Start without any LLM (Tiers 0-2 only)"
 	@echo "  models                 - List downloaded models (set LLM=candle or ollama)"
 	@echo "  download-model         - Download the default model (set LLM=candle or ollama)"
 	@echo "  check-ollama           - Diagnose Ollama setup (local vs Docker)"
@@ -564,7 +564,7 @@ deadcode: ## Check for dead code
 #  LLM / AI Models
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: dev-candle dev-ollama dev-stub models download-model check-ollama
+.PHONY: dev-candle dev-ollama dev-no-llm models download-model check-ollama
 
 dev-candle: ## Start with Candle in-process LLM (auto-detects Metal/CUDA/CPU)
 	@$(MAKE) dev LLM=candle
@@ -572,8 +572,8 @@ dev-candle: ## Start with Candle in-process LLM (auto-detects Metal/CUDA/CPU)
 dev-ollama: ## Start with Ollama HTTP LLM
 	@$(MAKE) dev LLM=ollama
 
-dev-stub: ## Start without any LLM (stub mode)
-	@$(MAKE) dev LLM=stub
+dev-no-llm: ## Start without any LLM (Tiers 0-2 only)
+	@$(MAKE) dev LLM=none
 
 models: ## List downloaded models (set LLM=candle or LLM=ollama)
 ifeq ($(filter candle candle-metal candle-cuda,$(LLM)),)

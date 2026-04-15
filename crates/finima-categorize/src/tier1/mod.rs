@@ -2,7 +2,7 @@ use regex::RegexSet;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use crate::types::{CategoryAssignment, CategorizationTier};
+use crate::types::{CategorizationTier, CategoryAssignment};
 
 /// A single pattern rule mapping a regex to a category.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -41,11 +41,7 @@ impl PatternEngine {
     }
 
     /// Match a transaction description (and optionally its amount) against all patterns.
-    pub fn match_pattern(
-        &self,
-        description: &str,
-        amount: Decimal,
-    ) -> Option<CategoryAssignment> {
+    pub fn match_pattern(&self, description: &str, amount: Decimal) -> Option<CategoryAssignment> {
         let lower = description.to_lowercase();
 
         // Try regex patterns first (priority-ordered, first match wins)
@@ -77,7 +73,13 @@ impl PatternEngine {
 
         // Positive amounts > $500 with payroll/salary keywords -> income
         if amount > threshold_500 {
-            let income_keywords = ["payroll", "salary", "direct dep", "direct deposit", "ach deposit"];
+            let income_keywords = [
+                "payroll",
+                "salary",
+                "direct dep",
+                "direct deposit",
+                "ach deposit",
+            ];
             for kw in &income_keywords {
                 if description.contains(kw) {
                     return Some(CategoryAssignment {

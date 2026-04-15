@@ -27,12 +27,12 @@ the long tail of ambiguous descriptions.
 > `make start LLM=candle` for higher accuracy on the remaining long
 > tail.
 
-| Tier | Name              | Speed     | Typical Coverage | Confidence |
-| ---- | ----------------- | --------- | ---------------- | ---------- |
-| 0    | Merchant Lookup   | < 1 ms    | 50-60%           | 0.80-0.95  |
-| 1    | Pattern Engine    | < 1 ms    | 15-20%           | 0.65-0.95  |
-| 2    | Semantic Search   | < 10 ms   | 10-15% (planned) | 0.85+      |
-| 3    | LLM Inference     | 1-5 s     | 3-8%             | 0.50-0.99  |
+| Tier | Name            | Speed   | Typical Coverage | Confidence |
+| ---- | --------------- | ------- | ---------------- | ---------- |
+| 0    | Merchant Lookup | < 1 ms  | 50-60%           | 0.80-0.95  |
+| 1    | Pattern Engine  | < 1 ms  | 15-20%           | 0.65-0.95  |
+| 2    | Semantic Search | < 10 ms | 10-15% (planned) | 0.85+      |
+| 3    | LLM Inference   | 1-5 s   | 3-8%             | 0.50-0.99  |
 
 Tiers 0 and 1 handle **65-80% of transactions instantly** (sub-millisecond),
 dramatically reducing the number of expensive LLM calls. User overrides are
@@ -54,6 +54,7 @@ merchants. It is loaded once at startup and cached on `AppState` for the
 lifetime of the process.
 
 **Data sources:**
+
 - **Seed merchants** (`data/seed_merchants.json`) -- ~500 curated common
   merchants loaded at startup.
 - **LLM-learned** -- high-confidence (>= 0.9) LLM results are automatically
@@ -61,6 +62,7 @@ lifetime of the process.
 - **MCC codes** -- ISO 18245 Merchant Category Codes (when available).
 
 **Algorithm:**
+
 1. Normalize description (lowercase, strip digits/punctuation, collapse whitespace).
 2. Exact match against the registry -- O(1) HashMap lookup.
 3. If no exact match: fuzzy match via prefix index using Jaro-Winkler
@@ -83,6 +85,7 @@ pass using `RegexSet`. Covers common transaction types like streaming
 services, rideshare, payroll, and ATM withdrawals.
 
 **Algorithm:**
+
 1. Compile all patterns into a `RegexSet` (evaluated in a single pass).
 2. For each unmatched transaction, test against `RegexSet`.
 3. First matching pattern wins (priority-ordered).
@@ -167,8 +170,9 @@ The LLM calls a structured tool (`finima-llm/src/tool_defs.rs`) with:
   tool-call response is always valid JSON matching the schema.
 - **Ollama backend**: Response parsed defensively; malformed output handled
   gracefully.
-- **Stub backend**: Returns `category="other"`, `confidence=0.5` for all
-  transactions. Used when no real LLM is available.
+- **No LLM (`provider = "none"`)**: Tiers 0-2 still categorize transactions;
+  the rest remain uncategorized (category = NULL) until a real LLM is
+  configured or the user manually categorizes them.
 
 ---
 
@@ -190,6 +194,7 @@ loop. After each LLM categorization run:
    transactions and Tier 3 (LLM) drops to ~5%.
 
 **Cold-start bootstrap:**
+
 - Minute 0: Seed merchants loaded -- Tier 0 works immediately.
 - Minutes 1-10: First batch processed. Tier 3 handles most. Results feed
   back to Tier 0.
@@ -448,26 +453,26 @@ the task exits so it does not remain stuck in `categorizing`.
 
 ## Key Source Files
 
-| File                                                        | Purpose                                            |
-| ----------------------------------------------------------- | -------------------------------------------------- |
-| `config/categories.yaml`                                    | System category definitions (key + label)          |
-| `crates/finima-categorize/src/lib.rs`                       | Cascade engine entry point + public API            |
-| `crates/finima-categorize/src/tier0/merchant_db.rs`         | Tier 0: Merchant registry with fuzzy matching      |
-| `crates/finima-categorize/src/tier1/mod.rs`                 | Tier 1: RegexSet pattern engine + amount heuristics|
-| `crates/finima-categorize/src/tier2/mod.rs`                 | Tier 2: Semantic search trait (planned)            |
-| `crates/finima-categorize/src/engine.rs`                    | CascadeEngine orchestrating tiers 0-1              |
-| `crates/finima-categorize/data/seed_merchants.json`         | ~500 curated merchant entries for Tier 0           |
-| `crates/finima-llm/src/categorizer.rs`                      | Tier 3: LLM batch categorization with overrides    |
-| `crates/finima-llm/src/prompts.rs`                          | System and user prompt construction                |
-| `crates/finima-llm/src/tool_defs.rs`                        | Tool schema (category enum, subcategory, etc.)     |
-| `crates/finima-llm/src/tool_calling.rs`                     | Parses LLM tool-call responses                     |
-| `crates/finima-llm/src/client.rs`                           | `LlmClient` trait and implementations              |
-| `crates/finima-api/src/handlers/categorization.rs`          | Cascade + LLM pipeline with feedback loop          |
-| `crates/finima-api/src/state.rs`                            | AppState with cached MerchantRegistry              |
-| `crates/finima-api/src/handlers/categories.rs`              | Category CRUD endpoints                            |
-| `crates/finima-api/src/handlers/transactions.rs`            | On-demand categorization endpoints                 |
-| `crates/finima-db/src/repos/transaction_repo.rs`            | `find_uncategorized`, `update_llm_results`, `set_source_tier` |
-| `crates/finima-db/src/migrations/015_custom_categories.sql` | Custom categories table                            |
-| `crates/finima-db/src/migrations/017_categorization_tier.sql` | `source_tier` column on transactions             |
-| `frontend/src/hooks/useCategories.ts`                       | Category map hook with cache + labels              |
-| `frontend/src/routes/SettingsPage.tsx`                      | Categories management tab UI                       |
+| File                                                          | Purpose                                                       |
+| ------------------------------------------------------------- | ------------------------------------------------------------- |
+| `config/categories.yaml`                                      | System category definitions (key + label)                     |
+| `crates/finima-categorize/src/lib.rs`                         | Cascade engine entry point + public API                       |
+| `crates/finima-categorize/src/tier0/merchant_db.rs`           | Tier 0: Merchant registry with fuzzy matching                 |
+| `crates/finima-categorize/src/tier1/mod.rs`                   | Tier 1: RegexSet pattern engine + amount heuristics           |
+| `crates/finima-categorize/src/tier2/mod.rs`                   | Tier 2: Semantic search trait (planned)                       |
+| `crates/finima-categorize/src/engine.rs`                      | CascadeEngine orchestrating tiers 0-1                         |
+| `crates/finima-categorize/data/seed_merchants.json`           | ~500 curated merchant entries for Tier 0                      |
+| `crates/finima-llm/src/categorizer.rs`                        | Tier 3: LLM batch categorization with overrides               |
+| `crates/finima-llm/src/prompts.rs`                            | System and user prompt construction                           |
+| `crates/finima-llm/src/tool_defs.rs`                          | Tool schema (category enum, subcategory, etc.)                |
+| `crates/finima-llm/src/tool_calling.rs`                       | Parses LLM tool-call responses                                |
+| `crates/finima-llm/src/client.rs`                             | `LlmClient` trait and implementations                         |
+| `crates/finima-api/src/handlers/categorization.rs`            | Cascade + LLM pipeline with feedback loop                     |
+| `crates/finima-api/src/state.rs`                              | AppState with cached MerchantRegistry                         |
+| `crates/finima-api/src/handlers/categories.rs`                | Category CRUD endpoints                                       |
+| `crates/finima-api/src/handlers/transactions.rs`              | On-demand categorization endpoints                            |
+| `crates/finima-db/src/repos/transaction_repo.rs`              | `find_uncategorized`, `update_llm_results`, `set_source_tier` |
+| `crates/finima-db/src/migrations/015_custom_categories.sql`   | Custom categories table                                       |
+| `crates/finima-db/src/migrations/017_categorization_tier.sql` | `source_tier` column on transactions                          |
+| `frontend/src/hooks/useCategories.ts`                         | Category map hook with cache + labels                         |
+| `frontend/src/routes/SettingsPage.tsx`                        | Categories management tab UI                                  |

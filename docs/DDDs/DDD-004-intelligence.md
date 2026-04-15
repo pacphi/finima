@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-Owns all LLM-powered features: transaction categorization, merchant name normalization, recurring payment detection and enrichment, and insight generation. This context transforms raw transaction data into structured, actionable financial intelligence. It includes hardware-aware model selection (GPU, Apple Silicon, CPU) and multi-backend support (Candle/mistral.rs, Ollama, stub fallback) to run inference optimally on any deployment target.
+Owns all LLM-powered features: transaction categorization, merchant name normalization, recurring payment detection and enrichment, and insight generation. This context transforms raw transaction data into structured, actionable financial intelligence. It includes hardware-aware model selection (GPU, Apple Silicon, CPU) and multi-backend support (Candle/mistral.rs, Ollama, or none) to run inference optimally on any deployment target.
 
 ## 2. Ubiquitous Language
 
@@ -21,7 +21,7 @@ Owns all LLM-powered features: transaction categorization, merchant name normali
 | **Batch**                        | A group of up to 20 transactions sent to the LLM in a single call for throughput.                                                                                                                                                                                     |
 | **Recurring Group**              | A cluster of transactions from the same merchant at a regular interval (daily, weekly, monthly, etc.).                                                                                                                                                                |
 | **Frequency**                    | The detected interval of a recurring group: daily, weekly, biweekly, monthly, quarterly, semiannual, annual, or variable.                                                                                                                                             |
-| **Backend / Provider**           | The inference engine used to run the LLM. Options: `candle` (in-process via mistral.rs), `ollama` (HTTP to external Ollama process), `stub` (canned fallback).                                                                                                        |
+| **Backend / Provider**           | The inference engine used to run the LLM. Options: `candle` (in-process via mistral.rs), `ollama` (HTTP to external Ollama process), `none` (no LLM; Tiers 0-2 handle categorization).                                                                                |
 | **Hardware Profile**             | Detected hardware capabilities (CUDA GPU, Metal/Apple Silicon, CPU with SIMD) used to auto-select optimal model variant and quantization.                                                                                                                             |
 | **Model Resolution**             | The process of mapping a hardware profile to a specific Gemma 4 variant (26B-A4B, E4B, or E2B) and quantization level (Q4_K_M).                                                                                                                                       |
 | **Grammar-Constrained Decoding** | A technique (used by the Candle/mistral.rs backend) that forces LLM token generation to produce valid JSON matching the tool schema, guaranteeing structural correctness.                                                                                             |
@@ -102,7 +102,7 @@ Implementations:
 
 - `CandleClient` (in-process via mistral.rs/Candle; grammar-constrained tool calling, hardware auto-detection). **Primary/default.**
 - `OllamaClient` (HTTP to Ollama `/api/chat`; external process required). **Alternative.**
-- `StubLlmClient` (returns `category="other"`, `confidence=0.5`; no LLM). **Fallback when no backend available.**
+- When `provider = "none"`: no LLM client is created. Tiers 0-2 handle categorization; unmatched transactions remain uncategorized.
 
 ### Categorizer
 
@@ -212,5 +212,5 @@ Expected Response:
 - The `LlmClient` trait implementation is selected at startup based on configuration (`llm.provider`):
   - `"candle"` (default) → `CandleClient` with hardware auto-detection.
   - `"ollama"` → `OllamaClient` pointing at configured URL.
-  - `"stub"` or misconfigured → `StubLlmClient`.
+  - `"none"` or misconfigured → no LLM loaded; Tiers 0-2 handle categorization, unmatched transactions remain uncategorized.
     There is no runtime mock switching in production.

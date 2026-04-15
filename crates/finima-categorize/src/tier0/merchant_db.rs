@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::config::CategorizeConfig;
 use crate::tier0::fuzzy;
 use crate::tier0::mcc_loader;
-use crate::types::{CategoryAssignment, CategorizationTier, MerchantEntry, MerchantSource};
+use crate::types::{CategorizationTier, CategoryAssignment, MerchantEntry, MerchantSource};
 
 /// In-memory merchant registry with exact match, prefix-indexed fuzzy match,
 /// and MCC code lookup.
@@ -47,7 +47,8 @@ impl MerchantRegistry {
         let mut count = 0;
         for mcc in raw.keys() {
             if let Some((cat, sub)) = mcc_loader::mcc_to_category(*mcc) {
-                self.mcc_map.insert(*mcc, (cat.to_string(), sub.to_string()));
+                self.mcc_map
+                    .insert(*mcc, (cat.to_string(), sub.to_string()));
                 count += 1;
             }
         }
@@ -119,7 +120,7 @@ impl MerchantRegistry {
             // Only match names that are at least 3 chars (avoid false positives)
             if name.len() >= 3 && normalized.contains(name.as_str()) {
                 // Prefer the longest matching name to avoid "at" matching inside "payment"
-                if best_substring.map_or(true, |(_, len)| name.len() > len) {
+                if best_substring.is_none_or(|(_, len)| name.len() > len) {
                     best_substring = Some((entry, name.len()));
                 }
             }
@@ -312,7 +313,8 @@ mod tests {
     fn mcc_fallback_lookup() {
         let mut reg = MerchantRegistry::with_defaults();
         // Put a known MCC in the map
-        reg.mcc_map.insert(5411, ("food_dining".to_string(), "groceries".to_string()));
+        reg.mcc_map
+            .insert(5411, ("food_dining".to_string(), "groceries".to_string()));
 
         let result = reg.lookup("UNKNOWN MERCHANT 123", Some(5411));
         assert!(result.is_some());
@@ -349,7 +351,10 @@ mod tests {
         assert!(r1.is_some(), "should match STARBUCKS in bank description");
         assert_eq!(r1.unwrap().category, "food_dining");
 
-        let r2 = reg.lookup("External Withdrawal - T-MOBILE 800-937-8997 - PCS SVC", None);
+        let r2 = reg.lookup(
+            "External Withdrawal - T-MOBILE 800-937-8997 - PCS SVC",
+            None,
+        );
         assert!(r2.is_some(), "should match T-MOBILE in bank description");
         assert_eq!(r2.unwrap().category, "utilities");
 

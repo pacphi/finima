@@ -246,15 +246,16 @@ Uncategorized transactions are sent to Ollama in batches. The LLM (Gemma 4
 by default) receives transaction descriptions and returns category
 assignments. Results are stored on the transaction records.
 
-The LLM client (`finima-llm`) communicates with Ollama via its HTTP API.
-If Ollama is unavailable, no model is loaded, or neither the `ollama` nor
-`candle` compile-time feature flag is enabled, a **stub client** is used
-instead. The stub returns `category="other"` with `confidence=0.5` for all
-categorization requests and placeholder values for enrichment and
-summarization. This is logged at startup (`Using STUB LLM client`).
-Transactions imported during stub mode can be re-categorized later using the
-on-demand categorization trigger (`POST /api/transactions/categorize`) once a
-real LLM backend is available.
+The LLM client (`finima-llm`) communicates with Ollama via its HTTP API
+or runs inference in-process via the Candle backend. If the LLM provider
+is set to `none`, or neither the `ollama` nor `candle` compile-time
+feature flag is enabled, no LLM is loaded. In this mode, Tiers 0-2
+(merchant lookup, pattern engine, semantic search) still categorize
+transactions; the remainder stay uncategorized (category = NULL) until
+a real LLM is configured or the user manually categorizes them.
+Uncategorized transactions can be re-processed later using the on-demand
+categorization trigger (`POST /api/transactions/categorize`) once a real
+LLM backend is available.
 
 ### Article Summarization
 

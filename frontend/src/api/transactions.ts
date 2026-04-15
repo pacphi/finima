@@ -59,8 +59,10 @@ export function createTransactionApi(api: {
     bulkUpdateTransactions: (data: { ids: string[]; category: string; subcategory?: string }) =>
       api.post<{ updated: number }>('/api/transactions/bulk-update', data),
 
-    searchTransactions: (query: string) =>
-      api.get<Transaction[]>(`/api/transactions/search?q=${encodeURIComponent(query)}`),
+    searchTransactions: (query: string, portfolioId: string) =>
+      api.get<Transaction[]>(
+        `/api/transactions/search?q=${encodeURIComponent(query)}&portfolio_id=${portfolioId}`,
+      ),
 
     categorizeUncategorized: (accountId: string) =>
       api.post<CategorizeAccepted>('/api/transactions/categorize', {

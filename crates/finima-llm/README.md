@@ -4,7 +4,7 @@ Ollama LLM client for transaction categorization, recurring payment enrichment, 
 
 ## Purpose
 
-This crate provides a trait-based abstraction over LLM backends (currently Ollama) for AI-powered features: batch transaction categorization with tool-call parsing, recurring payment enrichment (merchant identification, subscription detection), and free-form financial insight generation. It includes a stub client for testing without a running LLM service.
+This crate provides a trait-based abstraction over LLM backends (Candle and Ollama) for AI-powered features: batch transaction categorization with tool-call parsing, recurring payment enrichment (merchant identification, subscription detection), and free-form financial insight generation. When the provider is set to `none`, no LLM is loaded and categorization relies on Tiers 0-2 (merchant lookup, pattern engine, semantic search).
 
 ## Key Types / Modules
 
@@ -16,7 +16,6 @@ This crate provides a trait-based abstraction over LLM backends (currently Ollam
 | `prompts.rs`     | Prompt builders: `build_categorization_system_prompt`, `build_categorization_user_prompt`, `build_enrichment_prompt`, `build_insight_prompt`                                                                                                                                                            |
 | `tool_defs.rs`   | JSON tool definitions for the `categorize_transaction` and `enrich_recurring` functions sent to the LLM; defines all 18 spending categories                                                                                                                                                             |
 | `error.rs`       | `LlmError` enum for timeout, HTTP, parsing, and tool-call errors                                                                                                                                                                                                                                        |
-| `stub.rs`        | `StubLlmClient` -- returns sensible defaults without calling any LLM; used when Ollama is not configured                                                                                                                                                                                                |
 
 ## Dependencies
 
@@ -26,7 +25,7 @@ Depends on **finima-core** for `AppError` conversion. Uses `reqwest` for HTTP ca
 
 - **Tool calls are mapped by `transaction_index`**: the LLM returns tool calls referencing transactions by their index in the batch. Off-by-one errors here cause miscategorization.
 - **Retry with exponential backoff** on timeout and 5xx responses from Ollama. Do not retry on 4xx or parse errors.
-- **`StubLlmClient`** is the fallback when Ollama is not configured. It returns "uncategorized" results so the app remains functional without an LLM.
+- **No stub fallback.** When `provider = "none"`, no LLM client is created. Tiers 0-2 handle categorization; unmatched transactions remain uncategorized (category = NULL) until a real LLM is configured or the user manually categorizes them.
 - **Override patterns take priority over LLM**: the `Categorizer` checks user-defined patterns (case-insensitive substring match) before sending remaining transactions to the LLM.
 - **Batch size** defaults to 20 transactions per LLM call and is configurable via `with_batch_size()`. Larger batches are chunked automatically.
 - **Low-confidence results** (below 0.7) are flagged in the `CategorizationReport` for user review.

@@ -284,8 +284,7 @@ pub async fn run_categorization_for_account_with_upload(
 
                         let ps = persist_state.clone();
                         tokio::spawn(async move {
-                            if let Err(e) =
-                                ps.transaction_repo().update_llm_results(&updates).await
+                            if let Err(e) = ps.transaction_repo().update_llm_results(&updates).await
                             {
                                 tracing::error!("Failed to persist batch results: {}", e);
                             }

@@ -39,8 +39,17 @@ export function useCategories() {
     categoryApi
       .listCategories()
       .then((data) => {
-        cachedCategories = data;
-        setCategories(data);
+        // Sort categories alphabetically, and subcategories within each category
+        const sorted = [...data]
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .map((cat) => ({
+            ...cat,
+            subcategories: cat.subcategories
+              ? [...cat.subcategories].sort((a, b) => a.label.localeCompare(b.label))
+              : cat.subcategories,
+          }));
+        cachedCategories = sorted;
+        setCategories(sorted);
       })
       .catch(console.error);
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps

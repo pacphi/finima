@@ -62,7 +62,7 @@ pub async fn list_payee_rules(
     let rows = sqlx::query_as::<_, PayeeSummary>(
         r#"
         SELECT
-            t.merchant_name,
+            COALESCE(NULLIF(t.merchant_name, ''), t.description) AS merchant_name,
             t.category,
             t.subcategory,
             COUNT(*) AS transaction_count
@@ -70,9 +70,7 @@ pub async fn list_payee_rules(
         JOIN accounts a ON a.id = t.account_id
         WHERE a.portfolio_id = $1
           AND a.is_archived = false
-          AND t.merchant_name IS NOT NULL
-          AND t.merchant_name != ''
-        GROUP BY t.merchant_name, t.category, t.subcategory
+        GROUP BY COALESCE(NULLIF(t.merchant_name, ''), t.description), t.category, t.subcategory
         ORDER BY COUNT(*) DESC
         "#,
     )
@@ -125,7 +123,7 @@ pub async fn apply_payee_rule(
         SET category = $1,
             subcategory = $2,
             user_overridden = true
-        WHERE merchant_name = $3
+        WHERE COALESCE(NULLIF(merchant_name, ''), description) = $3
           AND account_id IN (
               SELECT id FROM accounts
               WHERE portfolio_id = $4 AND is_archived = false

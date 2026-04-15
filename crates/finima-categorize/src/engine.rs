@@ -75,8 +75,9 @@ impl CascadeEngine {
         // ── Tier 1: Pattern Engine ──
         let mut still_remaining = Vec::new();
         for txn in &remaining_txns {
-            if let Some(mut assignment) =
-                self.pattern_engine.match_pattern(&txn.description, txn.amount)
+            if let Some(mut assignment) = self
+                .pattern_engine
+                .match_pattern(&txn.description, txn.amount)
             {
                 assignment.transaction_id = txn.id;
                 assignments.push(assignment);
@@ -95,9 +96,7 @@ impl CascadeEngine {
 
         // ── Tier 2: Semantic Search ──
         if let Some(ref semantic) = self.semantic {
-            let sem = semantic
-                .read()
-                .expect("semantic categorizer lock poisoned");
+            let sem = semantic.read().expect("semantic categorizer lock poisoned");
             let mut still_remaining = Vec::new();
             for txn in &remaining_txns {
                 if let Some(assignment) = sem.categorize(txn) {
@@ -242,7 +241,7 @@ mod tests {
 
         assert_eq!(result.stats.tier0_matched, 2); // Starbucks + Shell
         assert_eq!(result.stats.tier1_matched, 2); // Netflix + Payroll
-        assert_eq!(result.remaining.len(), 1);     // Random
+        assert_eq!(result.remaining.len(), 1); // Random
         assert_eq!(result.stats.total, 5);
     }
 
@@ -266,12 +265,7 @@ mod tests {
 
         let mut store = EmbeddingStore::new(0.5);
         // Teach the store about a merchant that Tier 0 and Tier 1 don't know
-        store.insert(
-            "JOES ARTISAN BAKERY",
-            "food_dining",
-            "bakeries",
-            0.90,
-        );
+        store.insert("JOES ARTISAN BAKERY", "food_dining", "bakeries", 0.90);
 
         let semantic = Arc::new(RwLock::new(store));
         let engine = build_engine().with_semantic(semantic);
@@ -297,12 +291,7 @@ mod tests {
         use crate::tier2::EmbeddingStore;
 
         let mut store = EmbeddingStore::new(0.5);
-        store.insert(
-            "JOES ARTISAN BAKERY",
-            "food_dining",
-            "bakeries",
-            0.90,
-        );
+        store.insert("JOES ARTISAN BAKERY", "food_dining", "bakeries", 0.90);
 
         let semantic = Arc::new(RwLock::new(store));
         let engine = build_engine().with_semantic(semantic);

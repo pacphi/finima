@@ -25,7 +25,7 @@ Depends on **finima-core** for `AccountType` (used in relevance scoring) and **f
 - **Sequential feed fetching**: `fetch_all()` processes feeds sequentially in a loop. This could be parallelized with `tokio::join!` or `futures::join_all` for better performance, but has not been done yet.
 - **HTML stripping** uses a simple tag-removal approach (no full HTML parser). It handles basic `<tag>` stripping and whitespace collapsing but does not decode HTML entities.
 - **Relevance scoring is heuristic**: scores are computed from keyword matching against account types, spending categories, and educational keywords. The scoring rules are documented in `RelevanceScorer::score()`.
-- **Summarization depends on LLM availability**: if Ollama is not configured, the `StubLlmClient` from `finima-llm` produces generic summaries. The summarizer itself is stateless -- it wraps a prompt and delegates.
+- **Summarization depends on LLM availability**: if the LLM provider is set to `none`, summarization is unavailable and articles are returned without summaries. The summarizer itself is stateless -- it wraps a prompt and delegates.
 - A failure in one feed source does not block others -- `fetch_all()` returns per-source results.
 
 ## Testing

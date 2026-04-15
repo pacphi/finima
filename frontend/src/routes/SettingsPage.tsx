@@ -341,7 +341,16 @@ function CategoriesTab() {
   const fetchCategories = useCallback(async () => {
     try {
       const data = await categoryApi.listCategories();
-      setCategories(data);
+      // Sort categories and subcategories alphabetically
+      const sorted = [...data]
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map((cat) => ({
+          ...cat,
+          subcategories: cat.subcategories
+            ? [...cat.subcategories].sort((a, b) => a.label.localeCompare(b.label))
+            : cat.subcategories,
+        }));
+      setCategories(sorted);
     } catch (err) {
       console.error('Failed to load categories:', err);
     } finally {
@@ -618,7 +627,9 @@ function LlmTab() {
       ? 'Ollama'
       : provider === 'candle'
         ? 'Candle (in-process)'
-        : provider || '—';
+        : provider === 'none'
+          ? 'None (disabled)'
+          : provider || '—';
 
   const statusColor =
     llmStatus === 'ready'
@@ -661,21 +672,27 @@ function LlmTab() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Model</label>
-          <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
-            {llmStatus === 'checking' ? 'Loading…' : model || '—'}
-          </div>
-        </div>
+        {llmStatus !== 'disabled' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+                Model
+              </label>
+              <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
+                {llmStatus === 'checking' ? 'Loading…' : model || '—'}
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
-            Endpoint URL
-          </label>
-          <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
-            {llmStatus === 'checking' ? 'Loading…' : endpoint || '—'}
-          </div>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+                Endpoint URL
+              </label>
+              <div className="px-3 py-2 text-sm border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg">
+                {llmStatus === 'checking' ? 'Loading…' : endpoint || '—'}
+              </div>
+            </div>
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-[var(--color-text)] mb-1">

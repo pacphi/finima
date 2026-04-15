@@ -7,9 +7,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::client::{
-    CategorizationBatch, CategorizationResult, OverridePattern, TransactionInput,
-};
+use crate::client::{CategorizationBatch, CategorizationResult, OverridePattern, TransactionInput};
 use crate::error::LlmError;
 
 /// A single entry in the JSON array returned by the LLM.
@@ -352,9 +350,7 @@ pub async fn categorize_batch_json(
             .map_err(|e| LlmError::Parse(e.to_string()))?;
 
         // Extract the content from the assistant message.
-        let content = json["message"]["content"]
-            .as_str()
-            .unwrap_or_default();
+        let content = json["message"]["content"].as_str().unwrap_or_default();
 
         return parse_batch_json_response(content, &batch.transactions);
     }
@@ -390,9 +386,10 @@ mod tests {
 
     #[test]
     fn system_prompt_includes_hierarchy() {
-        let hierarchy = vec![
-            ("food_dining".to_string(), vec!["groceries".to_string(), "restaurants".to_string()]),
-        ];
+        let hierarchy = vec![(
+            "food_dining".to_string(),
+            vec!["groceries".to_string(), "restaurants".to_string()],
+        )];
         let prompt = build_batch_json_system_prompt(&hierarchy);
         assert!(prompt.contains("food_dining: groceries, restaurants"));
     }
@@ -408,9 +405,7 @@ mod tests {
     #[test]
     fn parse_valid_json_response() {
         let txns = make_txns(2);
-        let json = format!(
-            r#"[{{"idx":1,"cat":"food_dining","sub":"groceries","merchant":"Test Store","conf":0.95}},{{"idx":2,"cat":"shopping","sub":"online","merchant":"Another Store","conf":0.8}}]"#
-        );
+        let json = r#"[{"idx":1,"cat":"food_dining","sub":"groceries","merchant":"Test Store","conf":0.95},{"idx":2,"cat":"shopping","sub":"online","merchant":"Another Store","conf":0.8}]"#.to_string();
 
         let results = parse_batch_json_response(&json, &txns).unwrap();
         assert_eq!(results.len(), 2);

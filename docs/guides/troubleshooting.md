@@ -83,34 +83,35 @@ empty or shows generic values.
 
 ---
 
-## 2a. Degraded Mode — Running Without Ollama
+## 2a. Running Without an LLM
 
-If Ollama is not running, no model has been pulled, or the `ollama`
-compile-time feature flag is disabled, Finima silently falls back to a
-**stub LLM client**. In this mode:
+If the LLM provider is set to `none`, or neither the `ollama` nor
+`candle` compile-time feature flag is enabled, no LLM is loaded. In
+this mode:
 
-- All transaction categorization returns `category="other"` with
-  `confidence=0.5`.
-- All enrichment returns default/empty values.
-- All insight generation returns a placeholder string.
-- Feed article summarization returns stubs.
+- Tiers 0-2 (merchant lookup, pattern engine, semantic search) still
+  categorize transactions normally, handling 80-95% of common
+  transactions.
+- Transactions that do not match any tier remain uncategorized
+  (category = NULL).
+- Recurring payment enrichment and insight generation are unavailable.
+- Feed article summarization is unavailable.
 
-This is graceful degradation by design — the application remains fully
+This is graceful degradation by design -- the application remains fully
 functional for importing, viewing, and manually categorizing
 transactions.
 
-**How to detect stub mode:**
+**How to detect no-LLM mode:**
 
-- Check the backend logs at startup for the line:
-  `Using STUB LLM client`
-- In the UI, go to **Settings > LLM**. If the connection status shows
-  "Disconnected", the stub client is active.
+- In the UI, go to **Settings > LLM**. If the provider shows "None"
+  and the connection status shows "Disabled", no LLM is configured.
 
-**Re-categorizing after enabling Ollama:**
+**Re-categorizing after enabling an LLM:**
 
-Transactions imported during stub mode will have generic categories.
-Once Ollama is running with a model pulled, re-import the same file
-to pick up AI categorization for those transactions.
+Transactions that remained uncategorized can be re-processed once a
+real LLM is configured. Use the **Categorize Uncategorized** button
+on the Transactions page, or call `POST /api/transactions/categorize`
+programmatically.
 
 ---
 

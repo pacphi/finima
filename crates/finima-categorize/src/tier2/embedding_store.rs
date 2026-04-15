@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::SemanticCategorizer;
-use crate::types::{CategoryAssignment, CategorizationTier, UncategorizedTransaction};
+use crate::types::{CategorizationTier, CategoryAssignment, UncategorizedTransaction};
 
 /// A single stored example with pre-computed character n-grams.
 #[allow(dead_code)]
@@ -215,13 +215,21 @@ mod tests {
         let (cat, sub, sim) = result.unwrap();
         assert_eq!(cat, "food_dining");
         assert_eq!(sub, "coffee_shops");
-        assert!(sim > 0.99, "exact match similarity should be ~1.0, got {sim}");
+        assert!(
+            sim > 0.99,
+            "exact match similarity should be ~1.0, got {sim}"
+        );
     }
 
     #[test]
     fn find_similar_close_match() {
         let mut store = EmbeddingStore::new(0.5);
-        store.insert("STARBUCKS COFFEE #1234", "food_dining", "coffee_shops", 0.95);
+        store.insert(
+            "STARBUCKS COFFEE #1234",
+            "food_dining",
+            "coffee_shops",
+            0.95,
+        );
 
         // Similar but not identical (different store number)
         let result = store.find_similar("STARBUCKS COFFEE #5678");
@@ -242,7 +250,10 @@ mod tests {
 
         // Completely different description
         let result = store.find_similar("UNITED AIRLINES FLIGHT");
-        assert!(result.is_none(), "very different descriptions should not match");
+        assert!(
+            result.is_none(),
+            "very different descriptions should not match"
+        );
     }
 
     #[test]
@@ -280,10 +291,7 @@ mod tests {
         // intersection = {abc, bcd} = 2
         // union = {abc, bcd, cde, def, xyz} = 5
         // Jaccard = 2/5 = 0.4
-        assert!(
-            (sim - 0.4).abs() < 1e-10,
-            "expected 0.4, got {sim}"
-        );
+        assert!((sim - 0.4).abs() < 1e-10, "expected 0.4, got {sim}");
     }
 
     #[test]
@@ -341,10 +349,20 @@ mod tests {
         let mut store = EmbeddingStore::new(0.65);
         assert_eq!(store.index_size(), 0);
 
-        store.learn("NETFLIX SUBSCRIPTION", "entertainment", "streaming_services", 0.95);
+        store.learn(
+            "NETFLIX SUBSCRIPTION",
+            "entertainment",
+            "streaming_services",
+            0.95,
+        );
         assert_eq!(store.index_size(), 1);
 
-        store.learn("HULU SUBSCRIPTION", "entertainment", "streaming_services", 0.90);
+        store.learn(
+            "HULU SUBSCRIPTION",
+            "entertainment",
+            "streaming_services",
+            0.90,
+        );
         assert_eq!(store.index_size(), 2);
     }
 }

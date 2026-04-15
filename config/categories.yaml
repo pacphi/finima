@@ -22,6 +22,8 @@ categories:
         label: Home Security
       - key: home_cleaning
         label: Home Cleaning
+      - key: pest_control
+        label: Pest Control
 
   - key: transportation
     label: Transportation
@@ -118,6 +120,8 @@ categories:
         label: Medical Devices
       - key: urgent_care
         label: Urgent Care
+      - key: pharmacy
+        label: Pharmacy
 
   - key: insurance
     label: Insurance
@@ -188,6 +192,8 @@ categories:
         label: Toys & Games
       - key: pet_supplies
         label: Pet Supplies
+      - key: general_merchandise
+        label: General Merchandise
       - key: online_shopping
         label: Online Shopping
 
@@ -360,6 +366,8 @@ categories:
         label: Wire Fees
       - key: convenience_fees
         label: Convenience Fees
+      - key: fee_refund
+        label: Fee Refund
 
   - key: investment
     label: Investment

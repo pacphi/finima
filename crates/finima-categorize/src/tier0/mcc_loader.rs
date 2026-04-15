@@ -82,7 +82,7 @@ pub fn mcc_to_category(mcc: u16) -> Option<(&'static str, &'static str)> {
         // Utilities
         4812 => ("bills_utilities", "phone"),
         4813 => ("bills_utilities", "phone"),
-        4814 => ("bills_utilities", "phone"), // Fax services
+        4814 => ("bills_utilities", "phone"),    // Fax services
         4816 => ("bills_utilities", "internet"), // Computer network services
         4899 => ("bills_utilities", "utilities"), // Cable / pay TV
         4900 => ("bills_utilities", "utilities"), // Electric, gas, water
@@ -153,8 +153,8 @@ pub fn mcc_to_category(mcc: u16) -> Option<(&'static str, &'static str)> {
         7993 => ("entertainment", "entertainment"), // Video game arcades
         7994 => ("entertainment", "entertainment"), // Video game arcades
         7996 => ("entertainment", "entertainment"), // Amusement parks
-        7997 => ("recreation", "gym_fitness"),       // Membership clubs
-        7998 => ("entertainment", "entertainment"),  // Aquariums
+        7997 => ("recreation", "gym_fitness"),      // Membership clubs
+        7998 => ("entertainment", "entertainment"), // Aquariums
         7999 => ("entertainment", "entertainment"),
 
         // Education
@@ -171,7 +171,7 @@ pub fn mcc_to_category(mcc: u16) -> Option<(&'static str, &'static str)> {
         7298 => ("personal_care", "hair_beauty"), // Health and beauty spas
 
         // Pets
-        0742 => ("pets", "veterinary"),
+        742 => ("pets", "veterinary"),
         5995 => ("pets", "pet_supplies"),
 
         // Charitable / Religious

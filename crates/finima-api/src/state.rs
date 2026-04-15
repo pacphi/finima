@@ -6,12 +6,12 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use finima_auth::EmailSender;
+use finima_categorize::MerchantRegistry;
 use finima_db::{
     PgAccountRepo, PgBudgetRepo, PgFlowGroupRepo, PgFlowRepo, PgMagicLinkRepo, PgOverrideRepo,
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
     PgUploadRepo, PgUserRepo,
 };
-use finima_categorize::MerchantRegistry;
 use finima_feed::CachedFeedService;
 use finima_llm::LlmClient;
 
@@ -90,9 +90,9 @@ struct InnerState {
 }
 
 impl AppState {
-    /// Creates application state with a stub LLM client so the server can start
-    /// accepting requests immediately. Call [`spawn_llm_loader`] afterwards to
-    /// load the real backend in the background.
+    /// Creates application state without an LLM client so the server can start
+    /// accepting requests immediately. Call `spawn_llm_loader` afterwards to
+    /// load the LLM backend in the background.
     pub fn new(
         pool: PgPool,
         config: AppConfig,
@@ -186,16 +186,6 @@ impl AppState {
             LLM_DISABLED => "disabled",
             _ => "loading",
         }
-    }
-
-    /// Returns `true` once the real LLM backend has been loaded.
-    pub fn is_llm_ready(&self) -> bool {
-        self.inner.llm_status.load(Ordering::Acquire) == LLM_READY
-    }
-
-    /// Returns `true` if the LLM was intentionally disabled (provider = "none").
-    pub fn is_llm_disabled(&self) -> bool {
-        self.inner.llm_status.load(Ordering::Acquire) == LLM_DISABLED
     }
 
     pub fn pool(&self) -> &PgPool {
