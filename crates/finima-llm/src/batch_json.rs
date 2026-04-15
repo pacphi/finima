@@ -456,7 +456,13 @@ Done!"#;
     #[test]
     fn request_body_has_json_format() {
         let body = build_batch_json_request_body("test-model", vec![], 4096);
-        assert_eq!(body["format"], "json");
+        // format is now a JSON schema object for structured output
+        assert_eq!(body["format"]["type"], "array");
+        assert_eq!(body["format"]["items"]["type"], "object");
+        let required = body["format"]["items"]["required"].as_array().unwrap();
+        assert!(required.contains(&serde_json::json!("idx")));
+        assert!(required.contains(&serde_json::json!("cat")));
+        assert!(required.contains(&serde_json::json!("conf")));
         assert_eq!(body["options"]["num_ctx"], 4096);
         assert_eq!(body["stream"], false);
     }
