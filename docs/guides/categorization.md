@@ -377,7 +377,7 @@ and how many transactions each received.
 Transactions (uncategorized)
         |
         v
-  ┌─ Tier 0: Merchant Lookup ─┐
+  ┌─ Tier 0: Merchant Lookup  ─┐
   │  (exact, fuzzy, MCC)       │
   │  ~50-60% matched           │
   └────────────┬───────────────┘
@@ -385,7 +385,7 @@ Transactions (uncategorized)
         Remaining unmatched
                |
                v
-  ┌─ Tier 1: Pattern Engine ──┐
+  ┌─ Tier 1: Pattern Engine  ──┐
   │  (RegexSet + heuristics)   │
   │  ~15-20% matched           │
   └────────────┬───────────────┘
@@ -397,7 +397,7 @@ Transactions (uncategorized)
        (source_tier = merchant_lookup | pattern_engine)
                |
                v
-  ┌─ Tier 3: LLM Inference ──┐
+  ┌─ Tier 3: LLM Inference   ──┐
   │  Override patterns applied │
   │  Batched tool-calling      │
   │  ~3-8% remaining           │
@@ -408,7 +408,7 @@ Transactions (uncategorized)
        (source_tier = llm)
                |
                v
-  ┌─ Feedback Loop ───────────┐
+  ┌─ Feedback Loop  ───────────┐
   │  confidence >= 0.9?        │
   │  Yes -> add to Tier 0      │
   │         merchant registry  │

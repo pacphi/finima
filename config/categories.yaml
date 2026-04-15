@@ -116,6 +116,8 @@ categories:
         label: Lab Tests
       - key: physical_therapy
         label: Physical Therapy
+      - key: chiropractic_care
+        label: Chiropractic Care
       - key: medical_devices
         label: Medical Devices
       - key: urgent_care
@@ -218,6 +220,8 @@ categories:
         label: Supplements & Vitamins
       - key: grooming
         label: Grooming
+      - key: laundry_cleaning
+        label: Laundry & Dry Cleaning
       - key: wellness
         label: Wellness
 
