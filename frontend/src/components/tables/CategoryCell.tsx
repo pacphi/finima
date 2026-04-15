@@ -10,7 +10,17 @@ interface CategoryCellProps {
   userOverridden: boolean;
   categories: CategoryEntry[];
   categoryMap: CategoryMap;
-  onChange: (category: string, subcategory?: string) => void;
+  /** Called immediately on selection (old behaviour, used by non-transaction contexts). */
+  onChange?: (category: string, subcategory?: string) => void;
+  /**
+   * When provided, selecting a category calls this instead of onChange.
+   * The parent is responsible for showing Apply/Cancel controls and calling
+   * the real save when the user confirms.
+   */
+  onPendingChange?: (category: string, subcategory?: string) => void;
+  /** If set, the cell displays this staged value instead of the committed one. */
+  pendingCategory?: string | null;
+  pendingSubcategory?: string | null;
 }
 
 /** Build a flat list of selectable items from the hierarchy for search/filter. */
@@ -49,6 +59,9 @@ export function CategoryCell({
   categories,
   categoryMap,
   onChange,
+  onPendingChange,
+  pendingCategory,
+  pendingSubcategory: _pendingSubcategory,
 }: CategoryCellProps) {
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
@@ -56,9 +69,13 @@ export function CategoryCell({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const isLowConfidence = confidence !== null && confidence < 0.7 && !userOverridden;
+  // When a pending change exists, show the pending value; low-confidence warning
+  // is suppressed once the user has staged a change.
+  const hasPending = pendingCategory != null;
+  const displayValue = hasPending ? pendingCategory : value;
+  const isLowConfidence = confidence !== null && confidence < 0.7 && !userOverridden && !hasPending;
 
-  const displayLabel = categoryLabel(value, categoryMap);
+  const displayLabel = categoryLabel(displayValue, categoryMap);
 
   const allItems = flattenCategories(categories, categoryMap);
 
@@ -91,7 +108,11 @@ export function CategoryCell({
   }, [editing]);
 
   const handleSelect = (item: FlatItem) => {
-    onChange(item.category, item.subcategory);
+    if (onPendingChange) {
+      onPendingChange(item.category, item.subcategory);
+    } else {
+      onChange?.(item.category, item.subcategory);
+    }
     setEditing(false);
     setSearch('');
     setActiveIndex(-1);
@@ -104,7 +125,7 @@ export function CategoryCell({
       <button
         onClick={() => setEditing(true)}
         className="flex items-center gap-1 text-left w-full group"
-        aria-label={`Category: ${displayLabel}${confidenceText}. Click to change.`}
+        aria-label={`Category: ${displayLabel}${confidenceText}${hasPending ? ' (unsaved)' : ''}. Click to change.`}
       >
         {isLowConfidence && (
           <span
@@ -115,10 +136,24 @@ export function CategoryCell({
             ⚠️
           </span>
         )}
-        <span className="group-hover:text-[var(--color-primary)] transition-colors">
+        <span
+          className={`group-hover:text-[var(--color-primary)] transition-colors ${
+            hasPending ? 'italic text-[var(--color-primary)]' : ''
+          }`}
+        >
           {displayLabel}
         </span>
+        {hasPending && (
+          <span
+            className="text-[var(--color-primary)] text-xs"
+            title="Unsaved change"
+            aria-hidden="true"
+          >
+            *
+          </span>
+        )}
         {isLowConfidence && <span className="sr-only"> (low confidence)</span>}
+        {hasPending && <span className="sr-only"> (unsaved)</span>}
       </button>
     );
   }

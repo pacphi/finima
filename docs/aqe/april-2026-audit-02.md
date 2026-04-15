@@ -53,11 +53,11 @@ The architecture overview's "Key Design Decisions" table lists ADRs 001–009 bu
 
 Multiple docs describe AI categorization as a core feature without disclosing degraded behavior:
 
-| Doc                     | Claim                                                                                   | Reality                                                                                                                                              |
-| ----------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Doc                     | Claim                                                                                   | Reality                                                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | README line 8           | "Local AI categorization — Ollama-powered LLM classifies transactions on-device"        | True **only if** Ollama is running and model is pulled. Otherwise the tiered categorization engine (Tiers 0-2) handles classification; unmatched transactions remain uncategorized. |
-| README line 19          | "AI-powered categorization — local LLM via Ollama, no cloud API calls"                  | Same — silently degrades.                                                                                                                            |
-| User Guide line 149–152 | "If Ollama is running and a model has been pulled, Finima automatically categorizes..." | This is the **only** doc that hedges correctly.                                                                                                      |
+| README line 19          | "AI-powered categorization — local LLM via Ollama, no cloud API calls"                  | Same — silently degrades.                                                                                                                                                           |
+| User Guide line 149–152 | "If Ollama is running and a model has been pulled, Finima automatically categorizes..." | This is the **only** doc that hedges correctly.                                                                                                                                     |
 
 The stub client has been removed. When `provider = "none"`, no LLM is loaded; Tiers 0-2 (merchant lookup, pattern matching, embedding similarity) handle categorization and unmatched transactions remain uncategorized. The Settings > LLM tab shows connection status.
 

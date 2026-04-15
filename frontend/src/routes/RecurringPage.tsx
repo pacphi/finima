@@ -1,8 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate, toTitleCase } from '@/utils/format';
 import { useCategories, categoryLabel } from '@/hooks/useCategories';
 import type { RecurringGroup } from '@/types/models';
+
+type SortField =
+  | 'merchant_name'
+  | 'category'
+  | 'frequency'
+  | 'avg_amount'
+  | 'next_expected_date'
+  | 'type';
+type SortDir = 'asc' | 'desc';
 
 export function RecurringPage() {
   const api = useApi();
@@ -11,6 +20,8 @@ export function RecurringPage() {
   const [groups, setGroups] = useState<RecurringGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>('merchant_name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const loadRecurring = useCallback(async () => {
     setLoading(true);
@@ -28,6 +39,45 @@ export function RecurringPage() {
   useEffect(() => {
     void loadRecurring();
   }, [loadRecurring]);
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortDir(field === 'avg_amount' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortIndicator = (field: SortField) => {
+    if (sortBy !== field) return ' \u2195';
+    return sortDir === 'asc' ? ' \u2191' : ' \u2193';
+  };
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...groups].sort((a, b) => {
+      switch (sortBy) {
+        case 'merchant_name':
+          return dir * a.merchant_name.localeCompare(b.merchant_name);
+        case 'category':
+          return dir * (a.category ?? '').localeCompare(b.category ?? '');
+        case 'frequency':
+          return dir * a.frequency.localeCompare(b.frequency);
+        case 'avg_amount':
+          return dir * (Math.abs(a.avg_amount) - Math.abs(b.avg_amount));
+        case 'next_expected_date':
+          return dir * (a.next_expected_date ?? '').localeCompare(b.next_expected_date ?? '');
+        case 'type': {
+          const aType = a.avg_amount > 0 ? 1 : 0;
+          const bType = b.avg_amount > 0 ? 1 : 0;
+          return dir * (aType - bType);
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [groups, sortBy, sortDir]);
 
   if (loading) {
     return (
@@ -60,44 +110,50 @@ export function RecurringPage() {
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('merchant_name')}
+                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Name
+                  Name{sortIndicator('merchant_name')}
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('category')}
+                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Category
+                  Category{sortIndicator('category')}
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('frequency')}
+                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Frequency
+                  Frequency{sortIndicator('frequency')}
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('avg_amount')}
+                  className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Amount
+                  Amount{sortIndicator('avg_amount')}
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('next_expected_date')}
+                  className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Next Expected
+                  Next Expected{sortIndicator('next_expected_date')}
                 </th>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)]"
+                  onClick={() => handleSort('type')}
+                  className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)] cursor-pointer select-none hover:text-[var(--color-text)] transition-colors"
                 >
-                  Type
+                  Type{sortIndicator('type')}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => (
+              {sorted.map((group) => (
                 <tr key={group.id} className="border-b border-[var(--color-border)]">
                   <td className="px-4 py-3 text-[var(--color-text)]">
                     <div>

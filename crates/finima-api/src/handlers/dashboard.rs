@@ -106,22 +106,37 @@ pub async fn get_summary(
         .await?;
     let txns = to_analysis(&txn_rows);
 
-    // Compute net worth from current balances.
-    let today = Utc::now().date_naive();
-    let snapshots: Vec<AccountSnapshot> = accounts
-        .iter()
-        .map(|a| AccountSnapshot {
-            id: a.id,
-            opening_balance: a.opening_balance,
-            account_type: a.account_type,
-            is_archived: a.is_archived,
-        })
-        .collect();
-
-    let nw_series = compute_net_worth_series(&snapshots, &txns, today, today);
-    let net_worth = nw_series.first().map(|p| p.total).unwrap_or_default();
-    let total_assets = nw_series.first().map(|p| p.assets).unwrap_or_default();
-    let total_liabilities = nw_series.first().map(|p| p.liabilities).unwrap_or_default();
+    // Compute net worth from today's actual account balances (not a start-of-month snapshot).
+    let mut total_assets = Decimal::ZERO;
+    let mut total_liabilities = Decimal::ZERO;
+    let mut liquid_savings = Decimal::ZERO;
+    for acct in &accounts {
+        if acct.is_archived {
+            continue;
+        }
+        let balance = state.account_repo().compute_balance(acct.id).await?;
+        if matches!(
+            acct.account_type,
+            finima_core::types::AccountType::CreditCard
+                | finima_core::types::AccountType::LoanMortgage
+                | finima_core::types::AccountType::LoanAuto
+                | finima_core::types::AccountType::LoanStudent
+                | finima_core::types::AccountType::LoanPersonal
+        ) {
+            total_liabilities += balance.abs();
+        } else {
+            total_assets += balance;
+        }
+        if matches!(
+            acct.account_type,
+            finima_core::types::AccountType::Checking
+                | finima_core::types::AccountType::Savings
+                | finima_core::types::AccountType::Cash
+        ) {
+            liquid_savings += balance;
+        }
+    }
+    let net_worth = total_assets - total_liabilities;
 
     // Current month cash flow.
     let cashflow = compute_monthly_cashflow(&txns, 1);
@@ -136,22 +151,6 @@ pub async fn get_summary(
         let total: Decimal = cashflow_3.iter().map(|c| c.expenses).sum();
         total / Decimal::from(cashflow_3.len() as i64)
     };
-
-    // Liquid savings: sum of checking + savings balances.
-    let mut liquid_savings = Decimal::ZERO;
-    for acct in &accounts {
-        if !acct.is_archived
-            && matches!(
-                acct.account_type,
-                finima_core::types::AccountType::Checking
-                    | finima_core::types::AccountType::Savings
-                    | finima_core::types::AccountType::Cash
-            )
-        {
-            let balance = state.account_repo().compute_balance(acct.id).await?;
-            liquid_savings += balance;
-        }
-    }
 
     let last_month_expenses = cashflow.last().map(|c| c.expenses).unwrap_or_default();
 
@@ -273,20 +272,36 @@ pub async fn get_health_score(
         .await?;
     let txns = to_analysis(&txn_rows);
 
-    let today = Utc::now().date_naive();
-    let snapshots: Vec<AccountSnapshot> = accounts
-        .iter()
-        .map(|a| AccountSnapshot {
-            id: a.id,
-            opening_balance: a.opening_balance,
-            account_type: a.account_type,
-            is_archived: a.is_archived,
-        })
-        .collect();
-
-    let nw_series = compute_net_worth_series(&snapshots, &txns, today, today);
-    let total_assets = nw_series.first().map(|p| p.assets).unwrap_or_default();
-    let total_liabilities = nw_series.first().map(|p| p.liabilities).unwrap_or_default();
+    // Compute assets/liabilities from today's actual balances.
+    let mut total_assets = Decimal::ZERO;
+    let mut total_liabilities = Decimal::ZERO;
+    let mut liquid_savings = Decimal::ZERO;
+    for acct in &accounts {
+        if acct.is_archived {
+            continue;
+        }
+        let balance = state.account_repo().compute_balance(acct.id).await?;
+        if matches!(
+            acct.account_type,
+            finima_core::types::AccountType::CreditCard
+                | finima_core::types::AccountType::LoanMortgage
+                | finima_core::types::AccountType::LoanAuto
+                | finima_core::types::AccountType::LoanStudent
+                | finima_core::types::AccountType::LoanPersonal
+        ) {
+            total_liabilities += balance.abs();
+        } else {
+            total_assets += balance;
+        }
+        if matches!(
+            acct.account_type,
+            finima_core::types::AccountType::Checking
+                | finima_core::types::AccountType::Savings
+                | finima_core::types::AccountType::Cash
+        ) {
+            liquid_savings += balance;
+        }
+    }
 
     let cashflow = compute_monthly_cashflow(&txns, 1);
     let monthly_income = cashflow.last().map(|c| c.income).unwrap_or_default();
@@ -299,21 +314,6 @@ pub async fn get_health_score(
         let total: Decimal = cashflow_3.iter().map(|c| c.expenses).sum();
         total / Decimal::from(cashflow_3.len() as i64)
     };
-
-    let mut liquid_savings = Decimal::ZERO;
-    for acct in &accounts {
-        if !acct.is_archived
-            && matches!(
-                acct.account_type,
-                finima_core::types::AccountType::Checking
-                    | finima_core::types::AccountType::Savings
-                    | finima_core::types::AccountType::Cash
-            )
-        {
-            let balance = state.account_repo().compute_balance(acct.id).await?;
-            liquid_savings += balance;
-        }
-    }
 
     let last_month_expenses = cashflow.last().map(|c| c.expenses).unwrap_or_default();
 

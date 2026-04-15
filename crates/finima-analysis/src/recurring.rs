@@ -179,7 +179,7 @@ pub fn detect_recurring(transactions: &[TransactionForAnalysis]) -> Vec<Recurrin
         let frequency = classify_frequency(&intervals);
 
         // 5. Compute statistics.
-        let sum: Decimal = txns.iter().map(|t| t.amount.abs()).sum();
+        let sum: Decimal = txns.iter().map(|t| t.amount).sum();
         let count = txns.len();
         let avg_amount = sum / Decimal::from(count as i64);
         let first_date = txns.first().unwrap().date;
@@ -208,8 +208,8 @@ pub fn detect_recurring(transactions: &[TransactionForAnalysis]) -> Vec<Recurrin
         });
     }
 
-    // Sort by annual cost descending.
-    candidates.sort_by(|a, b| b.annual_cost.cmp(&a.annual_cost));
+    // Sort by annual cost (absolute value) descending.
+    candidates.sort_by(|a, b| b.annual_cost.abs().cmp(&a.annual_cost.abs()));
     candidates
 }
 
@@ -324,7 +324,7 @@ mod tests {
         ];
         let result = detect_recurring(&txns);
         assert_eq!(result.len(), 2);
-        assert!(result[0].annual_cost > result[1].annual_cost);
+        assert!(result[0].annual_cost.abs() > result[1].annual_cost.abs());
     }
 
     #[test]

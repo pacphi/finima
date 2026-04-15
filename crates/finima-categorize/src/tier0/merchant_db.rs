@@ -71,7 +71,7 @@ impl MerchantRegistry {
                 aliases: seed.aliases.clone(),
                 category: seed.category,
                 subcategory: seed.subcategory,
-                confidence: 0.95,
+                confidence: seed.confidence.unwrap_or(0.95),
                 source: MerchantSource::SeedData,
                 last_seen: Utc::now(),
             };
@@ -115,12 +115,25 @@ impl MerchantRegistry {
         // 2. Substring match -- check if any known merchant name/alias appears
         //    WITHIN the description. This handles bank descriptions like
         //    "External Withdrawal - STARBUCKS #4928 - POS PURCHASE".
+        //
+        //    Tiebreaker: highest entry confidence first, then longest name.
+        //    This ensures a real payee (confidence 0.95) always beats a generic
+        //    bank-prefix entry (confidence 0.40) even when the prefix string is
+        //    longer (e.g. "external withdrawal" > "state farm" in raw length).
         let mut best_substring: Option<(&MerchantEntry, usize)> = None;
         for (name, entry) in &self.exact_map {
-            // Only match names that are at least 3 chars (avoid false positives)
-            if name.len() >= 3 && normalized.contains(name.as_str()) {
-                // Prefer the longest matching name to avoid "at" matching inside "payment"
-                if best_substring.is_none_or(|(_, len)| name.len() > len) {
+            // Only match names that are at least 3 chars and appear as whole
+            // words (avoid "mobil" matching inside "mobile banking").
+            if name.len() >= 3 && contains_whole_word(&normalized, name) {
+                let is_better = match &best_substring {
+                    None => true,
+                    Some((best_entry, best_len)) => {
+                        // Higher confidence wins; break ties with longer name
+                        entry.confidence > best_entry.confidence
+                            || (entry.confidence == best_entry.confidence && name.len() > *best_len)
+                    }
+                };
+                if is_better {
                     best_substring = Some((entry, name.len()));
                 }
             }
@@ -208,6 +221,27 @@ impl MerchantRegistry {
     }
 }
 
+/// Return true if `needle` appears in `haystack` as a whole word (i.e.,
+/// surrounded by spaces or at a string boundary). Both are expected to already
+/// be normalized (lowercase, no punctuation).
+fn contains_whole_word(haystack: &str, needle: &str) -> bool {
+    let mut start = 0;
+    while let Some(pos) = haystack[start..].find(needle) {
+        let abs = start + pos;
+        let before_ok = abs == 0 || haystack.as_bytes()[abs - 1] == b' ';
+        let after_pos = abs + needle.len();
+        let after_ok = after_pos == haystack.len() || haystack.as_bytes()[after_pos] == b' ';
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+        if start >= haystack.len() {
+            break;
+        }
+    }
+    false
+}
+
 /// Normalize a transaction description for matching.
 ///
 /// - Lowercase
@@ -238,6 +272,11 @@ struct SeedMerchant {
     aliases: Vec<String>,
     category: String,
     subcategory: String,
+    /// Optional confidence override (0.0–1.0). Defaults to 0.95.
+    /// Use a lower value (e.g. 0.40) for generic bank-prefix entries like
+    /// "External Withdrawal" that should never beat a real payee name.
+    #[serde(default)]
+    confidence: Option<f64>,
 }
 
 #[cfg(test)]
@@ -361,6 +400,43 @@ mod tests {
         // Should NOT match short substrings that happen to appear in descriptions
         let r3 = reg.lookup("PAYMENT THANK YOU", None);
         assert!(r3.is_none(), "should not false-positive on short tokens");
+    }
+
+    /// Regression: a low-confidence bank-prefix entry (e.g. "External Withdrawal")
+    /// must NOT beat a real payee (e.g. "State Farm") even though the prefix string
+    /// is longer. Confidence takes priority over substring length.
+    #[test]
+    fn low_confidence_prefix_does_not_beat_real_payee() {
+        let mut reg = MerchantRegistry::with_defaults();
+        // Bank prefix entry — low confidence
+        reg.add_merchant(MerchantEntry {
+            canonical_name: "External Withdrawal".to_string(),
+            aliases: vec!["EXTERNAL WITHDRAWAL".to_string()],
+            category: "transfer".to_string(),
+            subcategory: "ach_transfer".to_string(),
+            confidence: 0.40,
+            source: MerchantSource::SeedData,
+            last_seen: Utc::now(),
+        });
+        // Real payee — normal confidence
+        reg.add_merchant(MerchantEntry {
+            canonical_name: "State Farm".to_string(),
+            aliases: vec!["STATE FARM".to_string()],
+            category: "insurance".to_string(),
+            subcategory: "auto_insurance".to_string(),
+            confidence: 0.95,
+            source: MerchantSource::SeedData,
+            last_seen: Utc::now(),
+        });
+
+        let result = reg.lookup("External Withdrawal - STATE FARM RO 27  - SFPP", None);
+        assert!(result.is_some());
+        let a = result.unwrap();
+        assert_eq!(
+            a.category, "insurance",
+            "State Farm (0.95) should win over External Withdrawal (0.40)"
+        );
+        assert_eq!(a.merchant_name, "State Farm");
     }
 
     #[test]

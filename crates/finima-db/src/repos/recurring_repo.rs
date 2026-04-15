@@ -89,7 +89,7 @@ impl PgRecurringRepo {
             FROM recurring_groups
             WHERE portfolio_id = $1
               AND (metadata->>'dismissed')::boolean IS NOT TRUE
-            ORDER BY avg_amount DESC
+            ORDER BY ABS(avg_amount) DESC
             "#,
         )
         .bind(portfolio_id)

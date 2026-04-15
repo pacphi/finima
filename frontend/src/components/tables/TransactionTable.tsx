@@ -82,13 +82,20 @@ export function TransactionTable({
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
+  // Pending per-row category changes: transactionId -> { category, subcategory? }
+  const [pendingChanges, setPendingChanges] = useState<
+    Map<string, { category: string; subcategory?: string }>
+  >(new Map());
+  // Track which rows are currently being saved
+  const [applying, setApplying] = useState<Set<string>>(new Set());
+
+  // rowSelection keys are transaction UUIDs (see getRowId below), not indices.
   const selectedIds = useMemo(
     () =>
       Object.entries(rowSelection)
         .filter(([, selected]) => selected)
-        .map(([idx]) => transactions[Number(idx)]?.id)
-        .filter((id): id is string => id !== undefined),
-    [rowSelection, transactions],
+        .map(([id]) => id),
+    [rowSelection],
   );
 
   const accountLookup = useMemo(() => {
@@ -96,6 +103,49 @@ export function TransactionTable({
     for (const a of accounts) map.set(a.id, a.name);
     return map;
   }, [accounts]);
+
+  const handlePendingChange = useCallback(
+    (transactionId: string, category: string, subcategory?: string) => {
+      setPendingChanges((prev) => {
+        const next = new Map(prev);
+        next.set(transactionId, { category, subcategory });
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleCancelPending = useCallback((transactionId: string) => {
+    setPendingChanges((prev) => {
+      const next = new Map(prev);
+      next.delete(transactionId);
+      return next;
+    });
+  }, []);
+
+  const handleApplyPending = useCallback(
+    async (transactionId: string) => {
+      const pending = pendingChanges.get(transactionId);
+      if (!pending) return;
+
+      setApplying((prev) => new Set(prev).add(transactionId));
+      try {
+        await onCategoryChange(transactionId, pending.category, pending.subcategory);
+        setPendingChanges((prev) => {
+          const next = new Map(prev);
+          next.delete(transactionId);
+          return next;
+        });
+      } finally {
+        setApplying((prev) => {
+          const next = new Set(prev);
+          next.delete(transactionId);
+          return next;
+        });
+      }
+    },
+    [pendingChanges, onCategoryChange],
+  );
 
   const columns = useMemo<ColumnDef<Transaction>[]>(() => {
     const cols: ColumnDef<Transaction>[] = [
@@ -140,17 +190,22 @@ export function TransactionTable({
       {
         accessorKey: 'category',
         header: 'Category',
-        cell: ({ row }) => (
-          <CategoryCell
-            value={row.original.category}
-            subcategory={row.original.subcategory}
-            confidence={row.original.llm_confidence}
-            userOverridden={row.original.user_overridden}
-            categories={categories}
-            categoryMap={categoryMap}
-            onChange={(cat, sub) => onCategoryChange(row.original.id, cat, sub)}
-          />
-        ),
+        cell: ({ row }) => {
+          const pending = pendingChanges.get(row.original.id);
+          return (
+            <CategoryCell
+              value={row.original.category}
+              subcategory={row.original.subcategory}
+              confidence={row.original.llm_confidence}
+              userOverridden={row.original.user_overridden}
+              categories={categories}
+              categoryMap={categoryMap}
+              onPendingChange={(cat, sub) => handlePendingChange(row.original.id, cat, sub)}
+              pendingCategory={pending?.category ?? null}
+              pendingSubcategory={pending?.subcategory ?? null}
+            />
+          );
+        },
         size: 160,
         // Hide on mobile via meta
         meta: { hideOnMobile: true },
@@ -159,11 +214,16 @@ export function TransactionTable({
         accessorKey: 'subcategory',
         header: 'Sub-category',
         cell: ({ row }) => {
-          const sub = row.original.subcategory;
+          const pending = pendingChanges.get(row.original.id);
+          const sub = pending ? pending.subcategory : (row.original.subcategory ?? undefined);
           if (!sub) {
             return <span className="text-[var(--color-text-secondary)] text-xs italic">--</span>;
           }
-          return <span className="text-sm">{categoryLabel(sub, categoryMap)}</span>;
+          return (
+            <span className={`text-sm ${pending ? 'italic text-[var(--color-primary)]' : ''}`}>
+              {categoryLabel(sub, categoryMap)}
+            </span>
+          );
         },
         size: 140,
         meta: { hideOnMobile: true },
@@ -182,6 +242,38 @@ export function TransactionTable({
         },
         size: 120,
       },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => {
+          const txId = row.original.id;
+          const hasPending = pendingChanges.has(txId);
+          const isApplying = applying.has(txId);
+          if (!hasPending) return null;
+          return (
+            <span className="inline-flex items-center gap-1">
+              <button
+                onClick={() => void handleApplyPending(txId)}
+                disabled={isApplying}
+                className="px-2 py-0.5 text-xs font-medium rounded bg-[var(--color-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                aria-label="Apply category change"
+              >
+                {isApplying ? 'Saving…' : 'Apply'}
+              </button>
+              <button
+                onClick={() => handleCancelPending(txId)}
+                disabled={isApplying}
+                className="px-2 py-0.5 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] disabled:opacity-50 transition-colors"
+                aria-label="Cancel category change"
+              >
+                Cancel
+              </button>
+            </span>
+          );
+        },
+        size: 120,
+        enableSorting: false,
+      },
     ];
 
     if (!lockedAccountId) {
@@ -196,9 +288,18 @@ export function TransactionTable({
     }
 
     return cols;
-  }, [categories, categoryMap, onCategoryChange, lockedAccountId, accountLookup]);
+  }, [
+    categories,
+    categoryMap,
+    lockedAccountId,
+    accountLookup,
+    pendingChanges,
+    applying,
+    handlePendingChange,
+    handleApplyPending,
+    handleCancelPending,
+  ]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library -- opted out via "use no memo"; tracked by tanstack/table#5567
   const table = useReactTable({
     data: transactions,
     columns,

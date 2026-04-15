@@ -1,2719 +1,336 @@
 [
-  {
-    "name": "Starbucks",
-    "aliases": [
-      "STARBUCKS",
-      "SBUX",
-      "STARBUCKS COFFEE"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "Dunkin",
-    "aliases": [
-      "DUNKIN DONUTS",
-      "DUNKIN'",
-      "DD DUNKIN"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "Peets Coffee",
-    "aliases": [
-      "PEETS",
-      "PEET'S COFFEE"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "Tim Hortons",
-    "aliases": [
-      "TIM HORTONS",
-      "TIMHORTONS"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "Dutch Bros",
-    "aliases": [
-      "DUTCH BROS",
-      "DUTCH BROTHERS"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "McDonalds",
-    "aliases": [
-      "MCDONALDS",
-      "MCD",
-      "MCDONALD'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Burger King",
-    "aliases": [
-      "BURGER KING",
-      "BK WHOPPER"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Wendys",
-    "aliases": [
-      "WENDYS",
-      "WENDY'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Taco Bell",
-    "aliases": [
-      "TACO BELL",
-      "TACOBELL"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Chick-fil-A",
-    "aliases": [
-      "CHICK-FIL-A",
-      "CHICKFILA",
-      "CHICK FIL A",
-      "CFA"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Subway",
-    "aliases": [
-      "SUBWAY"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Chipotle",
-    "aliases": [
-      "CHIPOTLE",
-      "CHIPOTLE MEXICAN"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Popeyes",
-    "aliases": [
-      "POPEYES",
-      "POPEYE'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Five Guys",
-    "aliases": [
-      "FIVE GUYS",
-      "FIVEGUYS"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Panera Bread",
-    "aliases": [
-      "PANERA",
-      "PANERA BREAD"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "KFC",
-    "aliases": [
-      "KFC",
-      "KENTUCKY FRIED"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Jack in the Box",
-    "aliases": [
-      "JACK IN THE BOX",
-      "JACK BOX"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Sonic Drive-In",
-    "aliases": [
-      "SONIC",
-      "SONIC DRIVE"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Panda Express",
-    "aliases": [
-      "PANDA EXPRESS",
-      "PANDAEXPRESS"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Whataburger",
-    "aliases": [
-      "WHATABURGER"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "In-N-Out",
-    "aliases": [
-      "IN-N-OUT",
-      "IN N OUT",
-      "INNOUT"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Arby's",
-    "aliases": [
-      "ARBYS",
-      "ARBY'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Olive Garden",
-    "aliases": [
-      "OLIVE GARDEN",
-      "DARDEN OLIVE"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Applebees",
-    "aliases": [
-      "APPLEBEES",
-      "APPLEBEE'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Outback Steakhouse",
-    "aliases": [
-      "OUTBACK",
-      "OUTBACK STEAK"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Red Lobster",
-    "aliases": [
-      "RED LOBSTER"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Chilis",
-    "aliases": [
-      "CHILIS",
-      "CHILI'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Texas Roadhouse",
-    "aliases": [
-      "TEXAS ROADHOUSE"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Cracker Barrel",
-    "aliases": [
-      "CRACKER BARREL"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Denny's",
-    "aliases": [
-      "DENNYS",
-      "DENNY'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "IHOP",
-    "aliases": [
-      "IHOP",
-      "INTL HOUSE OF PANCAKES"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Waffle House",
-    "aliases": [
-      "WAFFLE HOUSE",
-      "WAFFLE HSE"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Cheesecake Factory",
-    "aliases": [
-      "CHEESECAKE FACTORY",
-      "CHEESECAKE FACT"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "PF Changs",
-    "aliases": [
-      "PF CHANGS",
-      "P.F. CHANG'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Buffalo Wild Wings",
-    "aliases": [
-      "BUFFALO WILD WINGS",
-      "BWW",
-      "BDUBS"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Dominos",
-    "aliases": [
-      "DOMINOS",
-      "DOMINO'S PIZZA"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Papa Johns",
-    "aliases": [
-      "PAPA JOHNS",
-      "PAPA JOHN'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Pizza Hut",
-    "aliases": [
-      "PIZZA HUT"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Little Caesars",
-    "aliases": [
-      "LITTLE CAESARS",
-      "LIL CAESARS"
-    ],
-    "category": "food_dining",
-    "subcategory": "fast_food"
-  },
-  {
-    "name": "Whole Foods",
-    "aliases": [
-      "WHOLEFDS",
-      "WHOLE FOODS",
-      "WFM",
-      "WHOLE FOODS MKT"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Trader Joes",
-    "aliases": [
-      "TRADER JOES",
-      "TRADER JOE'S",
-      "TJ'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Kroger",
-    "aliases": [
-      "KROGER",
-      "KROGERS"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Publix",
-    "aliases": [
-      "PUBLIX"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Safeway",
-    "aliases": [
-      "SAFEWAY"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Albertsons",
-    "aliases": [
-      "ALBERTSONS"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Aldi",
-    "aliases": [
-      "ALDI"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Lidl",
-    "aliases": [
-      "LIDL"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "HEB",
-    "aliases": [
-      "HEB",
-      "H-E-B",
-      "H E B"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Meijer",
-    "aliases": [
-      "MEIJER"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Giant",
-    "aliases": [
-      "GIANT FOOD",
-      "GIANT EAGLE"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Stop & Shop",
-    "aliases": [
-      "STOP AND SHOP",
-      "STOP & SHOP"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Food Lion",
-    "aliases": [
-      "FOOD LION"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Wegmans",
-    "aliases": [
-      "WEGMANS"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Sprouts",
-    "aliases": [
-      "SPROUTS",
-      "SPROUTS FARMERS"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Harris Teeter",
-    "aliases": [
-      "HARRIS TEETER"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "WinCo",
-    "aliases": [
-      "WINCO",
-      "WINCO FOODS"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Piggly Wiggly",
-    "aliases": [
-      "PIGGLY WIGGLY"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Winn-Dixie",
-    "aliases": [
-      "WINN DIXIE",
-      "WINN-DIXIE"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Shell",
-    "aliases": [
-      "SHELL OIL",
-      "SHELL SERVICE",
-      "SHELL"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Chevron",
-    "aliases": [
-      "CHEVRON"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "ExxonMobil",
-    "aliases": [
-      "EXXON",
-      "EXXONMOBIL",
-      "MOBIL"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "BP",
-    "aliases": [
-      "BP",
-      "BRITISH PETROLEUM"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Sunoco",
-    "aliases": [
-      "SUNOCO"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Circle K",
-    "aliases": [
-      "CIRCLE K"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Speedway",
-    "aliases": [
-      "SPEEDWAY"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "QuikTrip",
-    "aliases": [
-      "QUIKTRIP",
-      "QT"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Wawa",
-    "aliases": [
-      "WAWA"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Sheetz",
-    "aliases": [
-      "SHEETZ"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Valero",
-    "aliases": [
-      "VALERO"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Marathon",
-    "aliases": [
-      "MARATHON"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Phillips 66",
-    "aliases": [
-      "PHILLIPS 66",
-      "CONOCO"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "7-Eleven",
-    "aliases": [
-      "7-ELEVEN",
-      "7 ELEVEN",
-      "7ELEVEN",
-      "SEVEN ELEVEN"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "RaceTrac",
-    "aliases": [
-      "RACETRAC"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Casey's",
-    "aliases": [
-      "CASEYS",
-      "CASEY'S"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Walmart",
-    "aliases": [
-      "WALMART",
-      "WAL-MART",
-      "WAL MART",
-      "WM SUPERCENTER"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Target",
-    "aliases": [
-      "TARGET"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Costco",
-    "aliases": [
-      "COSTCO",
-      "COSTCO WHSE",
-      "COSTCO WHOLESALE"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Sams Club",
-    "aliases": [
-      "SAMS CLUB",
-      "SAM'S CLUB"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "BJs Wholesale",
-    "aliases": [
-      "BJS WHOLESALE",
-      "BJ'S"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Dollar General",
-    "aliases": [
-      "DOLLAR GENERAL",
-      "DG"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Dollar Tree",
-    "aliases": [
-      "DOLLAR TREE"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Family Dollar",
-    "aliases": [
-      "FAMILY DOLLAR"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Five Below",
-    "aliases": [
-      "FIVE BELOW"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Amazon",
-    "aliases": [
-      "AMAZON",
-      "AMZN",
-      "AMAZON.COM",
-      "AMAZON MKTPLACE",
-      "AMZ"
-    ],
-    "category": "shopping",
-    "subcategory": "online_shopping"
-  },
-  {
-    "name": "eBay",
-    "aliases": [
-      "EBAY"
-    ],
-    "category": "shopping",
-    "subcategory": "online_shopping"
-  },
-  {
-    "name": "Etsy",
-    "aliases": [
-      "ETSY"
-    ],
-    "category": "shopping",
-    "subcategory": "online_shopping"
-  },
-  {
-    "name": "Best Buy",
-    "aliases": [
-      "BEST BUY",
-      "BESTBUY"
-    ],
-    "category": "shopping",
-    "subcategory": "electronics"
-  },
-  {
-    "name": "Apple Store",
-    "aliases": [
-      "APPLE STORE",
-      "APPLE.COM"
-    ],
-    "category": "shopping",
-    "subcategory": "electronics"
-  },
-  {
-    "name": "Microcenter",
-    "aliases": [
-      "MICRO CENTER",
-      "MICROCENTER"
-    ],
-    "category": "shopping",
-    "subcategory": "electronics"
-  },
-  {
-    "name": "GameStop",
-    "aliases": [
-      "GAMESTOP"
-    ],
-    "category": "shopping",
-    "subcategory": "electronics"
-  },
-  {
-    "name": "Home Depot",
-    "aliases": [
-      "HOME DEPOT",
-      "THE HOME DEPOT"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "Lowes",
-    "aliases": [
-      "LOWES",
-      "LOWE'S"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "Menards",
-    "aliases": [
-      "MENARDS"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "Ace Hardware",
-    "aliases": [
-      "ACE HARDWARE"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "True Value",
-    "aliases": [
-      "TRUE VALUE"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "Sherwin-Williams",
-    "aliases": [
-      "SHERWIN WILLIAMS",
-      "SHERWIN-WILLIAMS"
-    ],
-    "category": "housing",
-    "subcategory": "home_improvement"
-  },
-  {
-    "name": "IKEA",
-    "aliases": [
-      "IKEA"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "Pottery Barn",
-    "aliases": [
-      "POTTERY BARN"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "West Elm",
-    "aliases": [
-      "WEST ELM"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "Crate and Barrel",
-    "aliases": [
-      "CRATE AND BARREL",
-      "CRATE & BARREL",
-      "CB2"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "Ashley Furniture",
-    "aliases": [
-      "ASHLEY FURNITURE",
-      "ASHLEY HOME"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "Wayfair",
-    "aliases": [
-      "WAYFAIR"
-    ],
-    "category": "housing",
-    "subcategory": "home_furnishing"
-  },
-  {
-    "name": "Bed Bath Beyond",
-    "aliases": [
-      "BED BATH",
-      "BB&B",
-      "BED BATH AND BEYOND"
-    ],
-    "category": "shopping",
-    "subcategory": "home_goods"
-  },
-  {
-    "name": "TJ Maxx",
-    "aliases": [
-      "TJ MAXX",
-      "TJMAXX",
-      "TJX"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Ross",
-    "aliases": [
-      "ROSS",
-      "ROSS STORES"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Marshalls",
-    "aliases": [
-      "MARSHALLS"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Old Navy",
-    "aliases": [
-      "OLD NAVY",
-      "OLDNAVY"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Gap",
-    "aliases": [
-      "GAP",
-      "THE GAP"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "H&M",
-    "aliases": [
-      "H&M",
-      "HM"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Zara",
-    "aliases": [
-      "ZARA"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Nike",
-    "aliases": [
-      "NIKE",
-      "NIKE.COM"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Nordstrom",
-    "aliases": [
-      "NORDSTROM",
-      "NORDSTROM RACK"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Macys",
-    "aliases": [
-      "MACYS",
-      "MACY'S"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Kohls",
-    "aliases": [
-      "KOHLS",
-      "KOHL'S"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "JCPenney",
-    "aliases": [
-      "JCPENNEY",
-      "JC PENNEY"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Burlington",
-    "aliases": [
-      "BURLINGTON",
-      "BURLINGTON COAT"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Forever 21",
-    "aliases": [
-      "FOREVER 21",
-      "FOREVER21"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Foot Locker",
-    "aliases": [
-      "FOOT LOCKER",
-      "FOOTLOCKER"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Adidas",
-    "aliases": [
-      "ADIDAS"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Lululemon",
-    "aliases": [
-      "LULULEMON"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "Under Armour",
-    "aliases": [
-      "UNDER ARMOUR",
-      "UA"
-    ],
-    "category": "shopping",
-    "subcategory": "clothing"
-  },
-  {
-    "name": "CVS",
-    "aliases": [
-      "CVS",
-      "CVS PHARMACY"
-    ],
-    "category": "healthcare",
-    "subcategory": "pharmacy"
-  },
-  {
-    "name": "Walgreens",
-    "aliases": [
-      "WALGREENS",
-      "WALGREEN"
-    ],
-    "category": "healthcare",
-    "subcategory": "pharmacy"
-  },
-  {
-    "name": "Rite Aid",
-    "aliases": [
-      "RITE AID"
-    ],
-    "category": "healthcare",
-    "subcategory": "pharmacy"
-  },
-  {
-    "name": "Netflix",
-    "aliases": [
-      "NETFLIX",
-      "NETFLIX.COM"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Spotify",
-    "aliases": [
-      "SPOTIFY",
-      "SPOTIFY USA"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Hulu",
-    "aliases": [
-      "HULU",
-      "HULU LLC"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Disney Plus",
-    "aliases": [
-      "DISNEY PLUS",
-      "DISNEYPLUS",
-      "DISNEY+"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "HBO Max",
-    "aliases": [
-      "HBO MAX",
-      "HBO",
-      "MAX.COM"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Apple TV",
-    "aliases": [
-      "APPLE TV",
-      "APPLE.COM/BILL"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Peacock",
-    "aliases": [
-      "PEACOCK",
-      "PEACOCKTV"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Paramount Plus",
-    "aliases": [
-      "PARAMOUNT+",
-      "PARAMOUNT PLUS"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "YouTube Premium",
-    "aliases": [
-      "YOUTUBE PREMIUM",
-      "YOUTUBE TV"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Amazon Prime Video",
-    "aliases": [
-      "PRIME VIDEO",
-      "AMAZON PRIME"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "SiriusXM",
-    "aliases": [
-      "SIRIUSXM",
-      "SIRIUS XM",
-      "SIRIUS"
-    ],
-    "category": "entertainment",
-    "subcategory": "streaming_services"
-  },
-  {
-    "name": "Audible",
-    "aliases": [
-      "AUDIBLE",
-      "AUDIBLE.COM"
-    ],
-    "category": "entertainment",
-    "subcategory": "books_magazines"
-  },
-  {
-    "name": "Planet Fitness",
-    "aliases": [
-      "PLANET FITNESS",
-      "PLANET FIT"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "LA Fitness",
-    "aliases": [
-      "LA FITNESS"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "Orangetheory",
-    "aliases": [
-      "ORANGETHEORY",
-      "OTF"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "24 Hour Fitness",
-    "aliases": [
-      "24 HOUR FITNESS",
-      "24HR FITNESS"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "Gold's Gym",
-    "aliases": [
-      "GOLDS GYM",
-      "GOLD'S GYM"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "CrossFit",
-    "aliases": [
-      "CROSSFIT"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "Equinox",
-    "aliases": [
-      "EQUINOX"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "YMCA",
-    "aliases": [
-      "YMCA",
-      "THE Y"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "AT&T",
-    "aliases": [
-      "AT&T",
-      "ATT",
-      "AT AND T"
-    ],
-    "category": "utilities",
-    "subcategory": "phone"
-  },
-  {
-    "name": "Verizon",
-    "aliases": [
-      "VERIZON",
-      "VERIZON WIRELESS",
-      "VZW"
-    ],
-    "category": "utilities",
-    "subcategory": "phone"
-  },
-  {
-    "name": "T-Mobile",
-    "aliases": [
-      "T-MOBILE",
-      "TMOBILE"
-    ],
-    "category": "utilities",
-    "subcategory": "phone"
-  },
-  {
-    "name": "Sprint",
-    "aliases": [
-      "SPRINT",
-      "SPRINT WIRELESS"
-    ],
-    "category": "utilities",
-    "subcategory": "phone"
-  },
-  {
-    "name": "Mint Mobile",
-    "aliases": [
-      "MINT MOBILE"
-    ],
-    "category": "utilities",
-    "subcategory": "phone"
-  },
-  {
-    "name": "Comcast",
-    "aliases": [
-      "COMCAST",
-      "XFINITY"
-    ],
-    "category": "utilities",
-    "subcategory": "internet"
-  },
-  {
-    "name": "Spectrum",
-    "aliases": [
-      "SPECTRUM",
-      "CHARTER COMM"
-    ],
-    "category": "utilities",
-    "subcategory": "internet"
-  },
-  {
-    "name": "Cox Communications",
-    "aliases": [
-      "COX COMM",
-      "COX CABLE"
-    ],
-    "category": "utilities",
-    "subcategory": "internet"
-  },
-  {
-    "name": "CenturyLink",
-    "aliases": [
-      "CENTURYLINK",
-      "LUMEN"
-    ],
-    "category": "utilities",
-    "subcategory": "internet"
-  },
-  {
-    "name": "Google Fiber",
-    "aliases": [
-      "GOOGLE FIBER"
-    ],
-    "category": "utilities",
-    "subcategory": "internet"
-  },
-  {
-    "name": "GEICO",
-    "aliases": [
-      "GEICO"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "State Farm",
-    "aliases": [
-      "STATE FARM"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Allstate",
-    "aliases": [
-      "ALLSTATE"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Progressive",
-    "aliases": [
-      "PROGRESSIVE"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Liberty Mutual",
-    "aliases": [
-      "LIBERTY MUTUAL"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Farmers Insurance",
-    "aliases": [
-      "FARMERS INS",
-      "FARMERS INSURANCE"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "USAA",
-    "aliases": [
-      "USAA"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Nationwide",
-    "aliases": [
-      "NATIONWIDE"
-    ],
-    "category": "insurance",
-    "subcategory": "auto_insurance"
-  },
-  {
-    "name": "Uber",
-    "aliases": [
-      "UBER",
-      "UBER TRIP",
-      "UBER BV"
-    ],
-    "category": "transportation",
-    "subcategory": "rideshare_taxi"
-  },
-  {
-    "name": "Lyft",
-    "aliases": [
-      "LYFT",
-      "LYFT RIDE"
-    ],
-    "category": "transportation",
-    "subcategory": "rideshare_taxi"
-  },
-  {
-    "name": "Uber Eats",
-    "aliases": [
-      "UBER EATS",
-      "UBEREATS"
-    ],
-    "category": "food_dining",
-    "subcategory": "food_delivery"
-  },
-  {
-    "name": "DoorDash",
-    "aliases": [
-      "DOORDASH"
-    ],
-    "category": "food_dining",
-    "subcategory": "food_delivery"
-  },
-  {
-    "name": "Grubhub",
-    "aliases": [
-      "GRUBHUB"
-    ],
-    "category": "food_dining",
-    "subcategory": "food_delivery"
-  },
-  {
-    "name": "Postmates",
-    "aliases": [
-      "POSTMATES"
-    ],
-    "category": "food_dining",
-    "subcategory": "food_delivery"
-  },
-  {
-    "name": "Instacart",
-    "aliases": [
-      "INSTACART"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Adobe",
-    "aliases": [
-      "ADOBE",
-      "ADOBE SYSTEMS"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Microsoft 365",
-    "aliases": [
-      "MICROSOFT",
-      "MSFT",
-      "MICROSOFT 365",
-      "OFFICE 365"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Dropbox",
-    "aliases": [
-      "DROPBOX"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Google One",
-    "aliases": [
-      "GOOGLE ONE",
-      "GOOGLE STORAGE"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "iCloud",
-    "aliases": [
-      "ICLOUD",
-      "APPLE ICLOUD"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Zoom",
-    "aliases": [
-      "ZOOM",
-      "ZOOM.US"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Slack",
-    "aliases": [
-      "SLACK",
-      "SLACK TECHNOLOGIES"
-    ],
-    "category": "utilities",
-    "subcategory": "software_subscriptions"
-  },
-  {
-    "name": "Venmo",
-    "aliases": [
-      "VENMO"
-    ],
-    "category": "transfer",
-    "subcategory": "peer_to_peer"
-  },
-  {
-    "name": "Zelle",
-    "aliases": [
-      "ZELLE"
-    ],
-    "category": "transfer",
-    "subcategory": "peer_to_peer"
-  },
-  {
-    "name": "CashApp",
-    "aliases": [
-      "CASH APP",
-      "CASHAPP",
-      "SQ CASH"
-    ],
-    "category": "transfer",
-    "subcategory": "peer_to_peer"
-  },
-  {
-    "name": "PayPal",
-    "aliases": [
-      "PAYPAL",
-      "PP"
-    ],
-    "category": "transfer",
-    "subcategory": "peer_to_peer"
-  },
-  {
-    "name": "Marriott",
-    "aliases": [
-      "MARRIOTT",
-      "MARRIOTT HOTEL"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Hilton",
-    "aliases": [
-      "HILTON",
-      "HILTON HOTEL"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Hyatt",
-    "aliases": [
-      "HYATT",
-      "HYATT HOTEL"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Holiday Inn",
-    "aliases": [
-      "HOLIDAY INN",
-      "IHG"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Best Western",
-    "aliases": [
-      "BEST WESTERN"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Airbnb",
-    "aliases": [
-      "AIRBNB"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "VRBO",
-    "aliases": [
-      "VRBO"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "United Airlines",
-    "aliases": [
-      "UNITED AIR",
-      "UNITED AIRLINES",
-      "UAL"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Delta Airlines",
-    "aliases": [
-      "DELTA AIR",
-      "DELTA AIRLINES"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "American Airlines",
-    "aliases": [
-      "AMERICAN AIR",
-      "AMERICAN AIRLINES",
-      "AA"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Southwest Airlines",
-    "aliases": [
-      "SOUTHWEST AIR",
-      "SOUTHWEST AIRLINES"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "JetBlue",
-    "aliases": [
-      "JETBLUE"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Spirit Airlines",
-    "aliases": [
-      "SPIRIT AIR",
-      "SPIRIT AIRLINES"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Frontier Airlines",
-    "aliases": [
-      "FRONTIER AIR",
-      "FRONTIER AIRLINES"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Alaska Airlines",
-    "aliases": [
-      "ALASKA AIR",
-      "ALASKA AIRLINES"
-    ],
-    "category": "travel",
-    "subcategory": "flights"
-  },
-  {
-    "name": "Enterprise",
-    "aliases": [
-      "ENTERPRISE",
-      "ENTERPRISE RENT"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Hertz",
-    "aliases": [
-      "HERTZ"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Avis",
-    "aliases": [
-      "AVIS"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Budget Rent",
-    "aliases": [
-      "BUDGET RENT"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "National Car Rental",
-    "aliases": [
-      "NATIONAL CAR",
-      "NATIONAL RENT"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Sephora",
-    "aliases": [
-      "SEPHORA"
-    ],
-    "category": "personal_care",
-    "subcategory": "cosmetics"
-  },
-  {
-    "name": "Ulta Beauty",
-    "aliases": [
-      "ULTA",
-      "ULTA BEAUTY"
-    ],
-    "category": "personal_care",
-    "subcategory": "cosmetics"
-  },
-  {
-    "name": "Bath & Body Works",
-    "aliases": [
-      "BATH BODY WORKS",
-      "BATH & BODY"
-    ],
-    "category": "personal_care",
-    "subcategory": "cosmetics"
-  },
-  {
-    "name": "Great Clips",
-    "aliases": [
-      "GREAT CLIPS"
-    ],
-    "category": "personal_care",
-    "subcategory": "haircuts_salon"
-  },
-  {
-    "name": "Supercuts",
-    "aliases": [
-      "SUPERCUTS"
-    ],
-    "category": "personal_care",
-    "subcategory": "haircuts_salon"
-  },
-  {
-    "name": "Sport Clips",
-    "aliases": [
-      "SPORT CLIPS"
-    ],
-    "category": "personal_care",
-    "subcategory": "haircuts_salon"
-  },
-  {
-    "name": "PetSmart",
-    "aliases": [
-      "PETSMART"
-    ],
-    "category": "shopping",
-    "subcategory": "pet_supplies"
-  },
-  {
-    "name": "Petco",
-    "aliases": [
-      "PETCO"
-    ],
-    "category": "shopping",
-    "subcategory": "pet_supplies"
-  },
-  {
-    "name": "Chewy",
-    "aliases": [
-      "CHEWY",
-      "CHEWY.COM"
-    ],
-    "category": "shopping",
-    "subcategory": "pet_supplies"
-  },
-  {
-    "name": "BarkBox",
-    "aliases": [
-      "BARKBOX"
-    ],
-    "category": "shopping",
-    "subcategory": "pet_supplies"
-  },
-  {
-    "name": "AutoZone",
-    "aliases": [
-      "AUTOZONE",
-      "AUTO ZONE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "O'Reilly Auto",
-    "aliases": [
-      "OREILLY AUTO",
-      "O'REILLY"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Advance Auto",
-    "aliases": [
-      "ADVANCE AUTO",
-      "ADVANCE AUTO PARTS"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Jiffy Lube",
-    "aliases": [
-      "JIFFY LUBE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Valvoline",
-    "aliases": [
-      "VALVOLINE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Firestone",
-    "aliases": [
-      "FIRESTONE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Discount Tire",
-    "aliases": [
-      "DISCOUNT TIRE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Midas",
-    "aliases": [
-      "MIDAS"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "AMC Theatres",
-    "aliases": [
-      "AMC",
-      "AMC THEATRES"
-    ],
-    "category": "entertainment",
-    "subcategory": "movies_theater"
-  },
-  {
-    "name": "Regal Cinemas",
-    "aliases": [
-      "REGAL",
-      "REGAL CINEMAS"
-    ],
-    "category": "entertainment",
-    "subcategory": "movies_theater"
-  },
-  {
-    "name": "Cinemark",
-    "aliases": [
-      "CINEMARK"
-    ],
-    "category": "entertainment",
-    "subcategory": "movies_theater"
-  },
-  {
-    "name": "Barnes & Noble",
-    "aliases": [
-      "BARNES NOBLE",
-      "BARNES & NOBLE",
-      "B&N"
-    ],
-    "category": "entertainment",
-    "subcategory": "books_magazines"
-  },
-  {
-    "name": "Michaels",
-    "aliases": [
-      "MICHAELS"
-    ],
-    "category": "entertainment",
-    "subcategory": "hobbies"
-  },
-  {
-    "name": "Hobby Lobby",
-    "aliases": [
-      "HOBBY LOBBY"
-    ],
-    "category": "entertainment",
-    "subcategory": "hobbies"
-  },
-  {
-    "name": "Joann Fabrics",
-    "aliases": [
-      "JOANN",
-      "JOANN FABRICS"
-    ],
-    "category": "entertainment",
-    "subcategory": "hobbies"
-  },
-  {
-    "name": "REI",
-    "aliases": [
-      "REI",
-      "REI COOP"
-    ],
-    "category": "shopping",
-    "subcategory": "sporting_goods"
-  },
-  {
-    "name": "Dicks Sporting Goods",
-    "aliases": [
-      "DICKS SPORTING",
-      "DICK'S"
-    ],
-    "category": "shopping",
-    "subcategory": "sporting_goods"
-  },
-  {
-    "name": "Bass Pro",
-    "aliases": [
-      "BASS PRO",
-      "BASS PRO SHOPS"
-    ],
-    "category": "shopping",
-    "subcategory": "sporting_goods"
-  },
-  {
-    "name": "Cabelas",
-    "aliases": [
-      "CABELAS",
-      "CABELA'S"
-    ],
-    "category": "shopping",
-    "subcategory": "sporting_goods"
-  },
-  {
-    "name": "Academy Sports",
-    "aliases": [
-      "ACADEMY SPORTS",
-      "ACADEMY"
-    ],
-    "category": "shopping",
-    "subcategory": "sporting_goods"
-  },
-  {
-    "name": "Salvation Army",
-    "aliases": [
-      "SALVATION ARMY"
-    ],
-    "category": "gifts_donations",
-    "subcategory": "charitable_donations"
-  },
-  {
-    "name": "Goodwill",
-    "aliases": [
-      "GOODWILL"
-    ],
-    "category": "gifts_donations",
-    "subcategory": "charitable_donations"
-  },
-  {
-    "name": "Red Cross",
-    "aliases": [
-      "RED CROSS",
-      "AMER RED CROSS"
-    ],
-    "category": "gifts_donations",
-    "subcategory": "charitable_donations"
-  },
-  {
-    "name": "State Tax",
-    "aliases": [
-      "STATE TAX",
-      "STATE INCOME TAX"
-    ],
-    "category": "other",
-    "subcategory": "taxes"
-  },
-  {
-    "name": "IRS",
-    "aliases": [
-      "IRS",
-      "US TREASURY",
-      "USTREAS"
-    ],
-    "category": "other",
-    "subcategory": "taxes"
-  },
-  {
-    "name": "Navient",
-    "aliases": [
-      "NAVIENT"
-    ],
-    "category": "education",
-    "subcategory": "student_loans"
-  },
-  {
-    "name": "Sallie Mae",
-    "aliases": [
-      "SALLIE MAE"
-    ],
-    "category": "education",
-    "subcategory": "student_loans"
-  },
-  {
-    "name": "Nelnet",
-    "aliases": [
-      "NELNET"
-    ],
-    "category": "education",
-    "subcategory": "student_loans"
-  },
-  {
-    "name": "Great Lakes",
-    "aliases": [
-      "GREAT LAKES",
-      "GREAT LAKES EDU"
-    ],
-    "category": "education",
-    "subcategory": "student_loans"
-  },
-  {
-    "name": "KinderCare",
-    "aliases": [
-      "KINDERCARE"
-    ],
-    "category": "other",
-    "subcategory": "childcare"
-  },
-  {
-    "name": "Bright Horizons",
-    "aliases": [
-      "BRIGHT HORIZONS"
-    ],
-    "category": "other",
-    "subcategory": "childcare"
-  },
-  {
-    "name": "State Farm Mortgage",
-    "aliases": [
-      "STATE FARM MORTGAGE"
-    ],
-    "category": "housing",
-    "subcategory": "mortgage"
-  },
-  {
-    "name": "Quicken Loans",
-    "aliases": [
-      "QUICKEN LOANS",
-      "ROCKET MORTGAGE"
-    ],
-    "category": "housing",
-    "subcategory": "mortgage"
-  },
-  {
-    "name": "Wells Fargo Mortgage",
-    "aliases": [
-      "WELLS FARGO MTG",
-      "WF MORTGAGE"
-    ],
-    "category": "housing",
-    "subcategory": "mortgage"
-  },
-  {
-    "name": "Chase Mortgage",
-    "aliases": [
-      "CHASE MORTGAGE",
-      "JPMORGAN MORTGAGE"
-    ],
-    "category": "housing",
-    "subcategory": "mortgage"
-  },
-  {
-    "name": "ADT Security",
-    "aliases": [
-      "ADT",
-      "ADT SECURITY"
-    ],
-    "category": "housing",
-    "subcategory": "home_security"
-  },
-  {
-    "name": "SimpliSafe",
-    "aliases": [
-      "SIMPLISAFE"
-    ],
-    "category": "housing",
-    "subcategory": "home_security"
-  },
-  {
-    "name": "Ring",
-    "aliases": [
-      "RING DOORBELL",
-      "RING.COM"
-    ],
-    "category": "housing",
-    "subcategory": "home_security"
-  },
-  {
-    "name": "Turo",
-    "aliases": [
-      "TURO"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Zipcar",
-    "aliases": [
-      "ZIPCAR"
-    ],
-    "category": "travel",
-    "subcategory": "car_rental"
-  },
-  {
-    "name": "Dave and Busters",
-    "aliases": [
-      "DAVE AND BUSTERS",
-      "DAVE & BUSTERS",
-      "D&B"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "TopGolf",
-    "aliases": [
-      "TOPGOLF"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Bowlero",
-    "aliases": [
-      "BOWLERO",
-      "BOWLMOR"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Main Event",
-    "aliases": [
-      "MAIN EVENT"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Bath Body Works",
-    "aliases": [
-      "BATH BODY",
-      "BATH AND BODY"
-    ],
-    "category": "personal_care",
-    "subcategory": "cosmetics"
-  },
-  {
-    "name": "Dollar Shave Club",
-    "aliases": [
-      "DOLLAR SHAVE",
-      "DSC"
-    ],
-    "category": "personal_care",
-    "subcategory": "grooming"
-  },
-  {
-    "name": "Harry's",
-    "aliases": [
-      "HARRYS",
-      "HARRY'S"
-    ],
-    "category": "personal_care",
-    "subcategory": "grooming"
-  },
-  {
-    "name": "Peloton",
-    "aliases": [
-      "PELOTON"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "ClassPass",
-    "aliases": [
-      "CLASSPASS"
-    ],
-    "category": "personal_care",
-    "subcategory": "gym_fitness"
-  },
-  {
-    "name": "DraftKings",
-    "aliases": [
-      "DRAFTKINGS"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "FanDuel",
-    "aliases": [
-      "FANDUEL"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "ExxonMobil",
-    "aliases": [
-      "EXXON",
-      "EXXONMOBIL",
-      "EXXON MOBIL",
-      "MOBIL"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Phillips 66",
-    "aliases": [
-      "PHILLIPS 66",
-      "PHILLIPS66",
-      "CONOCO",
-      "76 STATION"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Chevron",
-    "aliases": [
-      "CHEVRON",
-      "TEXACO"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Arco",
-    "aliases": [
-      "ARCO",
-      "AMPM ARCO"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "Safeway Fuel",
-    "aliases": [
-      "SAFEWAY FUEL"
-    ],
-    "category": "transportation",
-    "subcategory": "gas_fuel"
-  },
-  {
-    "name": "PNC Bank",
-    "aliases": [
-      "PNCBK",
-      "PNC BANK",
-      "PNC"
-    ],
-    "category": "transfer",
-    "subcategory": "checking_transfer"
-  },
-  {
-    "name": "Cornerstone Bank",
-    "aliases": [
-      "CORNERSTONE BANK",
-      "CORNERSTONE"
-    ],
-    "category": "transfer",
-    "subcategory": "ach_transfer"
-  },
-  {
-    "name": "Dave and Busters",
-    "aliases": [
-      "DAVE AND BUSTERS",
-      "DAVE & BUSTERS",
-      "DAVE BUSTERS"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Regal Cinemas",
-    "aliases": [
-      "REGAL",
-      "REGAL CINEMAS",
-      "REGAL THEATER"
-    ],
-    "category": "entertainment",
-    "subcategory": "movies_theater"
-  },
-  {
-    "name": "Stop & Shop",
-    "aliases": [
-      "STOP & SHOP",
-      "STOP AND SHOP",
-      "STOP SHOP"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Albertsons",
-    "aliases": [
-      "ALBERTSONS",
-      "ALBERTSON'S"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Helping Hands Thrift",
-    "aliases": [
-      "HELPING HANDS THRIFT",
-      "HELPING HANDS"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Lee Johnson",
-    "aliases": [
-      "LEE JOHNSON",
-      "LEE JOHNSON QUICK LUBE"
-    ],
-    "category": "transportation",
-    "subcategory": "car_maintenance"
-  },
-  {
-    "name": "Mill Creek Center Market",
-    "aliases": [
-      "MILL CREEK CEN MKT",
-      "MILL CREEK CEN"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Mill Creek Wellness",
-    "aliases": [
-      "MILL CREEK WELLNESS"
-    ],
-    "category": "healthcare",
-    "subcategory": "doctor_visits"
-  },
-  {
-    "name": "Mill Creek Community",
-    "aliases": [
-      "MILL CREEK COMMU"
-    ],
-    "category": "housing",
-    "subcategory": "hoa_fees"
-  },
-  {
-    "name": "OpenRouter",
-    "aliases": [
-      "OPENROUTER",
-      "OPENROUTER.AI"
-    ],
-    "category": "shopping",
-    "subcategory": "electronics"
-  },
-  {
-    "name": "The Farmers Dog",
-    "aliases": [
-      "THEFARMERSDOG",
-      "FARMERS DOG"
-    ],
-    "category": "other",
-    "subcategory": "pet_care"
-  },
-  {
-    "name": "PCC Community Markets",
-    "aliases": [
-      "PCC",
-      "PCC COMMUNITY",
-      "PCC - BOTHELL"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "QFC",
-    "aliases": [
-      "QFC",
-      "QUALITY FOOD CENTER"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Fred Meyer",
-    "aliases": [
-      "FRED-MEYER",
-      "FRED MEYER",
-      "FREDMEYER"
-    ],
-    "category": "food_dining",
-    "subcategory": "groceries"
-  },
-  {
-    "name": "Cold Stone Creamery",
-    "aliases": [
-      "COLD STONE",
-      "COLDSTONE"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Sharetea",
-    "aliases": [
-      "SHARETEA"
-    ],
-    "category": "food_dining",
-    "subcategory": "coffee_shops"
-  },
-  {
-    "name": "Devine Wines",
-    "aliases": [
-      "DEVINE WINES"
-    ],
-    "category": "food_dining",
-    "subcategory": "alcohol_bars"
-  },
-  {
-    "name": "Canyon Park Veterinary",
-    "aliases": [
-      "CANYON PARK VETERINARY",
-      "CANYON PARK VET"
-    ],
-    "category": "other",
-    "subcategory": "pet_care"
-  },
-  {
-    "name": "Village Theatre",
-    "aliases": [
-      "VILLAGE THEATRE"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Lucky Strike",
-    "aliases": [
-      "LUCKY STRIKE"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Gametime",
-    "aliases": [
-      "GAMETIME"
-    ],
-    "category": "entertainment",
-    "subcategory": "sports_recreation"
-  },
-  {
-    "name": "Park MGM",
-    "aliases": [
-      "PARK MGM"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "MGM Grand",
-    "aliases": [
-      "MGM GRAND"
-    ],
-    "category": "travel",
-    "subcategory": "hotels_lodging"
-  },
-  {
-    "name": "Eataly",
-    "aliases": [
-      "EATALY"
-    ],
-    "category": "food_dining",
-    "subcategory": "restaurants"
-  },
-  {
-    "name": "Curb Taxi",
-    "aliases": [
-      "CURB",
-      "CURB LV TAXI"
-    ],
-    "category": "transportation",
-    "subcategory": "rideshare_taxi"
-  },
-  {
-    "name": "RTC Las Vegas Transit",
-    "aliases": [
-      "RTC LAS VEGAS TRANSIT",
-      "RTC TRANSIT"
-    ],
-    "category": "transportation",
-    "subcategory": "public_transit"
-  },
-  {
-    "name": "SEA Airport Parking",
-    "aliases": [
-      "SEA AIRPORT PARKING"
-    ],
-    "category": "transportation",
-    "subcategory": "parking"
-  },
-  {
-    "name": "Hudson News",
-    "aliases": [
-      "HUDSON NEWS",
-      "HUDSON ST"
-    ],
-    "category": "shopping",
-    "subcategory": "general_merchandise"
-  },
-  {
-    "name": "Affirm",
-    "aliases": [
-      "AFFIRM",
-      "AFFIRM.COM"
-    ],
-    "category": "debt_payment",
-    "subcategory": "other_debt"
-  },
-  {
-    "name": "Bankers Healthcare",
-    "aliases": [
-      "BANKERS HEALTHCA",
-      "BANKERS HEALTHCARE"
-    ],
-    "category": "debt_payment",
-    "subcategory": "personal_loan"
-  },
-  {
-    "name": "Alderwood Water",
-    "aliases": [
-      "ALDERWOOD WWD",
-      "ALDERWOOD WATER"
-    ],
-    "category": "utilities",
-    "subcategory": "water_sewer"
-  },
-  {
-    "name": "United Wholesale",
-    "aliases": [
-      "UNITEDWHOLESALE",
-      "UNITED WHOLESALE"
-    ],
-    "category": "housing",
-    "subcategory": "mortgage"
-  },
-
-  {
-    "name": "Chase",
-    "aliases": ["CHASE", "CHASE CREDIT CRD", "CHASE BANK", "JPMORGAN CHASE", "CHASE CREDIT CARD"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "Bank of America",
-    "aliases": ["BANK OF AMERICA", "BANKOFAMERICA", "BOA", "BOFA", "BK OF AMERICA"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "Capital One",
-    "aliases": ["CAPITAL ONE", "CAPITALONE", "CAP ONE"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "Citi",
-    "aliases": ["CITI", "CITIBANK", "CITI CARD", "CITICARDS"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "Discover",
-    "aliases": ["DISCOVER", "DISCOVER CARD", "DISCOVER BANK", "DISCOVER DS"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "American Express",
-    "aliases": ["AMERICAN EXPRESS", "AMEX", "AMEX PAYMENT"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "Wells Fargo",
-    "aliases": ["WELLS FARGO", "WF", "WELLSFARGO"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-  {
-    "name": "US Bank",
-    "aliases": ["US BANK", "U.S. BANK", "USB"],
-    "category": "debt_payment",
-    "subcategory": "credit_card_payment"
-  },
-
-  {"name": "Optum", "aliases": ["OPTUM", "OPTUM PAYMENT", "OPTUM BANK"], "category": "debt_payment", "subcategory": "personal_loan"},
-  {"name": "Barclaycard", "aliases": ["BARCLAYCARD", "BARCLAYCARD US", "BARCLAY CARD"], "category": "debt_payment", "subcategory": "credit_card_payment"},
-
-  {"name": "Charles Schwab", "aliases": ["SCHWAB", "SCHWAB BROKERAGE", "CHARLES SCHWAB", "SCHWAB ONE"], "category": "investment", "subcategory": "stocks"},
-  {"name": "Fidelity", "aliases": ["FIDELITY", "FIDELITY INVESTMENTS", "FID BKG SVC"], "category": "investment", "subcategory": "stocks"},
-  {"name": "Vanguard", "aliases": ["VANGUARD", "VANGUARD GROUP", "VANGUARD BROKERAGE"], "category": "investment", "subcategory": "mutual_funds"},
-  {"name": "E*TRADE", "aliases": ["ETRADE", "E*TRADE", "E TRADE"], "category": "investment", "subcategory": "stocks"},
-  {"name": "Robinhood", "aliases": ["ROBINHOOD"], "category": "investment", "subcategory": "stocks"},
-  {"name": "TD Ameritrade", "aliases": ["TD AMERITRADE", "TDAMERITRADE"], "category": "investment", "subcategory": "stocks"},
-  {"name": "Merrill Lynch", "aliases": ["MERRILL LYNCH", "MERRILL EDGE", "ML DIRECT"], "category": "investment", "subcategory": "stocks"},
-
-  {"name": "Puget Sound Energy", "aliases": ["PUGET SOUND ENER", "PSE", "PUGET SOUND ENERGY"], "category": "utilities", "subcategory": "electricity"},
-  {"name": "Waste Management", "aliases": ["WASTE MANAGEMENT", "WASTE MGMT", "WM EZPAY"], "category": "utilities", "subcategory": "trash_recycling"},
-  {"name": "Aptive Environmental", "aliases": ["APTIVE", "APTIVE ENVIRONME", "APTIVE ENVIRONMENTAL"], "category": "housing", "subcategory": "pest_control"},
-  {"name": "Providence Health", "aliases": ["PROVIDENCE", "PROVIDENCE.ORG", "PROVIDENCE HEALTH"], "category": "healthcare", "subcategory": "doctor_visits"},
-  {"name": "Snohomish County", "aliases": ["SNOHOMISH COUNTY", "SNOHOMISH CO"], "category": "other", "subcategory": "taxes"},
-
-  {"name": "ATM Withdrawal", "aliases": ["ATM WITHDRAWAL", "ATM WDL", "ATM CASH"], "category": "other", "subcategory": "cash_withdrawal"},
-  {"name": "Online Banking Transfer", "aliases": ["ONLINE BANKING TRANSFER TO", "ONLINE BANKING TRANSFER FROM", "ONLINE BANKING XFER"], "category": "transfer", "subcategory": "savings_transfer"},
-  {"name": "External Withdrawal", "aliases": ["EXTERNAL WITHDRAWAL"], "category": "debt_payment", "subcategory": "credit_card_payment"},
-  {"name": "External Deposit", "aliases": ["EXTERNAL DEPOSIT"], "category": "income", "subcategory": "salary"},
-  {"name": "Descriptive Deposit", "aliases": ["DESCRIPTIVE DEPOSIT"], "category": "transfer", "subcategory": "ach_transfer"},
-  {"name": "Incoming Wire Transfer", "aliases": ["INCOMING WIRE TRANSFER", "INCOMING WIRE"], "category": "transfer", "subcategory": "wire_transfer"},
-  {"name": "Overdraft Protection Deposit", "aliases": ["OVERDRAFT PROTECTION DEPOSIT", "OVERDRAFT PROTECTION"], "category": "transfer", "subcategory": "checking_transfer"},
-  {"name": "Withdrawal - Transfer", "aliases": ["WITHDRAWAL - TRANSFER"], "category": "transfer", "subcategory": "internal_transfer"},
-  {"name": "Deposit - Online Banking", "aliases": ["DEPOSIT - ONLINE BANKING"], "category": "transfer", "subcategory": "savings_transfer"},
-  {"name": "Payroll Deposit", "aliases": ["PAYROLL", "DIRECT DEPOSIT", "DIR DEP", "DIRECT DEP"], "category": "income", "subcategory": "salary"},
-  {"name": "HOA Payment", "aliases": ["HOA", "HOA FEES", "HOMEOWNER ASSOC", "HOMEOWNERS ASSOCIATION"], "category": "housing", "subcategory": "hoa_fees"},
-  {"name": "UI Benefit", "aliases": ["UI BENEFIT", "UNEMPLOYMENT BENEFIT", "UNEMPLOYMENT INS", "WA ST EMPLOY SEC"], "category": "income", "subcategory": "government_benefits"},
-  {"name": "AppleCard Payment", "aliases": ["APPLECARD", "APPLE CARD", "APPLECARD GSBANK", "APPLE CARD GSBANK"], "category": "debt_payment", "subcategory": "credit_card_payment"},
-  {"name": "ACH Collection", "aliases": ["ACH COLLEC", "ACH COLLECTION", "ACH DEBIT"], "category": "fees_charges", "subcategory": "bank_fees"},
-  {"name": "Wire Transfer Out", "aliases": ["WIRE TRANSFER", "OUTGOING WIRE", "DOMESTIC WIRE"], "category": "transfer", "subcategory": "wire_transfer"},
-  {"name": "ATM Fee Refund", "aliases": ["REFUND-OUT OF NETWORK ATM FEE", "REFUND OUT OF NETWORK ATM", "ATM FEE REFUND", "ATM SURCHARGE REFUND", "ATM FEE REBATE"], "category": "fees_charges", "subcategory": "fee_refund"}
+  {"name":"24 Hour Fitness","aliases":["24 HOUR FITNESS","24HR FITNESS"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"7-Eleven","aliases":["7-ELEVEN","7 ELEVEN","7ELEVEN","SEVEN ELEVEN"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"ACH Collection","aliases":["ACH COLLEC","ACH COLLECTION","ACH DEBIT"],"category":"fees_charges","subcategory":"bank_fees","confidence":0.4},
+  {"name":"ADT Security","aliases":["ADT","ADT SECURITY"],"category":"housing","subcategory":"home_security"},
+  {"name":"AMC Theatres","aliases":["AMC","AMC THEATRES"],"category":"entertainment","subcategory":"movies_theater"},
+  {"name":"AT&T","aliases":["AT&T","ATT","AT AND T"],"category":"utilities","subcategory":"phone"},
+  {"name":"ATM Fee Refund","aliases":["REFUND-OUT OF NETWORK ATM FEE","REFUND OUT OF NETWORK ATM","ATM FEE REFUND","ATM SURCHARGE REFUND","ATM FEE REBATE"],"category":"fees_charges","subcategory":"fee_refund"},
+  {"name":"ATM Withdrawal","aliases":["ATM WITHDRAWAL","ATM WDL","ATM CASH"],"category":"other","subcategory":"cash_withdrawal","confidence":0.4},
+  {"name":"Academy Sports","aliases":["ACADEMY SPORTS","ACADEMY"],"category":"shopping","subcategory":"sporting_goods"},
+  {"name":"Ace Hardware","aliases":["ACE HARDWARE"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"Adidas","aliases":["ADIDAS"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Adobe","aliases":["ADOBE","ADOBE SYSTEMS"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"Advance Auto","aliases":["ADVANCE AUTO","ADVANCE AUTO PARTS"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Affirm","aliases":["AFFIRM","AFFIRM.COM"],"category":"debt_payment","subcategory":"other_debt"},
+  {"name":"Airbnb","aliases":["AIRBNB"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Alaska Airlines","aliases":["ALASKA AIR","ALASKA AIRLINES"],"category":"travel","subcategory":"flights"},
+  {"name":"Albertsons","aliases":["ALBERTSON'S","ALBERTSONS"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Alderwood Water","aliases":["ALDERWOOD WWD","ALDERWOOD WATER"],"category":"utilities","subcategory":"water_sewer"},
+  {"name":"Aldi","aliases":["ALDI"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Allstate","aliases":["ALLSTATE"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Amazon","aliases":["AMAZON","AMZN","AMAZON.COM","AMAZON MKTPLACE","AMZ"],"category":"shopping","subcategory":"online_shopping"},
+  {"name":"Amazon Prime Video","aliases":["PRIME VIDEO","AMAZON PRIME"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"American Airlines","aliases":["AMERICAN AIR","AMERICAN AIRLINES","AA"],"category":"travel","subcategory":"flights"},
+  {"name":"American Express","aliases":["AMERICAN EXPRESS","AMEX","AMEX PAYMENT"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Apple Store","aliases":["APPLE STORE","APPLE.COM"],"category":"shopping","subcategory":"electronics"},
+  {"name":"Apple TV","aliases":["APPLE TV","APPLE.COM/BILL"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"AppleCard Payment","aliases":["APPLECARD","APPLE CARD","APPLECARD GSBANK","APPLE CARD GSBANK"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Applebees","aliases":["APPLEBEES","APPLEBEE'S"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Aptive Environmental","aliases":["APTIVE","APTIVE ENVIRONME","APTIVE ENVIRONMENTAL"],"category":"housing","subcategory":"pest_control"},
+  {"name":"Arby's","aliases":["ARBYS","ARBY'S"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Arco","aliases":["ARCO","AMPM ARCO"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Ashley Furniture","aliases":["ASHLEY FURNITURE","ASHLEY HOME"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"Audible","aliases":["AUDIBLE","AUDIBLE.COM"],"category":"entertainment","subcategory":"books_magazines"},
+  {"name":"AutoZone","aliases":["AUTOZONE","AUTO ZONE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Avis","aliases":["AVIS"],"category":"travel","subcategory":"car_rental"},
+  {"name":"BJs Wholesale","aliases":["BJS WHOLESALE","BJ'S"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"BP","aliases":["BP","BRITISH PETROLEUM"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Bank of America","aliases":["BANK OF AMERICA","BANKOFAMERICA","BOA","BOFA","BK OF AMERICA","BK OF AMER VISA"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Bankers Healthcare","aliases":["BANKERS HEALTHCA","BANKERS HEALTHCARE"],"category":"debt_payment","subcategory":"personal_loan"},
+  {"name":"Barclaycard","aliases":["BARCLAYCARD","BARCLAYCARD US","BARCLAY CARD"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"BarkBox","aliases":["BARKBOX"],"category":"shopping","subcategory":"pet_supplies"},
+  {"name":"Barnes & Noble","aliases":["BARNES NOBLE","BARNES & NOBLE","B&N"],"category":"entertainment","subcategory":"books_magazines"},
+  {"name":"Bass Pro","aliases":["BASS PRO","BASS PRO SHOPS"],"category":"shopping","subcategory":"sporting_goods"},
+  {"name":"Bath & Body Works","aliases":["BATH BODY WORKS","BATH & BODY"],"category":"personal_care","subcategory":"cosmetics"},
+  {"name":"Bath Body Works","aliases":["BATH BODY","BATH AND BODY"],"category":"personal_care","subcategory":"cosmetics"},
+  {"name":"Bed Bath Beyond","aliases":["BED BATH","BB&B","BED BATH AND BEYOND"],"category":"shopping","subcategory":"home_goods"},
+  {"name":"Best Buy","aliases":["BEST BUY","BESTBUY"],"category":"shopping","subcategory":"electronics"},
+  {"name":"Best Western","aliases":["BEST WESTERN"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Bowlero","aliases":["BOWLERO","BOWLMOR"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Bright Horizons","aliases":["BRIGHT HORIZONS"],"category":"other","subcategory":"childcare"},
+  {"name":"Budget Rent","aliases":["BUDGET RENT"],"category":"travel","subcategory":"car_rental"},
+  {"name":"Buffalo Wild Wings","aliases":["BUFFALO WILD WINGS","BWW","BDUBS"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Burger King","aliases":["BURGER KING","BK WHOPPER"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Burlington","aliases":["BURLINGTON","BURLINGTON COAT"],"category":"shopping","subcategory":"clothing"},
+  {"name":"CVS","aliases":["CVS","CVS PHARMACY"],"category":"healthcare","subcategory":"pharmacy"},
+  {"name":"Cabelas","aliases":["CABELAS","CABELA'S"],"category":"shopping","subcategory":"sporting_goods"},
+  {"name":"Canyon Park Veterinary","aliases":["CANYON PARK VETERINARY","CANYON PARK VET"],"category":"other","subcategory":"pet_care"},
+  {"name":"Capital One","aliases":["CAPITAL ONE","CAPITALONE","CAP ONE"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Casey's","aliases":["CASEYS","CASEY'S"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"CashApp","aliases":["CASH APP","CASHAPP","SQ CASH"],"category":"transfer","subcategory":"peer_to_peer"},
+  {"name":"CenturyLink","aliases":["CENTURYLINK","LUMEN"],"category":"utilities","subcategory":"internet"},
+  {"name":"Charles Schwab","aliases":["SCHWAB","SCHWAB BROKERAGE","CHARLES SCHWAB","SCHWAB ONE"],"category":"investment","subcategory":"stocks"},
+  {"name":"Chase","aliases":["CHASE","CHASE CREDIT CRD","CHASE BANK","JPMORGAN CHASE","CHASE CREDIT CARD"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Chase Mortgage","aliases":["CHASE MORTGAGE","JPMORGAN MORTGAGE"],"category":"housing","subcategory":"mortgage"},
+  {"name":"Cheesecake Factory","aliases":["CHEESECAKE FACTORY","CHEESECAKE FACT"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Chevron","aliases":["CHEVRON","TEXACO"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Chewy","aliases":["CHEWY","CHEWY.COM"],"category":"shopping","subcategory":"pet_supplies"},
+  {"name":"Chick-fil-A","aliases":["CHICK-FIL-A","CHICKFILA","CHICK FIL A","CFA"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Chilis","aliases":["CHILIS","CHILI'S"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Chipotle","aliases":["CHIPOTLE","CHIPOTLE MEXICAN"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Cinemark","aliases":["CINEMARK"],"category":"entertainment","subcategory":"movies_theater"},
+  {"name":"Circle K","aliases":["CIRCLE K"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Citi","aliases":["CITI","CITIBANK","CITI CARD","CITICARDS"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"ClassPass","aliases":["CLASSPASS"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Cold Stone Creamery","aliases":["COLD STONE","COLDSTONE"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Cornerstone Bank","aliases":["CORNERSTONE BANK","CORNERSTONE"],"category":"debt_payment","subcategory":"personal_loan"},
+  {"name":"Costco","aliases":["COSTCO","COSTCO WHSE","COSTCO WHOLESALE"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Cox Communications","aliases":["COX COMM","COX CABLE"],"category":"utilities","subcategory":"internet"},
+  {"name":"Cracker Barrel","aliases":["CRACKER BARREL"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Crate and Barrel","aliases":["CRATE AND BARREL","CRATE & BARREL","CB2"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"CrossFit","aliases":["CROSSFIT"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Curb Taxi","aliases":["CURB","CURB LV TAXI"],"category":"transportation","subcategory":"rideshare_taxi"},
+  {"name":"Dave and Busters","aliases":["D&B","DAVE & BUSTERS","DAVE AND BUSTERS","DAVE BUSTERS"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Delta Airlines","aliases":["DELTA AIR","DELTA AIRLINES"],"category":"travel","subcategory":"flights"},
+  {"name":"Denny's","aliases":["DENNYS","DENNY'S"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Deposit - Online Banking","aliases":["DEPOSIT - ONLINE BANKING"],"category":"transfer","subcategory":"savings_transfer","confidence":0.4},
+  {"name":"Descriptive Deposit","aliases":["DESCRIPTIVE DEPOSIT"],"category":"transfer","subcategory":"ach_transfer","confidence":0.4},
+  {"name":"Devine Wines","aliases":["DEVINE WINES"],"category":"food_dining","subcategory":"alcohol_bars"},
+  {"name":"Dicks Sporting Goods","aliases":["DICKS SPORTING","DICK'S"],"category":"shopping","subcategory":"sporting_goods"},
+  {"name":"Discount Tire","aliases":["DISCOUNT TIRE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Discover","aliases":["DISCOVER","DISCOVER CARD","DISCOVER BANK","DISCOVER DS"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Disney Plus","aliases":["DISNEY PLUS","DISNEYPLUS","DISNEY+"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Dollar General","aliases":["DOLLAR GENERAL","DG"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Dollar Shave Club","aliases":["DOLLAR SHAVE","DSC"],"category":"personal_care","subcategory":"grooming"},
+  {"name":"Dollar Tree","aliases":["DOLLAR TREE"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Dominos","aliases":["DOMINOS","DOMINO'S PIZZA"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"DoorDash","aliases":["DOORDASH"],"category":"food_dining","subcategory":"food_delivery"},
+  {"name":"DraftKings","aliases":["DRAFTKINGS"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Dropbox","aliases":["DROPBOX"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"Dunkin","aliases":["DUNKIN DONUTS","DUNKIN'","DD DUNKIN"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"Dutch Bros","aliases":["DUTCH BROS","DUTCH BROTHERS"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"E*TRADE","aliases":["ETRADE","E*TRADE","E TRADE"],"category":"investment","subcategory":"stocks"},
+  {"name":"Eataly","aliases":["EATALY"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"eBay","aliases":["EBAY"],"category":"shopping","subcategory":"online_shopping"},
+  {"name":"Enterprise","aliases":["ENTERPRISE","ENTERPRISE RENT"],"category":"travel","subcategory":"car_rental"},
+  {"name":"Equinox","aliases":["EQUINOX"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Etsy","aliases":["ETSY"],"category":"shopping","subcategory":"online_shopping"},
+  {"name":"External Deposit","aliases":["EXTERNAL DEPOSIT"],"category":"transfer","subcategory":"ach_transfer","confidence":0.4},
+  {"name":"External Withdrawal","aliases":["EXTERNAL WITHDRAWAL"],"category":"transfer","subcategory":"ach_transfer","confidence":0.4},
+  {"name":"Everett Payroll","aliases":["EVERETT PAYROLL","EVERETT SD"],"category":"income","subcategory:"salary"},
+  {"name":"ExxonMobil","aliases":["EXXON","EXXON MOBIL","EXXONMOBIL","MOBIL GAS"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Family Dollar","aliases":["FAMILY DOLLAR"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"FanDuel","aliases":["FANDUEL"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Farmers Insurance","aliases":["FARMERS INS","FARMERS INSURANCE"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Fidelity","aliases":["FIDELITY","FIDELITY INVESTMENTS","FID BKG SVC"],"category":"investment","subcategory":"stocks"},
+  {"name":"Firestone","aliases":["FIRESTONE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Five Below","aliases":["FIVE BELOW"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Five Guys","aliases":["FIVE GUYS","FIVEGUYS"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Food Lion","aliases":["FOOD LION"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Foot Locker","aliases":["FOOT LOCKER","FOOTLOCKER"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Forever 21","aliases":["FOREVER 21","FOREVER21"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Fred Meyer","aliases":["FRED-MEYER","FRED MEYER","FREDMEYER"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Frontier Airlines","aliases":["FRONTIER AIR","FRONTIER AIRLINES"],"category":"travel","subcategory":"flights"},
+  {"name":"GEICO","aliases":["GEICO"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"GameStop","aliases":["GAMESTOP"],"category":"shopping","subcategory":"electronics"},
+  {"name":"Gametime","aliases":["GAMETIME"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Gap","aliases":["GAP","THE GAP"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Giant","aliases":["GIANT FOOD","GIANT EAGLE"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Gold's Gym","aliases":["GOLDS GYM","GOLD'S GYM"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Goodwill","aliases":["GOODWILL"],"category":"gifts_donations","subcategory":"charitable_donations"},
+  {"name":"Google Fiber","aliases":["GOOGLE FIBER"],"category":"utilities","subcategory":"internet"},
+  {"name":"Google One","aliases":["GOOGLE ONE","GOOGLE STORAGE"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"Great Clips","aliases":["GREAT CLIPS"],"category":"personal_care","subcategory":"haircuts_salon"},
+  {"name":"Great Lakes","aliases":["GREAT LAKES","GREAT LAKES EDU"],"category":"education","subcategory":"student_loans"},
+  {"name":"Grubhub","aliases":["GRUBHUB"],"category":"food_dining","subcategory":"food_delivery"},
+  {"name":"H&M","aliases":["H&M","HM"],"category":"shopping","subcategory":"clothing"},
+  {"name":"HBO Max","aliases":["HBO MAX","HBO","MAX.COM"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"HEB","aliases":["HEB","H-E-B","H E B"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"HOA Payment","aliases":["HOA","HOA FEES","HOMEOWNER ASSOC","HOMEOWNERS ASSOCIATION"],"category":"housing","subcategory":"hoa_fees","confidence":0.4},
+  {"name":"Harris Teeter","aliases":["HARRIS TEETER"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Harry's","aliases":["HARRYS","HARRY'S"],"category":"personal_care","subcategory":"grooming"},
+  {"name":"Helping Hands Thrift","aliases":["HELPING HANDS THRIFT","HELPING HANDS"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Hertz","aliases":["HERTZ"],"category":"travel","subcategory":"car_rental"},
+  {"name":"Hilton","aliases":["HILTON","HILTON HOTEL"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Hobby Lobby","aliases":["HOBBY LOBBY"],"category":"entertainment","subcategory":"hobbies"},
+  {"name":"Holiday Inn","aliases":["HOLIDAY INN","IHG"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Home Depot","aliases":["HOME DEPOT","THE HOME DEPOT"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"Hudson News","aliases":["HUDSON NEWS","HUDSON ST"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Hulu","aliases":["HULU","HULU LLC"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Hyatt","aliases":["HYATT","HYATT HOTEL"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"iCloud","aliases":["ICLOUD","APPLE ICLOUD"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"IHOP","aliases":["IHOP","INTL HOUSE OF PANCAKES"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"IKEA","aliases":["IKEA"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"IRS","aliases":["IRS","US TREASURY","USTREAS"],"category":"other","subcategory":"taxes"},
+  {"name":"In-N-Out","aliases":["IN-N-OUT","IN N OUT","INNOUT"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Incoming Wire Transfer","aliases":["INCOMING WIRE TRANSFER","INCOMING WIRE"],"category":"transfer","subcategory":"wire_transfer","confidence":0.4},
+  {"name":"Insufficient Funds","aliases":["NSF","INSUFFICIENT","OVERDRAFT"],"category":"fees_charges":"subcategory":"overdraft_fees"},
+  {"name":"Instacart","aliases":["INSTACART"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"JCPenney","aliases":["JCPENNEY","JC PENNEY"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Jack in the Box","aliases":["JACK IN THE BOX","JACK BOX"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"JetBlue","aliases":["JETBLUE"],"category":"travel","subcategory":"flights"},
+  {"name":"Jiffy Lube","aliases":["JIFFY LUBE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Joann Fabrics","aliases":["JOANN","JOANN FABRICS"],"category":"entertainment","subcategory":"hobbies"},
+  {"name":"KFC","aliases":["KFC","KENTUCKY FRIED"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"KinderCare","aliases":["KINDERCARE"],"category":"other","subcategory":"childcare"},
+  {"name":"Kohls","aliases":["KOHLS","KOHL'S"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Kroger","aliases":["KROGER","KROGERS"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"LA Fitness","aliases":["LA FITNESS"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Lee Johnson","aliases":["LEE JOHNSON","LEE JOHNSON QUICK LUBE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Liberty Mutual","aliases":["LIBERTY MUTUAL"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Lidl","aliases":["LIDL"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Little Caesars","aliases":["LITTLE CAESARS","LIL CAESARS"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Lowes","aliases":["LOWES","LOWE'S"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"Lucky Strike","aliases":["LUCKY STRIKE"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Lululemon","aliases":["LULULEMON"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Lyft","aliases":["LYFT","LYFT RIDE"],"category":"transportation","subcategory":"rideshare_taxi"},
+  {"name":"MGM Grand","aliases":["MGM GRAND"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Macys","aliases":["MACYS","MACY'S"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Main Event","aliases":["MAIN EVENT"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Marathon","aliases":["MARATHON"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Marriott","aliases":["MARRIOTT","MARRIOTT HOTEL"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Marshalls","aliases":["MARSHALLS"],"category":"shopping","subcategory":"clothing"},
+  {"name":"McDonalds","aliases":["MCDONALDS","MCD","MCDONALD'S"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Meijer","aliases":["MEIJER"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Menards","aliases":["MENARDS"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"Merrill Lynch","aliases":["MERRILL LYNCH","MERRILL EDGE","ML DIRECT"],"category":"investment","subcategory":"stocks"},
+  {"name":"Michaels","aliases":["MICHAELS"],"category":"entertainment","subcategory":"hobbies"},
+  {"name":"Microcenter","aliases":["MICRO CENTER","MICROCENTER"],"category":"shopping","subcategory":"electronics"},
+  {"name":"Microsoft 365","aliases":["MICROSOFT","MSFT","MICROSOFT 365","OFFICE 365"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"Midas","aliases":["MIDAS"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Mill Creek Center Market","aliases":["MILL CREEK CEN MKT","MILL CREEK CEN"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Mill Creek Community","aliases":["MILL CREEK COMMU"],"category":"housing","subcategory":"hoa_fees"},
+  {"name":"Mill Creek Wellness","aliases":["MILL CREEK WELLNESS"],"category":"healthcare","subcategory":"doctor_visits"},
+  {"name":"Mint Mobile","aliases":["MINT MOBILE"],"category":"utilities","subcategory":"phone"},
+  {"name":"National Car Rental","aliases":["NATIONAL CAR","NATIONAL RENT"],"category":"travel","subcategory":"car_rental"},
+  {"name":"Nationwide","aliases":["NATIONWIDE"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Navient","aliases":["NAVIENT"],"category":"education","subcategory":"student_loans"},
+  {"name":"Nelnet","aliases":["NELNET"],"category":"education","subcategory":"student_loans"},
+  {"name":"Netflix","aliases":["NETFLIX","NETFLIX.COM"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Nike","aliases":["NIKE","NIKE.COM"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Nordstrom","aliases":["NORDSTROM","NORDSTROM RACK"],"category":"shopping","subcategory":"clothing"},
+  {"name":"O'Reilly Auto","aliases":["OREILLY AUTO","O'REILLY"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Old Navy","aliases":["OLD NAVY","OLDNAVY"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Olive Garden","aliases":["OLIVE GARDEN","DARDEN OLIVE"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Online Banking Transfer","aliases":["ONLINE BANKING TRANSFER TO","ONLINE BANKING TRANSFER FROM","ONLINE BANKING XFER"],"category":"transfer","subcategory":"savings_transfer","confidence":0.4},
+  {"name":"OpenRouter","aliases":["OPENROUTER","OPENROUTER.AI"],"category":"shopping","subcategory":"electronics"},
+  {"name":"Optum","aliases":["OPTUM","OPTUM PAYMENT","OPTUM BANK"],"category":"debt_payment","subcategory":"personal_loan"},
+  {"name":"Orangetheory","aliases":["ORANGETHEORY","OTF"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Outback Steakhouse","aliases":["OUTBACK","OUTBACK STEAK"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Overdraft Protection Deposit","aliases":["OVERDRAFT PROTECTION DEPOSIT","OVERDRAFT PROTECTION"],"category":"transfer","subcategory":"checking_transfer","confidence":0.4},
+  {"name":"PCC Community Markets","aliases":["PCC","PCC COMMUNITY","PCC - BOTHELL"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"PF Changs","aliases":["PF CHANGS","P.F. CHANG'S"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"PNC Bank","aliases":["PNCBK","PNC BANK","PNC"],"category":"transfer","subcategory":"checking_transfer"},
+  {"name":"Panda Express","aliases":["PANDA EXPRESS","PANDAEXPRESS"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Panera Bread","aliases":["PANERA","PANERA BREAD"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Papa Johns","aliases":["PAPA JOHNS","PAPA JOHN'S"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Paramount Plus","aliases":["PARAMOUNT+","PARAMOUNT PLUS"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Park MGM","aliases":["PARK MGM"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"PayPal","aliases":["PAYPAL","PP"],"category":"transfer","subcategory":"peer_to_peer"},
+  {"name":"Payroll Deposit","aliases":["PAYROLL","DIRECT DEPOSIT","DIR DEP","DIRECT DEP"],"category":"income","subcategory":"salary","confidence":0.4},
+  {"name":"Peacock","aliases":["PEACOCK","PEACOCKTV"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Peets Coffee","aliases":["PEETS","PEET'S COFFEE"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"Peloton","aliases":["PELOTON"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"PetSmart","aliases":["PETSMART"],"category":"shopping","subcategory":"pet_supplies"},
+  {"name":"Petco","aliases":["PETCO"],"category":"shopping","subcategory":"pet_supplies"},
+  {"name":"Phillips 66","aliases":["76 STATION","CONOCO","PHILLIPS 66","PHILLIPS66"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Piggly Wiggly","aliases":["PIGGLY WIGGLY"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Pizza Hut","aliases":["PIZZA HUT"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Planet Fitness","aliases":["PLANET FITNESS","PLANET FIT"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"Popeyes","aliases":["POPEYES","POPEYE'S"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Postmates","aliases":["POSTMATES"],"category":"food_dining","subcategory":"food_delivery"},
+  {"name":"Pottery Barn","aliases":["POTTERY BARN"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"Progressive","aliases":["PROGRESSIVE"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Providence Health","aliases":["PROVIDENCE","PROVIDENCE.ORG","PROVIDENCE HEALTH"],"category":"healthcare","subcategory":"doctor_visits"},
+  {"name":"Publix","aliases":["PUBLIX"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Puget Sound Energy","aliases":["PUGET SOUND ENER","PSE","PUGET SOUND ENERGY"],"category":"utilities","subcategory":"electricity"},
+  {"name":"QFC","aliases":["QFC","QUALITY FOOD CENTER"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Quicken Loans","aliases":["QUICKEN LOANS","ROCKET MORTGAGE"],"category":"housing","subcategory":"mortgage"},
+  {"name":"QuikTrip","aliases":["QUIKTRIP","QT"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"REI","aliases":["REI","REI COOP"],"category":"shopping","subcategory":"sporting_goods"},
+  {"name":"RTC Las Vegas Transit","aliases":["RTC LAS VEGAS TRANSIT","RTC TRANSIT"],"category":"transportation","subcategory":"public_transit"},
+  {"name":"RaceTrac","aliases":["RACETRAC"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Red Cross","aliases":["RED CROSS","AMER RED CROSS"],"category":"gifts_donations","subcategory":"charitable_donations"},
+  {"name":"Red Lobster","aliases":["RED LOBSTER"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Regal Cinemas","aliases":["REGAL","REGAL CINEMAS","REGAL THEATER"],"category":"entertainment","subcategory":"movies_theater"},
+  {"name":"Ring","aliases":["RING DOORBELL","RING.COM"],"category":"housing","subcategory":"home_security"},
+  {"name":"Rite Aid","aliases":["RITE AID"],"category":"healthcare","subcategory":"pharmacy"},
+  {"name":"Robinhood","aliases":["ROBINHOOD"],"category":"investment","subcategory":"stocks"},
+  {"name":"Ross","aliases":["ROSS","ROSS STORES"],"category":"shopping","subcategory":"clothing"},
+  {"name":"SEA Airport Parking","aliases":["SEA AIRPORT PARKING"],"category":"transportation","subcategory":"parking"},
+  {"name":"Safeway","aliases":["SAFEWAY"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Safeway Fuel","aliases":["SAFEWAY FUEL"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Sallie Mae","aliases":["SALLIE MAE"],"category":"education","subcategory":"student_loans"},
+  {"name":"Salvation Army","aliases":["SALVATION ARMY"],"category":"gifts_donations","subcategory":"charitable_donations"},
+  {"name":"Sams Club","aliases":["SAMS CLUB","SAM'S CLUB"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Sephora","aliases":["SEPHORA"],"category":"personal_care","subcategory":"cosmetics"},
+  {"name":"Sharetea","aliases":["SHARETEA"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"Sheetz","aliases":["SHEETZ"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Shell","aliases":["SHELL OIL","SHELL SERVICE","SHELL"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Sherwin-Williams","aliases":["SHERWIN WILLIAMS","SHERWIN-WILLIAMS"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"SimpliSafe","aliases":["SIMPLISAFE"],"category":"housing","subcategory":"home_security"},
+  {"name":"SiriusXM","aliases":["SIRIUSXM","SIRIUS XM","SIRIUS"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Slack","aliases":["SLACK","SLACK TECHNOLOGIES"],"category":"utilities","subcategory":"software_subscriptions"},
+  {"name":"Snohomish County PUD","aliases":["SNOPUD","SNOHOMISH COUNTY","SNOHOMISH CO"],"category":"utilities","subcategory":"gas"},
+  {"name":"Sonic Drive-In","aliases":["SONIC","SONIC DRIVE"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Southwest Airlines","aliases":["SOUTHWEST AIR","SOUTHWEST AIRLINES"],"category":"travel","subcategory":"flights"},
+  {"name":"Spectrum","aliases":["SPECTRUM","CHARTER COMM"],"category":"utilities","subcategory":"internet"},
+  {"name":"Speedway","aliases":["SPEEDWAY"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Spirit Airlines","aliases":["SPIRIT AIR","SPIRIT AIRLINES"],"category":"travel","subcategory":"flights"},
+  {"name":"Sport Clips","aliases":["SPORT CLIPS"],"category":"personal_care","subcategory":"haircuts_salon"},
+  {"name":"Spotify","aliases":["SPOTIFY","SPOTIFY USA"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Sprint","aliases":["SPRINT","SPRINT WIRELESS"],"category":"utilities","subcategory":"phone"},
+  {"name":"Sprouts","aliases":["SPROUTS","SPROUTS FARMERS"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Starbucks","aliases":["STARBUCKS","SBUX","STARBUCKS COFFEE"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"State Farm","aliases":["STATE FARM"],"category":"insurance","subcategory":"umbrella_insurance"},
+  {"name":"State Farm Mortgage","aliases":["STATE FARM MORTGAGE"],"category":"housing","subcategory":"mortgage"},
+  {"name":"State Tax","aliases":["STATE TAX","STATE INCOME TAX"],"category":"other","subcategory":"taxes"},
+  {"name":"Stop & Shop","aliases":["STOP & SHOP","STOP AND SHOP","STOP SHOP"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Subway","aliases":["SUBWAY"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Sunoco","aliases":["SUNOCO"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Supercuts","aliases":["SUPERCUTS"],"category":"personal_care","subcategory":"haircuts_salon"},
+  {"name":"T-Mobile","aliases":["T-MOBILE","TMOBILE"],"category":"utilities","subcategory":"phone"},
+  {"name":"TD Ameritrade","aliases":["TD AMERITRADE","TDAMERITRADE"],"category":"investment","subcategory":"stocks"},
+  {"name":"TJ Maxx","aliases":["TJ MAXX","TJMAXX","TJX"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Taco Bell","aliases":["TACO BELL","TACOBELL"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Target","aliases":["TARGET"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Texas Roadhouse","aliases":["TEXAS ROADHOUSE"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"The Farmers Dog","aliases":["THEFARMERSDOG","FARMERS DOG"],"category":"other","subcategory":"pet_care"},
+  {"name":"The Reserve at Town Center","aliases":["RESERVE AT TOWN"],"category":"housing","subcategory":"rent"},
+  {"name":"Tim Hortons","aliases":["TIM HORTONS","TIMHORTONS"],"category":"food_dining","subcategory":"coffee_shops"},
+  {"name":"TopGolf","aliases":["TOPGOLF"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Trader Joes","aliases":["TRADER JOES","TRADER JOE'S","TJ'S"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"True Value","aliases":["TRUE VALUE"],"category":"housing","subcategory":"home_improvement"},
+  {"name":"Turo","aliases":["TURO"],"category":"travel","subcategory":"car_rental"},
+  {"name":"UI Benefit","aliases":["UI BENEFIT","UNEMPLOYMENT BENEFIT","UNEMPLOYMENT INS","WA ST EMPLOY SEC"],"category":"income","subcategory":"government_benefits","confidence":0.4},
+  {"name":"US Bank","aliases":["US BANK","U.S. BANK","USB"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"USAA","aliases":["USAA"],"category":"insurance","subcategory":"auto_insurance"},
+  {"name":"Uber","aliases":["UBER","UBER TRIP","UBER BV"],"category":"transportation","subcategory":"rideshare_taxi"},
+  {"name":"Uber Eats","aliases":["UBER EATS","UBEREATS"],"category":"food_dining","subcategory":"food_delivery"},
+  {"name":"Ulta Beauty","aliases":["ULTA","ULTA BEAUTY"],"category":"personal_care","subcategory":"cosmetics"},
+  {"name":"Under Armour","aliases":["UNDER ARMOUR","UA"],"category":"shopping","subcategory":"clothing"},
+  {"name":"United Airlines","aliases":["UNITED AIR","UNITED AIRLINES","UAL"],"category":"travel","subcategory":"flights"},
+  {"name":"United Wholesale","aliases":["UNITEDWHOLESALE","UNITED WHOLESALE"],"category":"housing","subcategory":"mortgage"},
+  {"name":"VRBO","aliases":["VRBO"],"category":"travel","subcategory":"hotels_lodging"},
+  {"name":"Valero","aliases":["VALERO"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Valvoline","aliases":["VALVOLINE"],"category":"transportation","subcategory":"car_maintenance"},
+  {"name":"Vanguard","aliases":["VANGUARD","VANGUARD GROUP","VANGUARD BROKERAGE"],"category":"investment","subcategory":"mutual_funds"},
+  {"name":"Venmo","aliases":["VENMO"],"category":"transfer","subcategory":"peer_to_peer"},
+  {"name":"Verizon","aliases":["VERIZON","VERIZON WIRELESS","VZW"],"category":"utilities","subcategory":"phone"},
+  {"name":"Village Theatre","aliases":["VILLAGE THEATRE"],"category":"entertainment","subcategory":"sports_recreation"},
+  {"name":"Waffle House","aliases":["WAFFLE HOUSE","WAFFLE HSE"],"category":"food_dining","subcategory":"restaurants"},
+  {"name":"Walgreens","aliases":["WALGREENS","WALGREEN"],"category":"healthcare","subcategory":"pharmacy"},
+  {"name":"Walmart","aliases":["WALMART","WAL-MART","WAL MART","WM SUPERCENTER"],"category":"shopping","subcategory":"general_merchandise"},
+  {"name":"Waste Management","aliases":["WASTE MANAGEMENT","WASTE MGMT","WM EZPAY"],"category":"utilities","subcategory":"trash_recycling"},
+  {"name":"Wawa","aliases":["WAWA"],"category":"transportation","subcategory":"gas_fuel"},
+  {"name":"Wayfair","aliases":["WAYFAIR"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"Wegmans","aliases":["WEGMANS"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Wells Fargo","aliases":["WELLS FARGO","WF","WELLSFARGO"],"category":"debt_payment","subcategory":"credit_card_payment"},
+  {"name":"Wells Fargo Mortgage","aliases":["WELLS FARGO MTG","WF MORTGAGE"],"category":"housing","subcategory":"mortgage"},
+  {"name":"Wendys","aliases":["WENDYS","WENDY'S"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"West Elm","aliases":["WEST ELM"],"category":"housing","subcategory":"home_furnishing"},
+  {"name":"Whataburger","aliases":["WHATABURGER"],"category":"food_dining","subcategory":"fast_food"},
+  {"name":"Whole Foods","aliases":["WHOLEFDS","WHOLE FOODS","WFM","WHOLE FOODS MKT"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"WinCo","aliases":["WINCO","WINCO FOODS"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Winn-Dixie","aliases":["WINN DIXIE","WINN-DIXIE"],"category":"food_dining","subcategory":"groceries"},
+  {"name":"Wire Transfer Out","aliases":["WIRE TRANSFER","OUTGOING WIRE","DOMESTIC WIRE"],"category":"transfer","subcategory":"wire_transfer","confidence":0.4},
+  {"name":"Withdrawal - Transfer","aliases":["WITHDRAWAL - TRANSFER"],"category":"transfer","subcategory":"internal_transfer","confidence":0.4},
+  {"name":"Xfinity","aliases":["COMCAST-XFINITY","COMCAST","XFINITY"],"category":"utilities","subcategory":"internet"},
+  {"name":"YMCA","aliases":["YMCA","THE Y"],"category":"personal_care","subcategory":"gym_fitness"},
+  {"name":"YouTube Premium","aliases":["YOUTUBE PREMIUM","YOUTUBE TV"],"category":"entertainment","subcategory":"streaming_services"},
+  {"name":"Zara","aliases":["ZARA"],"category":"shopping","subcategory":"clothing"},
+  {"name":"Zelle","aliases":["ZELLE"],"category":"transfer","subcategory":"peer_to_peer"},
+  {"name":"Zipcar","aliases":["ZIPCAR"],"category":"travel","subcategory":"car_rental"},
+  {"name":"Zoom","aliases":["ZOOM","ZOOM.US"],"category":"utilities","subcategory":"software_subscriptions"}
 ]

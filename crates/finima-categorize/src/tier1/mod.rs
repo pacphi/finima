@@ -419,6 +419,41 @@ pub fn default_rules() -> Vec<PatternRule> {
             confidence: 0.75,
         },
 
+        // ── P2P online transfers (e.g. "ONLINE TRANSFER...P2P") ──
+        PatternRule {
+            pattern: r"(?i)online\s*transfer.*p2p|p2p.*online\s*transfer|p2p\s*(transfer|payment|pay)".to_string(),
+            category: "transfer".to_string(),
+            subcategory: "peer_to_peer".to_string(),
+            confidence: 0.80,
+        },
+
+        // ── External bank withdrawals / loan payments ──
+        // Descriptions like "External Withdrawal - Cornerstone Bank - Payment"
+        PatternRule {
+            pattern: r"(?i)external\s*(withdrawal|debit).*bank".to_string(),
+            category: "debt_payment".to_string(),
+            subcategory: "loan_payment".to_string(),
+            confidence: 0.75,
+        },
+
+        // ── Mobile banking deposits / internal deposits ──
+        // Descriptions like "Deposit - Mobile Banking"
+        PatternRule {
+            pattern: r"(?i)(deposit|credit)\s*[-–]?\s*mobile\s*bank(ing)?".to_string(),
+            category: "transfer".to_string(),
+            subcategory: "internal_transfer".to_string(),
+            confidence: 0.80,
+        },
+
+        // ── External deposits from named individuals / P2P ──
+        // Descriptions like "External Deposit - CHRIS PHILLIPSON ONLINE TRANSFER..."
+        PatternRule {
+            pattern: r"(?i)external\s*deposit.*online\s*transfer|external\s*deposit.*transfer".to_string(),
+            category: "transfer".to_string(),
+            subcategory: "peer_to_peer".to_string(),
+            confidence: 0.75,
+        },
+
         // ── Utilities (specific companies) ──
         PatternRule {
             pattern: r"(?i)puget\s*sound\s*ener|pse\.com|seattle\s*city\s*light".to_string(),
@@ -646,5 +681,50 @@ mod tests {
     fn default_rules_count() {
         let engine = PatternEngine::with_defaults();
         assert!(engine.rule_count() >= 30);
+    }
+
+    #[test]
+    fn pattern_matches_external_bank_withdrawal() {
+        let engine = PatternEngine::with_defaults();
+        let result = engine.match_pattern(
+            "External Withdrawal - Cornerstone Bank - Payment",
+            Decimal::new(-125000, 2),
+        );
+        assert!(result.is_some());
+        let a = result.unwrap();
+        assert_eq!(a.category, "debt_payment");
+        assert_eq!(a.subcategory, "loan_payment");
+    }
+
+    #[test]
+    fn pattern_matches_mobile_banking_deposit() {
+        let engine = PatternEngine::with_defaults();
+        let result = engine.match_pattern("Deposit - Mobile Banking", Decimal::new(50000, 2));
+        assert!(result.is_some());
+        let a = result.unwrap();
+        assert_eq!(a.category, "transfer");
+        assert_eq!(a.subcategory, "internal_transfer");
+    }
+
+    #[test]
+    fn pattern_matches_external_deposit_online_transfer() {
+        let engine = PatternEngine::with_defaults();
+        let result = engine.match_pattern(
+            "External Deposit - CHRIS PHILLIPSON ONLINE TRANSFERXXXXXXXXXX - P2P",
+            Decimal::new(75000, 2),
+        );
+        assert!(result.is_some());
+        let a = result.unwrap();
+        assert_eq!(a.category, "transfer");
+    }
+
+    #[test]
+    fn pattern_matches_p2p_transfer() {
+        let engine = PatternEngine::with_defaults();
+        let result = engine.match_pattern("ONLINE TRANSFER 123456 P2P", Decimal::new(20000, 2));
+        assert!(result.is_some());
+        let a = result.unwrap();
+        assert_eq!(a.category, "transfer");
+        assert_eq!(a.subcategory, "peer_to_peer");
     }
 }

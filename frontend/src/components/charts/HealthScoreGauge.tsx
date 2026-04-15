@@ -26,7 +26,9 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
   const circumference = 2 * Math.PI * 45;
   const dashOffset = circumference - (data.score / 100) * circumference;
 
-  const summaryText = `Financial health score: ${data.score} out of 100 (${label}). Savings rate ${data.savings_rate.toFixed(0)}%, debt ratio ${data.debt_ratio.toFixed(0)}%, emergency fund ${data.emergency_months.toFixed(1)} months, spending trend ${data.spending_trend > 0 ? '+' : ''}${data.spending_trend.toFixed(0)}%.`;
+  const trendLabel =
+    data.spending_trend > 0 ? 'Increasing' : data.spending_trend < 0 ? 'Decreasing' : 'Stable';
+  const summaryText = `Financial health score: ${data.score} out of 100 (${label}). Savings rate ${(data.savings_rate * 100).toFixed(0)}%, debt ratio ${(data.debt_ratio * 100).toFixed(0)}%, emergency fund ${data.emergency_months.toFixed(1)} months, spending trend ${trendLabel}.`;
 
   return (
     <div className="flex flex-col items-center gap-4" role="img" aria-label={summaryText}>
@@ -57,13 +59,13 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
         <div className="flex justify-between">
           <span className="text-[var(--color-text-secondary)]">Savings Rate</span>
           <span className="font-medium text-[var(--color-text)]">
-            {data.savings_rate.toFixed(0)}%
+            {(data.savings_rate * 100).toFixed(0)}%
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[var(--color-text-secondary)]">Debt Ratio</span>
           <span className="font-medium text-[var(--color-text)]">
-            {data.debt_ratio.toFixed(0)}%
+            {(data.debt_ratio * 100).toFixed(0)}%
           </span>
         </div>
         <div className="flex justify-between">
@@ -74,10 +76,7 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
         </div>
         <div className="flex justify-between">
           <span className="text-[var(--color-text-secondary)]">Trend</span>
-          <span className="font-medium text-[var(--color-text)]">
-            {data.spending_trend > 0 ? '+' : ''}
-            {data.spending_trend.toFixed(0)}%
-          </span>
+          <span className="font-medium text-[var(--color-text)]">{trendLabel}</span>
         </div>
       </div>
       {/* Visually hidden text summary for screen readers (supplements the grid) */}
