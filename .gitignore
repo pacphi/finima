@@ -31,6 +31,9 @@ docker-compose.override.yml
 # Runtime data / logs
 data/logs
 
+# Upload artifacts
+data/uploads
+
 # Coverage
 lcov.info
 *.profraw
