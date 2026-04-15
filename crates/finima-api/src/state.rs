@@ -11,6 +11,7 @@ use finima_db::{
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
     PgUploadRepo, PgUserRepo,
 };
+use finima_categorize::MerchantRegistry;
 use finima_feed::CachedFeedService;
 use finima_llm::LlmClient;
 
@@ -37,6 +38,7 @@ pub enum CategorizationJobStatus {
 const LLM_LOADING: u8 = 0;
 const LLM_READY: u8 = 1;
 const LLM_FAILED: u8 = 2;
+const LLM_DISABLED: u8 = 3;
 
 /// Shared application state available to all Axum handlers.
 ///
@@ -75,6 +77,13 @@ struct InnerState {
     /// Tracks in-flight and completed on-demand categorization jobs.
     /// Key is (user_id, account_id).
     pub categorization_jobs: RwLock<HashMap<(Uuid, Uuid), CategorizationJobStatus>>,
+    /// Tracks per-upload categorization progress (upload_id → (categorized, total)).
+    /// Written by the categorization pipeline, read by the upload status endpoint.
+    pub upload_categorization_progress: RwLock<HashMap<Uuid, (usize, usize)>>,
+    /// In-memory merchant registry for the Tier 0 categorization cascade.
+    /// Shared across requests so that LLM-learned merchants persist for the
+    /// lifetime of the process.
+    pub merchant_registry: Arc<RwLock<MerchantRegistry>>,
     /// Set to `true` when the application is shutting down.
     /// Background tasks should check this and stop work promptly.
     pub shutdown: AtomicBool,
@@ -106,6 +115,18 @@ impl AppState {
         let flow_group_repo = PgFlowGroupRepo::new(pool.clone());
         let ws_manager = WsConnectionManager::new();
 
+        // Build the merchant registry and load seed data so Tier 0
+        // categorization works from the first request.
+        let mut registry = MerchantRegistry::with_defaults();
+        let seed_count = registry
+            .load_seed_merchants(finima_categorize::SEED_MERCHANTS_JSON)
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to load seed merchants: {}", e);
+                0
+            });
+        tracing::info!(seed_count, "merchant registry initialized");
+        let merchant_registry = Arc::new(RwLock::new(registry));
+
         Self {
             inner: Arc::new(InnerState {
                 pool,
@@ -130,6 +151,8 @@ impl AppState {
                 object_storage,
                 feed_service,
                 categorization_jobs: RwLock::new(HashMap::new()),
+                upload_categorization_progress: RwLock::new(HashMap::new()),
+                merchant_registry,
                 shutdown: AtomicBool::new(false),
             }),
         }
@@ -150,11 +173,17 @@ impl AppState {
         self.inner.llm_status.store(LLM_FAILED, Ordering::Release);
     }
 
-    /// LLM loading status: `"loading"`, `"ready"`, or `"failed"`.
+    /// Mark the LLM as intentionally disabled (provider = "none").
+    pub fn set_llm_disabled(&self) {
+        self.inner.llm_status.store(LLM_DISABLED, Ordering::Release);
+    }
+
+    /// LLM loading status: `"loading"`, `"ready"`, `"failed"`, or `"disabled"`.
     pub fn llm_status(&self) -> &'static str {
         match self.inner.llm_status.load(Ordering::Acquire) {
             LLM_READY => "ready",
             LLM_FAILED => "failed",
+            LLM_DISABLED => "disabled",
             _ => "loading",
         }
     }
@@ -162,6 +191,11 @@ impl AppState {
     /// Returns `true` once the real LLM backend has been loaded.
     pub fn is_llm_ready(&self) -> bool {
         self.inner.llm_status.load(Ordering::Acquire) == LLM_READY
+    }
+
+    /// Returns `true` if the LLM was intentionally disabled (provider = "none").
+    pub fn is_llm_disabled(&self) -> bool {
+        self.inner.llm_status.load(Ordering::Acquire) == LLM_DISABLED
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -249,6 +283,11 @@ impl AppState {
         &self.inner.feed_service
     }
 
+    /// Returns the shared merchant registry for Tier 0 categorization.
+    pub fn merchant_registry(&self) -> &Arc<RwLock<MerchantRegistry>> {
+        &self.inner.merchant_registry
+    }
+
     /// Get the status of an on-demand categorization job.
     pub fn get_categorization_status(
         &self,
@@ -275,6 +314,39 @@ impl AppState {
             .write()
             .expect("categorization_jobs lock poisoned")
             .insert((user_id, account_id), status);
+    }
+
+    /// Update per-upload categorization progress.
+    pub fn set_upload_categorization_progress(
+        &self,
+        upload_id: Uuid,
+        categorized: usize,
+        total: usize,
+    ) {
+        self.inner
+            .upload_categorization_progress
+            .write()
+            .expect("upload_categorization_progress lock poisoned")
+            .insert(upload_id, (categorized, total));
+    }
+
+    /// Read per-upload categorization progress.
+    pub fn get_upload_categorization_progress(&self, upload_id: Uuid) -> Option<(usize, usize)> {
+        self.inner
+            .upload_categorization_progress
+            .read()
+            .expect("upload_categorization_progress lock poisoned")
+            .get(&upload_id)
+            .copied()
+    }
+
+    /// Remove per-upload categorization progress once done.
+    pub fn clear_upload_categorization_progress(&self, upload_id: Uuid) {
+        self.inner
+            .upload_categorization_progress
+            .write()
+            .expect("upload_categorization_progress lock poisoned")
+            .remove(&upload_id);
     }
 
     /// Signal all background tasks to stop.

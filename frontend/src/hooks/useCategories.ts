@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApi } from './useApi';
-import { createCategoryApi, type CategoryEntry } from '@/api/categories';
+import { createCategoryApi, type CategoryEntry, type SubcategoryEntry } from '@/api/categories';
 import { toTitleCase } from '@/utils/format';
 
-/** Map from category key (e.g. "food_dining") to display label (e.g. "Food & Dining"). */
+/** Map from category or subcategory key to display label. */
 export type CategoryMap = Record<string, string>;
 
 let cachedCategories: CategoryEntry[] | null = null;
@@ -17,7 +17,7 @@ export function invalidateCategoryCache() {
 
 /**
  * Loads categories from the API (cached after first load).
- * Returns the raw list and a key->label map for display.
+ * Returns the hierarchical list, a key->label map (including subcategories), and helpers.
  */
 export function useCategories() {
   const api = useApi();
@@ -45,15 +45,27 @@ export function useCategories() {
       .catch(console.error);
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Maps both parent category keys and subcategory keys to their display labels. */
   const categoryMap: CategoryMap = useMemo(() => {
     const map: CategoryMap = {};
     for (const c of categories) {
       map[c.key] = c.label;
+      for (const sub of c.subcategories ?? []) {
+        map[sub.key] = sub.label;
+      }
     }
     return map;
   }, [categories]);
 
-  return { categories, categoryMap, refresh };
+  /** Returns the subcategories for a given parent category key. */
+  const subcategoriesFor = useCallback(
+    (categoryKey: string): SubcategoryEntry[] => {
+      return categories.find((c) => c.key === categoryKey)?.subcategories ?? [];
+    },
+    [categories],
+  );
+
+  return { categories, categoryMap, subcategoriesFor, refresh };
 }
 
 /** Convert a snake_case category key to a display label using the map, with fallback. */

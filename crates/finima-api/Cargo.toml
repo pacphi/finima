@@ -9,6 +9,7 @@ finima-db = { path = "../finima-db" }
 finima-auth = { path = "../finima-auth" }
 finima-ingest = { path = "../finima-ingest" }
 finima-llm = { path = "../finima-llm", default-features = false }
+finima-categorize = { path = "../finima-categorize" }
 finima-analysis = { path = "../finima-analysis" }
 finima-feed = { path = "../finima-feed" }
 axum = { workspace = true }
@@ -37,6 +38,14 @@ bytes = { workspace = true }
 prometheus-client = { workspace = true }
 thiserror = { workspace = true }
 dotenvy = "0.15"
+
+[[bin]]
+name = "finima-api"
+path = "src/main.rs"
+
+[[bin]]
+name = "merchant-audit"
+path = "src/bin/merchant_audit.rs"
 
 [features]
 candle = ["finima-llm/candle"]

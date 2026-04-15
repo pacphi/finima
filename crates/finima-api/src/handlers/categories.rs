@@ -11,17 +11,27 @@ use finima_core::AppError;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
+pub struct SubcategoryResponse {
+    pub key: String,
+    pub label: String,
+    pub is_system: bool,
+}
+
+#[derive(Debug, Serialize)]
 pub struct CategoryResponse {
     pub key: String,
     pub label: String,
     /// Whether this category is from the system config (not deletable) or user-created.
     pub is_system: bool,
+    pub subcategories: Vec<SubcategoryResponse>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateCategoryRequest {
     pub key: String,
     pub label: String,
+    /// If provided, this category is a subcategory of the given parent.
+    pub parent_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,7 +42,7 @@ pub struct UpdateCategoryRequest {
 /// GET /api/categories
 ///
 /// Returns the merged list of system + user-custom categories.
-/// System categories come from config/default.yaml; user categories from the database.
+/// System categories come from config/categories.yaml; user categories from the database.
 pub async fn list_categories(user: AuthUser, State(state): State<AppState>) -> impl IntoResponse {
     let mut categories: Vec<CategoryResponse> = state
         .config()
@@ -42,27 +52,52 @@ pub async fn list_categories(user: AuthUser, State(state): State<AppState>) -> i
             key: c.key.clone(),
             label: c.label.clone(),
             is_system: true,
+            subcategories: c
+                .subcategories
+                .iter()
+                .map(|s| SubcategoryResponse {
+                    key: s.key.clone(),
+                    label: s.label.clone(),
+                    is_system: true,
+                })
+                .collect(),
         })
         .collect();
 
-    // Load user custom categories
-    if let Ok(custom) = sqlx::query_as::<_, (String, String)>(
-        "SELECT key, label FROM custom_categories WHERE user_id = $1 ORDER BY key",
+    // Load user custom categories (including subcategories via parent_key).
+    if let Ok(custom) = sqlx::query_as::<_, (String, String, Option<String>)>(
+        "SELECT key, label, parent_key FROM custom_categories WHERE user_id = $1 ORDER BY key",
     )
     .bind(user.user_id)
     .fetch_all(state.pool())
     .await
     {
-        for (key, label) in custom {
-            // Override system label if same key, or add new
-            if let Some(existing) = categories.iter_mut().find(|c| c.key == key) {
-                existing.label = label;
+        for (key, label, parent_key) in custom {
+            if let Some(parent) = parent_key {
+                // Custom subcategory -- add under the matching parent.
+                if let Some(cat) = categories.iter_mut().find(|c| c.key == parent) {
+                    if let Some(existing) = cat.subcategories.iter_mut().find(|s| s.key == key) {
+                        existing.label = label;
+                    } else {
+                        cat.subcategories.push(SubcategoryResponse {
+                            key,
+                            label,
+                            is_system: false,
+                        });
+                    }
+                }
             } else {
-                categories.push(CategoryResponse {
-                    key,
-                    label,
-                    is_system: false,
-                });
+                // Custom top-level category.
+                if let Some(existing) = categories.iter_mut().find(|c| c.key == key) {
+                    existing.label = label;
+                } else {
+                    categories.push(CategoryResponse {
+                        key,
+                        label,
+                        is_system: false,
+                        subcategories: Vec::new(),
+                    });
+                }
             }
         }
     }
@@ -97,18 +132,44 @@ pub async fn create_category(
         ));
     }
 
+    let parent_key = body.parent_key.as_deref().map(|s| s.trim().to_lowercase());
+
+    // If parent_key is provided, validate the parent exists.
+    if let Some(ref pk) = parent_key {
+        let parent_exists = state.config().categories.iter().any(|c| c.key == *pk);
+        if !parent_exists {
+            // Also check custom top-level categories.
+            let custom_exists = sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM custom_categories WHERE user_id = $1 AND key = $2 AND parent_key IS NULL",
+            )
+            .bind(user.user_id)
+            .bind(pk)
+            .fetch_one(state.pool())
+            .await
+            .unwrap_or(0);
+
+            if custom_exists == 0 {
+                return Err(AppError::BadRequest(format!(
+                    "Parent category '{}' does not exist",
+                    pk
+                )));
+            }
+        }
+    }
+
     let id = Uuid::new_v4();
     sqlx::query(
         r#"
-        INSERT INTO custom_categories (id, user_id, key, label)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label
+        INSERT INTO custom_categories (id, user_id, key, label, parent_key)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label, parent_key = EXCLUDED.parent_key
         "#,
     )
     .bind(id)
     .bind(user.user_id)
     .bind(&key)
     .bind(&label)
+    .bind(&parent_key)
     .execute(state.pool())
     .await
     .map_err(|e| AppError::InternalError(format!("Failed to create category: {}", e)))?;
@@ -119,6 +180,7 @@ pub async fn create_category(
             key,
             label,
             is_system: false,
+            subcategories: Vec::new(),
         }),
     ))
 }
@@ -157,6 +219,7 @@ pub async fn update_category(
         key,
         label,
         is_system: false,
+        subcategories: Vec::new(),
     }))
 }
 

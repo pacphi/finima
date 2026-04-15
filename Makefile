@@ -54,8 +54,9 @@ COMPOSE_OBS  := $(COMPOSE) -f docker-compose.yml -f docker-compose.observability
 #   ollama        – HTTP inference via Ollama container
 #   stub          – no real LLM; all categorization returns defaults
 #
-# Default: candle with auto-detected accelerator.
-LLM ?= candle
+# Default: stub (no LLM — categorization uses Tiers 0-2 only).
+# Override with: make start LLM=ollama  or  make start LLM=candle
+LLM ?= stub
 
 # Auto-promote bare "candle" to the best accelerator for this machine.
 ifeq ($(LLM),candle)

@@ -1,0 +1,7 @@
+s3:
+  endpoint_url: "http://localhost:9000"
+  region: "us-east-1"
+  bucket: "finima-uploads"
+  access_key_id: "finima"
+  secret_access_key: "finima_dev"
+  force_path_style: true

@@ -178,6 +178,17 @@ fn spawn_llm_loader(state: state::AppState, config: &config::AppConfig) {
     tokio::spawn(async move {
         tracing::info!(provider = %llm_config.provider, "Loading LLM backend in background...");
 
+        // If the provider is explicitly "none", empty, or "stub", skip LLM
+        // entirely. Categorization will use Tiers 0-2 only.
+        match llm_config.provider.as_str() {
+            "none" | "" | "stub" => {
+                tracing::info!("LLM provider set to '{}' — categorization uses Tiers 0-2 only", llm_config.provider);
+                state.set_llm_disabled();
+                return;
+            }
+            _ => {}
+        }
+
         let result: Result<Arc<dyn finima_llm::LlmClient>, String> =
             match llm_config.provider.as_str() {
                 #[cfg(feature = "candle")]
@@ -201,9 +212,14 @@ fn spawn_llm_loader(state: state::AppState, config: &config::AppConfig) {
                     Err("Provider is 'candle' but the candle feature is not enabled".to_string())
                 }
                 #[cfg(feature = "ollama")]
-                "ollama" if !llm_config.ollama.url.is_empty() => Ok(Arc::new(
-                    finima_llm::OllamaClient::new(&llm_config.ollama.url, &llm_config.ollama.model),
-                )),
+                "ollama" if !llm_config.ollama.url.is_empty() => {
+                    Ok(Arc::new(finima_llm::OllamaClient::with_config(
+                        &llm_config.ollama.url,
+                        &llm_config.ollama.model,
+                        llm_config.timeout_seconds,
+                        llm_config.max_retries,
+                    )))
+                }
                 #[cfg(not(feature = "ollama"))]
                 "ollama" => {
                     Err("Provider is 'ollama' but the ollama feature is not enabled".to_string())
@@ -213,6 +229,11 @@ fn spawn_llm_loader(state: state::AppState, config: &config::AppConfig) {
 
         match result {
             Ok(client) => {
+                // Warm up the model so the first categorization request
+                // doesn't pay cold-start latency (model loading into GPU).
+                if let Err(e) = client.warmup().await {
+                    tracing::warn!(error = %e, "LLM warmup failed (non-fatal)");
+                }
                 state.set_llm_client(client);
                 tracing::info!("LLM backend loaded and ready");
             }

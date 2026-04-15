@@ -21,8 +21,8 @@ use finima_auth::middleware::JwtSecret;
 
 use crate::config::AppConfig;
 use crate::handlers::{
-    accounts, auth, budgets, categories, dashboard, feed, flows, overrides, portfolios, recurring,
-    savings, transactions, uploads, users,
+    accounts, auth, budgets, categories, dashboard, feed, flows, overrides, payee_rules,
+    portfolios, recurring, savings, transactions, uploads, users,
 };
 use crate::metrics::{HttpDurationLabels, HttpRequestLabels, MetricsRegistry};
 use crate::state::AppState;
@@ -328,6 +328,11 @@ pub fn build_router(
         get(overrides::list_overrides).post(overrides::create_override),
     );
 
+    // Payee rules routes (authentication required)
+    let payee_rules_routes = Router::new()
+        .route("/", get(payee_rules::list_payee_rules))
+        .route("/apply", post(payee_rules::apply_payee_rule));
+
     // Feed routes (authentication required)
     let feed_routes = Router::new()
         .route("/", get(feed::list_feed))
@@ -344,6 +349,10 @@ pub fn build_router(
         .route("/net-worth", get(dashboard::get_net_worth))
         .route("/cashflow", get(dashboard::get_cashflow))
         .route("/spending", get(dashboard::get_spending))
+        .route(
+            "/spending/subcategories",
+            get(dashboard::get_subcategory_spending),
+        )
         .route("/health-score", get(dashboard::get_health_score));
 
     // Budget routes (authentication required)
@@ -402,6 +411,7 @@ pub fn build_router(
         .nest("/api/transactions", transaction_routes)
         .nest("/api/recurring", recurring_routes)
         .nest("/api/user-overrides", override_routes)
+        .nest("/api/payee-rules", payee_rules_routes)
         .nest("/api/feed", feed_routes)
         .nest("/api/users", user_routes)
         .nest("/api/dashboard", dashboard_routes)

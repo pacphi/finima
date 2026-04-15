@@ -29,7 +29,7 @@ docker-compose.override.yml
 .DS_Store
 
 # Runtime data / logs
-data/
+data/logs
 
 # Coverage
 lcov.info

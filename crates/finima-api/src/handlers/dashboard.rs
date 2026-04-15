@@ -74,6 +74,19 @@ pub struct SpendingEntry {
     pub percentage: f64,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SubcategorySpendEntry {
+    pub subcategory: String,
+    pub amount: Decimal,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SubcategorySpendQuery {
+    pub category: String,
+    pub month: Option<String>,
+}
+
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
@@ -372,6 +385,75 @@ pub async fn get_spending(
             };
             SpendingEntry {
                 category,
+                amount,
+                percentage: pct,
+            }
+        })
+        .collect();
+
+    entries.sort_by(|a, b| b.amount.cmp(&a.amount));
+
+    Ok(Json(entries))
+}
+
+/// GET /api/dashboard/spending/subcategories?category=housing&month=2026-04
+/// Returns spending breakdown by subcategory within a given parent category.
+pub async fn get_subcategory_spending(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Query(params): Query<SubcategorySpendQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let portfolio_id = first_portfolio_id(&user, &state).await?;
+
+    let txn_rows = if let Some(ref month_str) = params.month {
+        let month = parse_month(&Some(month_str.clone()))?;
+        let end = if month.month() == 12 {
+            NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
+        } else {
+            NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
+        };
+        state
+            .transaction_repo()
+            .list_for_analysis(portfolio_id, Some(month), Some(end))
+            .await?
+    } else {
+        state
+            .transaction_repo()
+            .list_for_analysis(portfolio_id, None, None)
+            .await?
+    };
+
+    // Aggregate expenses by subcategory within the requested parent category.
+    let mut by_subcategory: std::collections::HashMap<String, Decimal> =
+        std::collections::HashMap::new();
+    let mut total_in_category = Decimal::ZERO;
+
+    for row in &txn_rows {
+        if row.amount < Decimal::ZERO {
+            let cat = row.category.as_deref().unwrap_or("");
+            if cat == params.category {
+                let sub = row
+                    .subcategory
+                    .clone()
+                    .unwrap_or_else(|| "other".to_string());
+                let abs = row.amount.abs();
+                *by_subcategory.entry(sub).or_default() += abs;
+                total_in_category += abs;
+            }
+        }
+    }
+
+    let total_f = total_in_category.to_f64().unwrap_or(1.0);
+    let mut entries: Vec<SubcategorySpendEntry> = by_subcategory
+        .into_iter()
+        .map(|(subcategory, amount)| {
+            let pct = if total_f > 0.0 {
+                amount.to_f64().unwrap_or(0.0) / total_f * 100.0
+            } else {
+                0.0
+            };
+            SubcategorySpendEntry {
+                subcategory,
                 amount,
                 percentage: pct,
             }

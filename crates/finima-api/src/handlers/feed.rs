@@ -119,12 +119,6 @@ pub async fn get_article_summary(
     State(state): State<AppState>,
     Path(article_id): Path<String>,
 ) -> Result<Json<SummaryResponse>, AppError> {
-    let llm_client = state.llm_client().ok_or_else(|| {
-        AppError::ServiceUnavailable(
-            "LLM backend is still loading — please try again shortly".to_string(),
-        )
-    })?;
-
     // Parse the article ID to extract page and index.
     let parts: Vec<&str> = article_id.split('-').collect();
     let (page, index) = match parts.as_slice() {
@@ -151,6 +145,19 @@ pub async fn get_article_summary(
     let absolute_index = start + index;
 
     let article = cached.get(absolute_index).ok_or(AppError::NotFound)?;
+
+    let llm_client = match state.llm_client() {
+        Some(c) => c,
+        None => {
+            // No LLM available — return a truncated excerpt of the article body
+            // as a fallback summary so the UI still has something to show.
+            let fallback: String = article.content_snippet.chars().take(200).collect();
+            return Ok(Json(SummaryResponse {
+                article_id,
+                summary: fallback,
+            }));
+        }
+    };
 
     let summary = finima_feed::ArticleSummarizer::summarize(
         llm_client.as_ref(),

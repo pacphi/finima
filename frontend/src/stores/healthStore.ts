@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type LlmStatus = 'loading' | 'ready' | 'failed' | 'unknown';
+export type LlmStatus = 'loading' | 'ready' | 'failed' | 'disabled' | 'unknown';
 export type FeedStatus = 'loading' | 'ready' | 'unknown';
 
 interface HealthState {
@@ -29,7 +29,10 @@ export const useHealthStore = create<HealthState>()((set, get) => ({
         const llm = body.llm;
         const feed = body.feed;
         set({
-          llmStatus: llm === 'ready' || llm === 'loading' || llm === 'failed' ? llm : 'unknown',
+          llmStatus:
+            llm === 'ready' || llm === 'loading' || llm === 'failed' || llm === 'disabled'
+              ? llm
+              : 'unknown',
           feedStatus: feed === 'ready' || feed === 'loading' ? feed : 'unknown',
         });
       } catch {
@@ -44,7 +47,7 @@ export const useHealthStore = create<HealthState>()((set, get) => ({
       if (stopped) return;
       // Stop polling once both statuses are terminal.
       const { llmStatus, feedStatus } = get();
-      const llmDone = llmStatus === 'ready' || llmStatus === 'failed';
+      const llmDone = llmStatus === 'ready' || llmStatus === 'failed' || llmStatus === 'disabled';
       const feedDone = feedStatus === 'ready';
       if (llmDone && feedDone) {
         clearInterval(id);

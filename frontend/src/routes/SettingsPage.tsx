@@ -582,7 +582,7 @@ function CategoriesTab() {
 function LlmTab() {
   const config = useConfigStore.getState();
   const [llmStatus, setLlmStatus] = useState<
-    'checking' | 'ready' | 'loading' | 'failed' | 'unreachable'
+    'checking' | 'ready' | 'loading' | 'failed' | 'disabled' | 'unreachable'
   >('checking');
   const [provider, setProvider] = useState<string>('');
   const [model, setModel] = useState<string>('');
@@ -601,6 +601,7 @@ function LlmTab() {
           const status = data.llm as string;
           if (status === 'ready') setLlmStatus('ready');
           else if (status === 'loading') setLlmStatus('loading');
+          else if (status === 'disabled') setLlmStatus('disabled');
           else setLlmStatus('failed');
         } else {
           setLlmStatus('unreachable');
@@ -624,18 +625,22 @@ function LlmTab() {
       ? 'bg-[var(--color-success)]'
       : llmStatus === 'loading'
         ? 'bg-yellow-400 animate-pulse'
-        : 'bg-[var(--color-error)]';
+        : llmStatus === 'disabled'
+          ? 'bg-gray-400'
+          : 'bg-[var(--color-error)]';
 
   const statusLabel =
     llmStatus === 'ready'
       ? 'Connected'
       : llmStatus === 'loading'
         ? 'Loading model…'
-        : llmStatus === 'failed'
-          ? 'Failed to load'
-          : llmStatus === 'unreachable'
-            ? 'Server unreachable'
-            : 'Checking…';
+        : llmStatus === 'disabled'
+          ? 'Disabled'
+          : llmStatus === 'failed'
+            ? 'Failed to load'
+            : llmStatus === 'unreachable'
+              ? 'Server unreachable'
+              : 'Checking…';
 
   return (
     <div className="space-y-6 max-w-md">
@@ -683,6 +688,13 @@ function LlmTab() {
             <span className={`w-3 h-3 rounded-full ${statusColor}`} aria-hidden="true" />
             <span className="text-[var(--color-text)]">{statusLabel}</span>
           </div>
+          {llmStatus === 'disabled' && (
+            <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+              No LLM provider configured. Transactions are categorized using merchant lookup and
+              pattern matching. To enable AI categorization, set provider to &apos;ollama&apos; or
+              &apos;candle&apos; in config/llm.yaml.
+            </p>
+          )}
         </div>
       </div>
     </div>

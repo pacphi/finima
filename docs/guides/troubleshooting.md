@@ -22,7 +22,7 @@ error messages.
 
 - **Email is in your spam folder.** Check your spam or junk folder
   for an email from "Finima" or the address configured in
-  `config/default.yaml` under `auth.from_email`.
+  `config/auth.yaml` under `auth.from_email`.
 
 - **Rate limit reached.** Finima limits magic-link requests to 5 per
   minute per IP address. Wait a minute and try again.
@@ -70,7 +70,7 @@ empty or shows generic values.
 
 - **Wrong Ollama URL.** The backend expects Ollama at
   `http://localhost:11434`. If you changed the port, update
-  `config/default.yaml` under `llm.ollama.url`.
+  `config/llm.yaml` under `llm.ollama.url`.
 
 - **Check the LLM tab in Settings.** Go to **Settings > LLM** and
   verify the connection status shows "Connected". If it shows
@@ -138,7 +138,7 @@ message.
 
 - **MinIO credentials mismatch.** If you changed `MINIO_ROOT_USER`
   or `MINIO_ROOT_PASSWORD` in `.env`, make sure the matching values
-  are in `config/default.yaml` under `s3.access_key_id` and
+  are in `config/storage.yaml` under `s3.access_key_id` and
   `s3.secret_access_key`.
 
 ---
@@ -243,7 +243,7 @@ PostgreSQL, or pages fail to load with server errors.
 - **Password mismatch.** The database password is set by the
   `POSTGRES_PASSWORD` environment variable in `.env` (default:
   `finima_dev`). The backend reads `database.password` from
-  `config/default.yaml` (overridable via `APP__DATABASE__PASSWORD`).
+  `config/database.yaml` (overridable via `APP__DATABASE__PASSWORD`).
   Make sure the password in both places matches.
 
 - **Migrations have not been run.** If you see errors about missing
@@ -276,7 +276,7 @@ is very slow.
 - **Too many database connections.** The default connection pool is
   10 connections. If you see connection pool timeout errors in the
   backend logs, increase `database.max_connections` in
-  `config/default.yaml`.
+  `config/database.yaml`.
 
 - **Large import files.** Very large statement files (tens of
   thousands of transactions) take longer to process. Consider
@@ -347,7 +347,7 @@ development and test environments (not production).
 
 - **Backend logs:** `make docker-infra-logs`
 - **Container status:** `make docker-infra-ps` or `make docker-infra-health`
-- **Check configuration:** Review `config/default.yaml` for all
+- **Check configuration:** Review the `config/*.yaml` files for all
   server-side settings.
 - **Quick Start guide:** [quick-start.md](quick-start.md)
 - **User Guide:** [user-guide.md](user-guide.md)

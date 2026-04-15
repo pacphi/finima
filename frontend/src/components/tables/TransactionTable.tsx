@@ -9,6 +9,7 @@ import {
 import { CategoryCell } from './CategoryCell';
 import { BulkEditBar } from './BulkEditBar';
 import type { Transaction, TransactionFilters, Account } from '@/types/models';
+import type { CategoryEntry } from '@/api/categories';
 import type { CategoryMap } from '@/hooks/useCategories';
 import { categoryLabel } from '@/hooks/useCategories';
 
@@ -48,14 +49,14 @@ interface TransactionTableProps {
   sorting: SortingState;
   filters: TransactionFilters;
   accounts: Account[];
-  allCategories: string[];
+  categories: CategoryEntry[];
   categoryMap: CategoryMap;
   lockedAccountId?: string;
   onSortingChange: (sorting: SortingState) => void;
   onPageChange: (page: number) => void;
   onFiltersChange: (filters: TransactionFilters) => void;
-  onCategoryChange: (transactionId: string, category: string) => void;
-  onBulkCategoryChange: (transactionIds: string[], category: string) => void;
+  onCategoryChange: (transactionId: string, category: string, subcategory?: string) => void;
+  onBulkCategoryChange: (transactionIds: string[], category: string, subcategory?: string) => void;
   onExportCsv: () => void;
 }
 
@@ -67,7 +68,7 @@ export function TransactionTable({
   sorting,
   filters,
   accounts,
-  allCategories,
+  categories,
   categoryMap,
   lockedAccountId,
   onSortingChange,
@@ -142,15 +143,29 @@ export function TransactionTable({
         cell: ({ row }) => (
           <CategoryCell
             value={row.original.category}
+            subcategory={row.original.subcategory}
             confidence={row.original.llm_confidence}
             userOverridden={row.original.user_overridden}
-            allCategories={allCategories}
+            categories={categories}
             categoryMap={categoryMap}
-            onChange={(cat) => onCategoryChange(row.original.id, cat)}
+            onChange={(cat, sub) => onCategoryChange(row.original.id, cat, sub)}
           />
         ),
-        size: 180,
+        size: 160,
         // Hide on mobile via meta
+        meta: { hideOnMobile: true },
+      },
+      {
+        accessorKey: 'subcategory',
+        header: 'Sub-category',
+        cell: ({ row }) => {
+          const sub = row.original.subcategory;
+          if (!sub) {
+            return <span className="text-[var(--color-text-secondary)] text-xs italic">--</span>;
+          }
+          return <span className="text-sm">{categoryLabel(sub, categoryMap)}</span>;
+        },
+        size: 140,
         meta: { hideOnMobile: true },
       },
       {
@@ -181,7 +196,7 @@ export function TransactionTable({
     }
 
     return cols;
-  }, [allCategories, categoryMap, onCategoryChange, lockedAccountId, accountLookup]);
+  }, [categories, categoryMap, onCategoryChange, lockedAccountId, accountLookup]);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- opted out via "use no memo"; tracked by tanstack/table#5567
   const table = useReactTable({
@@ -280,10 +295,15 @@ export function TransactionTable({
                 className="px-2 py-1.5 text-sm border border-[var(--color-input-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
               >
                 <option value="">All Categories</option>
-                {allCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {categoryLabel(c, categoryMap)}
-                  </option>
+                {categories.map((cat) => (
+                  <optgroup key={cat.key} label={cat.label}>
+                    <option value={cat.key}>{cat.label} (all)</option>
+                    {(cat.subcategories ?? []).map((sub) => (
+                      <option key={sub.key} value={sub.key}>
+                        {sub.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -353,10 +373,10 @@ export function TransactionTable({
         <div className="flex items-center gap-2">
           <BulkEditBar
             selectedCount={selectedIds.length}
-            allCategories={allCategories}
+            categories={categories}
             categoryMap={categoryMap}
-            onBulkCategoryChange={(cat) => {
-              onBulkCategoryChange(selectedIds, cat);
+            onBulkCategoryChange={(cat, sub) => {
+              onBulkCategoryChange(selectedIds, cat, sub);
               setRowSelection({});
             }}
             onClearSelection={() => setRowSelection({})}

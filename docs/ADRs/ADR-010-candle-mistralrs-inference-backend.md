@@ -23,7 +23,7 @@ mistral.rs is a production inference engine built on top of Candle by the same a
 2. Implement a `CandleClient` (implementing the existing `LlmClient` trait) that wraps the mistral.rs inference pipeline for in-process execution.
 3. Add hardware detection (`HardwareProfile`) that probes CUDA, Metal, and CPU SIMD at startup and auto-selects the optimal Gemma 4 variant and quantization.
 4. Keep `OllamaClient` as an alternative backend for users who prefer external model management.
-5. Default `provider` changes from `"ollama"` to `"candle"` in `config/default.yaml` — fulfilling the zero-external-dependency goal.
+5. Default `provider` changes from `"ollama"` to `"candle"` in `config/llm.yaml` — fulfilling the zero-external-dependency goal.
 6. Extract shared tool-call parsing into a `tool_calling` module used by both `OllamaClient` and `CandleClient`.
 7. Use Cargo feature flags: `candle` (enables mistral.rs), `cuda` (NVIDIA GPU), `metal` (Apple Silicon), `ollama` (HTTP backend).
 

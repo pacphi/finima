@@ -19,7 +19,7 @@ The S3 API endpoint is <http://localhost:9000>.
 
 ### Configuration
 
-Default values are set in `config/default.yaml`:
+Default values are set in `config/storage.yaml`:
 
 ```yaml
 s3:

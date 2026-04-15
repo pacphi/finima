@@ -2656,6 +2656,7 @@ dependencies = [
  "dotenvy",
  "finima-analysis",
  "finima-auth",
+ "finima-categorize",
  "finima-core",
  "finima-db",
  "finima-feed",
@@ -2702,6 +2703,21 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+ "uuid 1.23.0",
+]
+
+[[package]]
+name = "finima-categorize"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "strsim 0.11.1",
+ "tokio",
+ "tracing",
  "uuid 1.23.0",
 ]
 

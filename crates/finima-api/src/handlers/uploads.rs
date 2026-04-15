@@ -59,6 +59,12 @@ pub struct UploadStatusResponse {
     pub imported_count: i32,
     pub duplicate_count: i32,
     pub error_message: Option<String>,
+    /// Number of transactions categorized so far (only set during `categorizing` status).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categorized_count: Option<usize>,
+    /// Total transactions to categorize (only set during `categorizing` status).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categorized_total: Option<usize>,
 }
 
 // ---------------------------------------------------------------------------
@@ -363,9 +369,9 @@ pub async fn confirm_upload(
     Path(id): Path<Uuid>,
     Json(body): Json<ConfirmRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Gate: the LLM backend must be loaded before we accept uploads that
-    // require categorization. Return 503 so the UI can show "still loading".
-    if !state.is_llm_ready() {
+    // Only block uploads while the LLM is actively loading. If the LLM is
+    // disabled or failed, allow the upload — Tiers 0-2 handle categorization.
+    if state.llm_status() == "loading" {
         return Err(AppError::ServiceUnavailable(
             "LLM backend is still loading — please try again shortly".to_string(),
         ));
@@ -541,6 +547,12 @@ pub async fn get_upload_status(
         .verify_ownership(account.portfolio_id, user.user_id)
         .await?;
 
+    // Include categorization progress if the upload is in the categorizing phase.
+    let (categorized_count, categorized_total) = state
+        .get_upload_categorization_progress(upload.id)
+        .map(|(c, t)| (Some(c), Some(t)))
+        .unwrap_or((None, None));
+
     Ok(Json(UploadStatusResponse {
         id: upload.id,
         status: upload.status,
@@ -548,6 +560,8 @@ pub async fn get_upload_status(
         imported_count: upload.imported_count,
         duplicate_count: upload.duplicate_count,
         error_message: upload.error_message,
+        categorized_count,
+        categorized_total,
     }))
 }
 
@@ -580,6 +594,9 @@ async fn run_categorization_pipeline(
             .await?;
         return Ok(());
     }
+
+    // Seed the in-memory progress so the polling endpoint can return it immediately.
+    state.set_upload_categorization_progress(upload_id, 0, uncategorized_count);
 
     state
         .ws_manager()

@@ -1,21 +1,52 @@
 import { useState, useRef, useEffect } from 'react';
+import type { CategoryEntry } from '@/api/categories';
 import type { CategoryMap } from '@/hooks/useCategories';
 import { categoryLabel } from '@/hooks/useCategories';
 
 interface CategoryCellProps {
   value: string | null;
+  subcategory?: string | null;
   confidence: number | null;
   userOverridden: boolean;
-  allCategories: string[];
+  categories: CategoryEntry[];
   categoryMap: CategoryMap;
-  onChange: (category: string) => void;
+  onChange: (category: string, subcategory?: string) => void;
+}
+
+/** Build a flat list of selectable items from the hierarchy for search/filter. */
+interface FlatItem {
+  category: string;
+  subcategory?: string;
+  label: string;
+  parentLabel?: string;
+}
+
+function flattenCategories(categories: CategoryEntry[], categoryMap: CategoryMap): FlatItem[] {
+  const items: FlatItem[] = [];
+  for (const cat of categories) {
+    // Parent entry (selecting it means "no subcategory")
+    items.push({
+      category: cat.key,
+      label: categoryLabel(cat.key, categoryMap),
+    });
+    for (const sub of cat.subcategories ?? []) {
+      items.push({
+        category: cat.key,
+        subcategory: sub.key,
+        label: categoryLabel(sub.key, categoryMap),
+        parentLabel: categoryLabel(cat.key, categoryMap),
+      });
+    }
+  }
+  return items;
 }
 
 export function CategoryCell({
   value,
+  subcategory: _subcategory,
   confidence,
   userOverridden,
-  allCategories,
+  categories,
   categoryMap,
   onChange,
 }: CategoryCellProps) {
@@ -28,9 +59,17 @@ export function CategoryCell({
   const isLowConfidence = confidence !== null && confidence < 0.7 && !userOverridden;
 
   const displayLabel = categoryLabel(value, categoryMap);
-  const filtered = allCategories.filter((c) => {
-    const label = categoryLabel(c, categoryMap).toLowerCase();
-    return label.includes(search.toLowerCase()) || c.toLowerCase().includes(search.toLowerCase());
+
+  const allItems = flattenCategories(categories, categoryMap);
+
+  const filtered = allItems.filter((item) => {
+    const q = search.toLowerCase();
+    return (
+      item.label.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      (item.parentLabel?.toLowerCase().includes(q) ?? false) ||
+      (item.subcategory?.toLowerCase().includes(q) ?? false)
+    );
   });
 
   useEffect(() => {
@@ -51,8 +90,8 @@ export function CategoryCell({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [editing]);
 
-  const handleSelect = (category: string) => {
-    onChange(category);
+  const handleSelect = (item: FlatItem) => {
+    onChange(item.category, item.subcategory);
     setEditing(false);
     setSearch('');
     setActiveIndex(-1);
@@ -133,26 +172,32 @@ export function CategoryCell({
         aria-label="Available categories"
         className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[var(--color-dropdown-bg,var(--color-surface))] border border-[var(--color-border)] rounded-lg shadow-lg"
       >
-        {filtered.map((cat, index) => (
-          <li
-            key={cat}
-            id={`cat-option-${index}`}
-            role="option"
-            aria-selected={index === activeIndex}
-          >
-            <button
-              onClick={() => handleSelect(cat)}
-              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
-                index === activeIndex
-                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
-                  : ''
-              }`}
-              tabIndex={-1}
+        {filtered.map((item, index) => {
+          const isSubcategory = !!item.subcategory;
+          const itemLabel = isSubcategory ? `${item.parentLabel} > ${item.label}` : item.label;
+          return (
+            <li
+              key={`${item.category}-${item.subcategory ?? '_'}`}
+              id={`cat-option-${index}`}
+              role="option"
+              aria-selected={index === activeIndex}
             >
-              {categoryLabel(cat, categoryMap)}
-            </button>
-          </li>
-        ))}
+              <button
+                onClick={() => handleSelect(item)}
+                className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
+                  isSubcategory ? 'pl-6' : 'font-medium'
+                } ${
+                  index === activeIndex
+                    ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                    : ''
+                }`}
+                tabIndex={-1}
+              >
+                {isSubcategory ? item.label : itemLabel}
+              </button>
+            </li>
+          );
+        })}
         {filtered.length === 0 && (
           <li
             className="px-3 py-2 text-sm text-[var(--color-text-secondary)]"

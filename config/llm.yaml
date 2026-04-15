@@ -1,0 +1,21 @@
+llm:
+  provider: "none"
+  model: "auto"
+  candle:
+    # model_id: "google/gemma-4-E4B-it"
+    model_id: "Qwen/Qwen3-4B"
+    model_path: ""
+    quantization: "Q4_K_M"
+    device: "auto"
+    context_length: 8192
+    threads: 0
+  ollama:
+    url: "http://localhost:11434"
+    # model: "gemma4:26b-a4b-it-q4_K_M"
+    model: "qwen3:4b"
+  batch_size: 10
+  confidence_threshold: 0.7
+  timeout_seconds: 180
+  max_retries: 2
+  parallel_requests: 4
+  num_ctx: 8192

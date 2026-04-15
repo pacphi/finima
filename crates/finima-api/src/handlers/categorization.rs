@@ -7,6 +7,9 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
+use finima_categorize::{
+    CategoryAssignment as CascadeAssignment, MerchantEntry, MerchantSource, PatternEngine,
+};
 use finima_core::traits::AccountRepo;
 use finima_core::AppError;
 use finima_db::LlmCategorizationUpdate;
@@ -14,6 +17,9 @@ use finima_llm::{CategorizationProgress, Categorizer, OverridePattern, Transacti
 
 use crate::state::AppState;
 use crate::ws::{CategoryCount, WsMessage};
+
+/// Maximum number of transactions fetched for recurring-transaction detection.
+const RECURRING_DETECTION_PAGE_SIZE: i64 = 10_000;
 
 /// Result returned after a categorization run completes.
 pub struct CategorizationOutcome {
@@ -69,92 +75,342 @@ pub async fn run_categorization_for_account_with_upload(
         })
         .collect();
 
-    // Step 3: Build transaction inputs
-    let transaction_inputs: Vec<TransactionInput> = uncategorized
-        .iter()
-        .map(|t| TransactionInput {
-            id: t.id,
-            date: t.date,
-            amount: t.amount,
-            description: t.description.clone(),
-        })
-        .collect();
+    // ── Step 3: Run Tier 0 + Tier 1 Cascade ──
+    //
+    // Tier 0 (merchant lookup) uses the shared registry cached on AppState.
+    // Tier 1 (pattern engine) is built per-request with default rules.
+    // User overrides are applied later by the LLM categorizer.
+    let cascade_start = std::time::Instant::now();
+    let mut cascade_assignments: Vec<CascadeAssignment> = Vec::new();
+    let mut remaining_txn_ids: Vec<Uuid> = Vec::new();
 
-    // Step 4: Categorize using the LLM client
-    let llm_client = state
-        .llm_client()
-        .ok_or_else(|| AppError::ServiceUnavailable("LLM backend not available".to_string()))?;
-    let categorizer = Categorizer::new(llm_client);
+    {
+        let registry = state
+            .merchant_registry()
+            .read()
+            .expect("merchant_registry lock poisoned");
+        let pattern_engine = PatternEngine::with_defaults();
 
-    // Use the progress-aware variant for WS events + shutdown checks.
-    let ws_manager = state.ws_manager().clone();
-    let shutdown_state = state.clone();
-    let report = categorizer
-        .categorize_transactions_with_progress(
-            transaction_inputs,
-            override_patterns,
-            |progress: &CategorizationProgress| {
-                // Check for shutdown — return false to cancel the batch loop.
-                if shutdown_state.is_shutting_down() {
-                    return false;
-                }
+        for t in &uncategorized {
+            // Tier 0: Merchant lookup
+            if let Some(mut assignment) = registry.lookup(&t.description, None) {
+                assignment.transaction_id = t.id;
+                cascade_assignments.push(assignment);
+                continue;
+            }
 
-                if let Some(uid) = upload_id {
-                    let ws = ws_manager.clone();
-                    let msg = WsMessage::CategorizationProgress {
-                        upload_id: uid,
-                        categorized: progress.categorized,
-                        total: progress.total,
-                        flagged: progress.flagged,
-                    };
-                    // Fire-and-forget from sync context.
-                    tokio::spawn(async move {
-                        ws.send_to_user(user_id, msg).await;
-                    });
-                }
-                true // continue
-            },
-        )
-        .await
-        .map_err(|e| AppError::InternalError(format!("Categorization failed: {}", e)))?;
+            // Tier 1: Pattern engine
+            if let Some(mut assignment) = pattern_engine.match_pattern(&t.description, t.amount) {
+                assignment.transaction_id = t.id;
+                cascade_assignments.push(assignment);
+                continue;
+            }
 
-    // Step 5: Update transaction records with results
-    let updates: Vec<LlmCategorizationUpdate> = report
-        .results
-        .iter()
-        .map(|r| LlmCategorizationUpdate {
-            transaction_id: r.transaction_id,
-            category: r.category.clone(),
-            subcategory: r.subcategory.clone(),
-            merchant_name: r.merchant_name.clone(),
-            llm_confidence: r.confidence,
-        })
-        .collect();
-
-    // Persist whatever results were collected (may be partial if cancelled).
-    if !updates.is_empty() {
-        state
-            .transaction_repo()
-            .update_llm_results(&updates)
-            .await?;
+            remaining_txn_ids.push(t.id);
+        }
     }
 
-    if report.cancelled {
-        tracing::warn!(
+    let tier0_matched = cascade_assignments
+        .iter()
+        .filter(|a| a.source_tier == finima_categorize::CategorizationTier::MerchantLookup)
+        .count();
+    let tier1_matched = cascade_assignments
+        .iter()
+        .filter(|a| a.source_tier == finima_categorize::CategorizationTier::PatternEngine)
+        .count();
+
+    tracing::info!(
+        account_id = %account_id,
+        total = uncategorized.len(),
+        tier0 = tier0_matched,
+        tier1 = tier1_matched,
+        remaining = remaining_txn_ids.len(),
+        cascade_ms = cascade_start.elapsed().as_millis() as u64,
+        "cascade categorization (Tier 0 + Tier 1) complete"
+    );
+
+    // ── Step 4: Persist cascade results immediately ──
+    let mut total_categorized = 0usize;
+    let mut flagged = 0usize;
+    let mut category_map: HashMap<String, usize> = HashMap::new();
+    let confidence_threshold = state.config().llm.confidence_threshold;
+
+    if !cascade_assignments.is_empty() {
+        let cascade_updates: Vec<LlmCategorizationUpdate> = cascade_assignments
+            .iter()
+            .map(|a| LlmCategorizationUpdate {
+                transaction_id: a.transaction_id,
+                category: a.category.clone(),
+                subcategory: a.subcategory.clone(),
+                merchant_name: a.merchant_name.clone(),
+                llm_confidence: a.confidence,
+            })
+            .collect();
+
+        state
+            .transaction_repo()
+            .update_llm_results(&cascade_updates)
+            .await?;
+
+        // Set source_tier for cascade results, grouped by tier.
+        let mut tier0_ids = Vec::new();
+        let mut tier1_ids = Vec::new();
+        for a in &cascade_assignments {
+            match a.source_tier {
+                finima_categorize::CategorizationTier::MerchantLookup => {
+                    tier0_ids.push(a.transaction_id);
+                }
+                finima_categorize::CategorizationTier::PatternEngine => {
+                    tier1_ids.push(a.transaction_id);
+                }
+                _ => {}
+            }
+
+            *category_map.entry(a.category.clone()).or_insert(0) += 1;
+            if a.confidence < confidence_threshold {
+                flagged += 1;
+            }
+        }
+
+        if !tier0_ids.is_empty() {
+            state
+                .transaction_repo()
+                .set_source_tier(&tier0_ids, "merchant_lookup")
+                .await?;
+        }
+        if !tier1_ids.is_empty() {
+            state
+                .transaction_repo()
+                .set_source_tier(&tier1_ids, "pattern_engine")
+                .await?;
+        }
+
+        total_categorized += cascade_assignments.len();
+    }
+
+    // ── Step 5: Run remaining through LLM (Tier 3) ──
+    let llm_cancelled;
+    if !remaining_txn_ids.is_empty() {
+        let llm_client = match state.llm_client() {
+            Some(c) => c,
+            None => {
+                // No LLM configured or available — skip Tier 3 gracefully.
+                // Cascade results from Tiers 0-2 are already persisted above.
+                // Remaining transactions keep category = NULL for now.
+                tracing::info!(
+                    account_id = %account_id,
+                    remaining = remaining_txn_ids.len(),
+                    "No LLM available — {} transactions left uncategorized (Tiers 0-2 only)",
+                    remaining_txn_ids.len()
+                );
+                if let Some(uid) = upload_id {
+                    state.clear_upload_categorization_progress(uid);
+                }
+                let categories: Vec<CategoryCount> = category_map
+                    .into_iter()
+                    .map(|(category, count)| CategoryCount { category, count })
+                    .collect();
+                return Ok(Some(CategorizationOutcome {
+                    total: total_categorized,
+                    flagged,
+                    categories,
+                }));
+            }
+        };
+
+        // Build inputs for only the remaining uncategorized transactions.
+        let remaining_set: std::collections::HashSet<Uuid> =
+            remaining_txn_ids.iter().copied().collect();
+        let transaction_inputs: Vec<TransactionInput> = uncategorized
+            .iter()
+            .filter(|t| remaining_set.contains(&t.id))
+            .map(|t| TransactionInput {
+                id: t.id,
+                date: t.date,
+                amount: t.amount,
+                description: t.description.clone(),
+            })
+            .collect();
+
+        // Build category hierarchy from config for the LLM system prompt.
+        let category_hierarchy: Vec<(String, Vec<String>)> = state
+            .config()
+            .categories
+            .iter()
+            .map(|c| {
+                let subs = c.subcategories.iter().map(|s| s.key.clone()).collect();
+                (c.key.clone(), subs)
+            })
+            .collect();
+
+        let batch_size = state.config().llm.batch_size;
+        let confidence_threshold = state.config().llm.confidence_threshold;
+
+        let categorizer = Categorizer::new(llm_client)
+            .with_batch_size(batch_size)
+            .with_confidence_threshold(confidence_threshold)
+            .with_category_hierarchy(category_hierarchy);
+
+        // Use the progress-aware variant for WS events + shutdown checks.
+        let ws_manager = state.ws_manager().clone();
+        let shutdown_state = state.clone();
+        let progress_state = state.clone();
+        let persist_state = state.clone();
+        // Offset progress by the number already categorized by the cascade so
+        // the UI shows accurate totals.
+        let cascade_done = cascade_assignments.len();
+        let overall_total = uncategorized.len();
+        let report = categorizer
+            .categorize_transactions_with_progress(
+                transaction_inputs,
+                override_patterns,
+                |progress: &CategorizationProgress| {
+                    if shutdown_state.is_shutting_down() {
+                        return false;
+                    }
+
+                    if !progress.batch_results.is_empty() {
+                        let updates: Vec<LlmCategorizationUpdate> = progress
+                            .batch_results
+                            .iter()
+                            .map(|r| LlmCategorizationUpdate {
+                                transaction_id: r.transaction_id,
+                                category: r.category.clone(),
+                                subcategory: r.subcategory.clone(),
+                                merchant_name: r.merchant_name.clone(),
+                                llm_confidence: r.confidence,
+                            })
+                            .collect();
+
+                        let ps = persist_state.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) =
+                                ps.transaction_repo().update_llm_results(&updates).await
+                            {
+                                tracing::error!("Failed to persist batch results: {}", e);
+                            }
+                        });
+                    }
+
+                    if let Some(uid) = upload_id {
+                        progress_state.set_upload_categorization_progress(
+                            uid,
+                            cascade_done + progress.categorized,
+                            overall_total,
+                        );
+
+                        let ws = ws_manager.clone();
+                        let msg = WsMessage::CategorizationProgress {
+                            upload_id: uid,
+                            categorized: cascade_done + progress.categorized,
+                            total: overall_total,
+                            flagged: progress.flagged,
+                        };
+                        tokio::spawn(async move {
+                            ws.send_to_user(user_id, msg).await;
+                        });
+                    }
+                    true
+                },
+            )
+            .await
+            .map_err(|e| AppError::InternalError(format!("Categorization failed: {}", e)))?;
+
+        if let Some(uid) = upload_id {
+            state.clear_upload_categorization_progress(uid);
+        }
+
+        // Final persist for LLM results (catches stragglers).
+        let updates: Vec<LlmCategorizationUpdate> = report
+            .results
+            .iter()
+            .map(|r| LlmCategorizationUpdate {
+                transaction_id: r.transaction_id,
+                category: r.category.clone(),
+                subcategory: r.subcategory.clone(),
+                merchant_name: r.merchant_name.clone(),
+                llm_confidence: r.confidence,
+            })
+            .collect();
+
+        if !updates.is_empty() {
+            state
+                .transaction_repo()
+                .update_llm_results(&updates)
+                .await?;
+        }
+
+        // Set source_tier = 'llm' for LLM-categorized transactions.
+        let llm_ids: Vec<Uuid> = report.results.iter().map(|r| r.transaction_id).collect();
+        if !llm_ids.is_empty() {
+            state
+                .transaction_repo()
+                .set_source_tier(&llm_ids, "llm")
+                .await?;
+        }
+
+        // ── Step 6: Feedback loop — high-confidence LLM results enrich Tier 0 ──
+        {
+            let registry = state.merchant_registry();
+            if let Ok(mut reg) = registry.write() {
+                let mut learned = 0usize;
+                for r in &report.results {
+                    if r.confidence >= 0.9 && !r.merchant_name.is_empty() {
+                        reg.add_merchant(MerchantEntry {
+                            canonical_name: r.merchant_name.clone(),
+                            aliases: vec![],
+                            category: r.category.clone(),
+                            subcategory: r.subcategory.clone(),
+                            confidence: r.confidence,
+                            source: MerchantSource::LlmLearned,
+                            last_seen: chrono::Utc::now(),
+                        });
+                        learned += 1;
+                    }
+                }
+                if learned > 0 {
+                    tracing::info!(
+                        learned,
+                        registry_size = reg.len(),
+                        "feedback: promoted LLM results to merchant registry"
+                    );
+                }
+            }
+        }
+
+        for r in &report.results {
+            *category_map.entry(r.category.clone()).or_insert(0) += 1;
+            if r.confidence < confidence_threshold {
+                flagged += 1;
+            }
+        }
+
+        total_categorized += report.results.len();
+        llm_cancelled = report.cancelled;
+
+        if report.cancelled {
+            tracing::warn!(
+                account_id = %account_id,
+                categorized = report.results.len(),
+                "Categorization cancelled due to shutdown — partial results saved"
+            );
+        }
+    } else {
+        // All transactions were handled by the cascade; no LLM needed.
+        llm_cancelled = false;
+        if let Some(uid) = upload_id {
+            state.clear_upload_categorization_progress(uid);
+        }
+        tracing::info!(
             account_id = %account_id,
-            categorized = report.results.len(),
-            "Categorization cancelled due to shutdown — partial results saved"
+            total = total_categorized,
+            "all transactions categorized by cascade — LLM not needed"
         );
     }
 
-    let flagged = report.flagged;
-    let total = report.results.len();
+    let total = total_categorized;
 
-    // Aggregate category counts for the summary
-    let mut category_map: HashMap<String, usize> = HashMap::new();
-    for r in &report.results {
-        *category_map.entry(r.category.clone()).or_insert(0) += 1;
-    }
+    // Aggregate category counts for the summary.
     let mut categories: Vec<CategoryCount> = category_map
         .into_iter()
         .map(|(category, count)| CategoryCount { category, count })
@@ -162,7 +418,7 @@ pub async fn run_categorization_for_account_with_upload(
     categories.sort_by(|a, b| b.count.cmp(&a.count));
 
     // Skip recurring detection during shutdown to exit promptly.
-    if report.cancelled {
+    if llm_cancelled {
         return Ok(Some(CategorizationOutcome {
             total,
             flagged,
@@ -170,7 +426,7 @@ pub async fn run_categorization_for_account_with_upload(
         }));
     }
 
-    // Step 6: Trigger recurring detection for the portfolio
+    // Step 7: Trigger recurring detection for the portfolio
     let account = state.account_repo().find_by_id(account_id).await?;
     let portfolio_id = account.portfolio_id;
 
@@ -183,7 +439,7 @@ pub async fn run_categorization_for_account_with_upload(
             },
             &finima_db::Pagination {
                 page: 1,
-                per_page: 10_000,
+                per_page: RECURRING_DETECTION_PAGE_SIZE,
             },
             &finima_db::Sort::default(),
         )

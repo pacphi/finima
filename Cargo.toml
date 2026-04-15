@@ -8,6 +8,7 @@ members = [
     "crates/finima-llm",
     "crates/finima-analysis",
     "crates/finima-feed",
+    "crates/finima-categorize",
 ]
 resolver = "2"
 

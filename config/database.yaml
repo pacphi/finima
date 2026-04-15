@@ -1,0 +1,7 @@
+database:
+  host: "localhost"
+  port: 5432
+  user: "finima"
+  password: "finima_dev"
+  name: "finima"
+  max_connections: 10

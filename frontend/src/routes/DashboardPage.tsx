@@ -15,6 +15,7 @@ import type {
   NetWorthPoint,
   MonthlyCashFlow,
   CategorySpend,
+  SubcategorySpend,
   BudgetVsActual,
   HealthScore,
   RecurringGroup,
@@ -112,6 +113,8 @@ export function DashboardPage() {
   const [cashflowData, setCashflowData] = useState<MonthlyCashFlow[]>([]);
   const [spendingData, setSpendingData] = useState<CategorySpend[]>([]);
   const [spendingMode, setSpendingMode] = useState<'month' | 'all'>('month');
+  const [selectedSpendingCategory, setSelectedSpendingCategory] = useState<string | null>(null);
+  const [subcategorySpending, setSubcategorySpending] = useState<SubcategorySpend[] | null>(null);
   const [budgetData, setBudgetData] = useState<BudgetVsActual[]>([]);
   const [healthData, setHealthData] = useState<HealthScore | null>(null);
   const [upcomingBills, setUpcomingBills] = useState<RecurringGroup[]>([]);
@@ -161,6 +164,9 @@ export function DashboardPage() {
         const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
         const data = await dashboardApi.getSpending(month);
         setSpendingData(data);
+        // Clear subcategory drill-down when spending mode changes
+        setSelectedSpendingCategory(null);
+        setSubcategorySpending(null);
       } catch {
         // handled by empty state
       }
@@ -181,11 +187,28 @@ export function DashboardPage() {
   );
 
   const handleCategoryClick = useCallback(
-    (category: string) => {
-      navigate(`/transactions?category=${encodeURIComponent(category)}`);
+    async (category: string) => {
+      if (category === 'Other') {
+        // "Other" is an aggregate -- navigate instead of drilling down
+        navigate(`/transactions?category=${encodeURIComponent(category)}`);
+        return;
+      }
+      setSelectedSpendingCategory(category);
+      try {
+        const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
+        const data = await dashboardApi.getSubcategorySpending(category, month);
+        setSubcategorySpending(data);
+      } catch {
+        setSubcategorySpending(null);
+      }
     },
-    [navigate],
+    [dashboardApi, navigate, spendingMode],
   );
+
+  const handleDismissSubcategory = useCallback(() => {
+    setSelectedSpendingCategory(null);
+    setSubcategorySpending(null);
+  }, []);
 
   if (loading) {
     return (
@@ -386,7 +409,13 @@ export function DashboardPage() {
                 </button>
               </div>
               {spendingData.length > 0 ? (
-                <SpendingDonut data={spendingData} onCategoryClick={handleCategoryClick} />
+                <SpendingDonut
+                  data={spendingData}
+                  onCategoryClick={handleCategoryClick}
+                  selectedCategory={selectedSpendingCategory}
+                  subcategoryData={subcategorySpending}
+                  onDismissSubcategory={handleDismissSubcategory}
+                />
               ) : (
                 <p className="text-sm text-[var(--color-text-secondary)]">
                   {spendingMode === 'month'

@@ -56,7 +56,7 @@ export function createTransactionApi(api: {
       data: Partial<{ category: string; subcategory: string; notes: string; tags: string[] }>,
     ) => api.put<Transaction>(`/api/transactions/${id}`, data),
 
-    bulkUpdateTransactions: (data: { ids: string[]; category: string }) =>
+    bulkUpdateTransactions: (data: { ids: string[]; category: string; subcategory?: string }) =>
       api.post<{ updated: number }>('/api/transactions/bulk-update', data),
 
     searchTransactions: (query: string) =>

@@ -58,10 +58,13 @@ To run only the backend (useful when working on backend code):
 make dev-backend
 ```
 
-The backend loads `config/default.yaml` and then `.env` (via `dotenvy`)
-automatically. Variables prefixed with `APP__` override the corresponding
-YAML keys (e.g. `APP__DATABASE__URL` overrides `database.url`). No `.env`
-file is required for local development if you keep the defaults.
+The backend loads configuration from individual YAML files in `config/`
+(`server.yaml`, `database.yaml`, `auth.yaml`, `llm.yaml`, `storage.yaml`,
+`categories.yaml`, `services.yaml`, `logging.yaml`), then applies environment
+overlays (`development.yaml`, `production.yaml`), and finally environment
+variables prefixed with `APP__` (e.g. `APP__DATABASE__URL` overrides
+`database.url`). No `.env` file is required for local development if you keep
+the defaults.
 
 If you are not using Make, you can start the app directly:
 
@@ -73,12 +76,21 @@ cd frontend && pnpm dev                    # Start frontend (separate terminal)
 
 ### LLM Backend Configuration
 
-Finima uses an LLM to categorize transactions, enrich recurring payment
-metadata, and generate spending insights. Three backends are available, selected
-by the `llm.provider` field in `config/default.yaml` (or the `APP__LLM__PROVIDER`
-environment variable).
+Finima can optionally use an LLM to categorize transactions, enrich recurring
+payment metadata, and generate spending insights. **By default, no LLM is
+configured** -- the application runs with Tiers 0-2 (merchant lookup, pattern
+engine, and semantic search) which handle 80-95% of transactions. Uncategorized
+transactions can be manually categorized via the UI.
 
-#### Option 1: Candle (default -- in-process inference)
+The default configuration in `config/llm.yaml` is `provider: "none"`. Three LLM
+backends are available, selected by the `llm.provider` field in `config/llm.yaml`
+(or the `APP__LLM__PROVIDER` environment variable):
+
+- `make start` -- runs without LLM (default, `LLM=stub`)
+- `make start LLM=ollama` -- enables Ollama for AI categorization
+- `make start LLM=candle` -- enables Candle for AI categorization
+
+#### Option 1: Candle (in-process inference)
 
 The Candle backend uses [mistral.rs](https://github.com/EricLBuehler/mistral.rs)
 to run model inference directly inside the Finima process, removing the HTTP
@@ -205,6 +217,66 @@ The `finima-api` crate re-exports these as pass-through features. When you run
 | Model management | `make models LLM=ollama`    | `make models LLM=candle`     |
 | Production use   | Needs sidecar container     | Single binary, no sidecar    |
 
+### Merchant Audit Tool
+
+The `merchant-audit` CLI binary helps maintainers identify uncategorized
+merchants and find candidates for adding to the seed data. It connects to the
+database, loads the current seed merchant registry, and prints a report
+covering:
+
+- Total, categorized, and uncategorized transaction counts
+- Tier distribution (merchant_lookup, pattern_engine, llm, etc.)
+- Top uncategorized descriptions with occurrence counts
+- Suggested new seed merchants -- LLM-categorized merchants not yet in
+  `seed_merchants.json`, printed as JSON snippets ready to paste
+
+**How to run:**
+
+```sh
+cargo run --bin merchant-audit
+```
+
+The tool uses the same configuration loading as the main API server (YAML files
+in `config/`, environment variables with `APP__` prefix, `.env` file). It is
+non-interactive and prints the report to stdout.
+
+**Example output:**
+
+```text
+Merchant Audit Report
+=====================
+
+Transactions: 816 total, 519 categorized (64%), 297 uncategorized
+
+Tier Distribution:
+  merchant_lookup       267 (51%)
+  pattern_engine        116 (22%)
+  llm                   136 (26%)
+
+Top Uncategorized Descriptions:
+    68x  External Withdrawal - CHASE CREDIT CRD  - EPAY
+    33x  External Withdrawal - AMEX EPAYMENT ER AM - ACH PMT
+    27x  External Withdrawal - BK OF AMER VISA  - ONLINE PMT
+    ...
+
+Suggested Seed Merchants (from LLM results, not in current seed data):
+  {"name": "Optum", "aliases": ["OPTUM"], "category": "healthcare", "subcategory": "health_insurance"},
+  {"name": "Cornerstone Bank", "aliases": ["CORNERSTONE BANK"], "category": "transfer", "subcategory": "ach_transfer"},
+  ...
+
+To add these, append them to:
+  crates/finima-categorize/data/seed_merchants.json
+```
+
+**Using the output to improve seed data:**
+
+1. Run the audit after a batch of LLM categorizations.
+2. Review the suggested merchants for accuracy.
+3. Copy the JSON lines into `crates/finima-categorize/data/seed_merchants.json`
+   (inside the top-level array).
+4. Rebuild and restart -- those merchants will now be categorized instantly by
+   Tier 0 on subsequent imports, avoiding LLM calls.
+
 ## Project Structure
 
 ### Workspace Layout
@@ -214,7 +286,15 @@ finima/
   Cargo.toml                  # Workspace root
   Makefile                    # Build, test, deploy commands
   config/
-    default.yaml              # Dev defaults
+    server.yaml               # Server host/port
+    database.yaml             # Database connection
+    auth.yaml                 # Authentication settings
+    llm.yaml                  # LLM provider config
+    storage.yaml              # S3/MinIO settings
+    categories.yaml           # Category hierarchy
+    services.yaml             # Resend, feed, CORS
+    logging.yaml              # Logging configuration
+    development.yaml          # Dev overrides
     production.yaml           # Prod overrides
   crates/
     finima-core/              # Domain types, traits, error types
@@ -467,7 +547,9 @@ make docker-build
 
 The application uses the `config` crate with this precedence (highest wins):
 
-1. `config/default.yaml` -- base defaults for all environments
+1. Individual section files (`config/server.yaml`, `config/database.yaml`,
+   `config/auth.yaml`, `config/llm.yaml`, `config/storage.yaml`,
+   `config/categories.yaml`, `config/services.yaml`, `config/logging.yaml`)
 2. `config/{APP_ENV}.yaml` -- environment-specific overrides (e.g.,
    `production.yaml`)
 3. Environment variables -- prefixed with `APP__`, double underscores for
@@ -475,7 +557,8 @@ The application uses the `config` crate with this precedence (highest wins):
 
 ### Adding a New Config Field
 
-1. Add the field to `config/default.yaml` with a sensible default.
+1. Add the field to the appropriate section file in `config/` (e.g.,
+   `config/llm.yaml` for LLM settings) with a sensible default.
 2. Add the corresponding field to the `AppConfig` struct in
    `crates/finima-api/src/config.rs`.
 3. If the field needs a production override, add it to `config/production.yaml`
@@ -517,7 +600,7 @@ for level control. Two YAML fields govern logging:
 
 | Config             | `level`                             | `format`          | Rationale                                   |
 | ------------------ | ----------------------------------- | ----------------- | ------------------------------------------- |
-| `default.yaml`     | `warn`                              | `json`            | Production-safe baseline; quiet, structured |
+| `logging.yaml`     | `warn`                              | `json`            | Production-safe baseline; quiet, structured |
 | `development.yaml` | `debug,h2=warn,hyper_util=warn,...` | `pretty`          | Verbose for app code, noisy deps suppressed |
 | `test.yaml`        | `warn`                              | `pretty`          | Quiet tests                                 |
 | `production.yaml`  | `info`                              | _(inherits json)_ | Operational visibility without noise        |

@@ -102,6 +102,10 @@ export interface Upload {
   skipped_count: number | null;
   error_message: string | null;
   column_mapping: Record<string, string> | null;
+  /** Number of transactions categorized so far (present during `categorizing` status). */
+  categorized_count?: number | null;
+  /** Total transactions to categorize (present during `categorizing` status). */
+  categorized_total?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -278,6 +282,12 @@ export interface MonthlyCashFlow {
 
 export interface CategorySpend {
   category: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface SubcategorySpend {
+  subcategory: string;
   amount: number;
   percentage: number;
 }

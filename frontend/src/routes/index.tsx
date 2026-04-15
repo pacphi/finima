@@ -9,6 +9,7 @@ import { DashboardPage } from './DashboardPage';
 import { AccountsPage } from './AccountsPage';
 import { AccountDetailPage } from './AccountDetailPage';
 import { TransactionsPage } from './TransactionsPage';
+import { PayeeRulesPage } from './PayeeRulesPage';
 import { RecurringPage } from './RecurringPage';
 import { FlowsPage } from './FlowsPage';
 import { BudgetPage } from './BudgetPage';
@@ -64,6 +65,7 @@ export function AppRoutes() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/payee-rules" element={<PayeeRulesPage />} />
         <Route path="/recurring" element={<RecurringPage />} />
         <Route path="/flows" element={<FlowsPage />} />
         <Route path="/budget" element={<BudgetPage />} />

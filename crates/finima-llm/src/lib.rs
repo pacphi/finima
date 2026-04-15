@@ -3,6 +3,7 @@
 //! Provides a trait-based interface for transaction categorization
 //! via Candle (in-process) or Ollama (HTTP) backends.
 
+pub mod batch_json;
 pub mod categorizer;
 pub mod client;
 pub mod enricher;
@@ -18,6 +19,10 @@ pub mod tool_defs;
 pub mod candle_backend;
 
 // Re-export primary types for convenience.
+pub use batch_json::{
+    build_batch_json_system_prompt, build_batch_json_user_prompt, parse_batch_json_response,
+    BatchJsonEntry,
+};
 pub use categorizer::{CategorizationProgress, CategorizationReport, Categorizer};
 pub use client::{
     CategorizationBatch, CategorizationResult, LlmClient, OverridePattern, RecurringEnrichment,
@@ -197,7 +202,7 @@ mod tests {
 
     #[test]
     fn system_prompt_is_nonempty_and_mentions_categorize() {
-        let prompt = prompts::build_categorization_system_prompt();
+        let prompt = prompts::build_categorization_system_prompt(&[]);
         assert!(!prompt.is_empty());
         assert!(
             prompt.to_lowercase().contains("categorize"),
@@ -460,6 +465,7 @@ mod tests {
         let batch = CategorizationBatch {
             transactions: vec![txn.clone()],
             user_overrides: vec![],
+            category_hierarchy: vec![],
         };
 
         let results = client.categorize_batch(&batch).await.unwrap();

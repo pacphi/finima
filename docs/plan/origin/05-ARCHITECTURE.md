@@ -196,7 +196,14 @@ finima/
 │       ├── ci.yml                # Lint, test, build
 │       └── release.yml           # Docker image build + push
 ├── config/
-│   ├── default.yaml              # Base config (all keys, safe defaults)
+│   ├── server.yaml               # Server host/port
+│   ├── database.yaml             # Database connection
+│   ├── auth.yaml                 # Authentication settings
+│   ├── llm.yaml                  # LLM provider config
+│   ├── storage.yaml              # S3/MinIO settings
+│   ├── categories.yaml           # Category hierarchy
+│   ├── services.yaml             # Resend, feed, CORS
+│   ├── logging.yaml              # Logging config
 │   ├── development.yaml          # Dev overrides
 │   ├── test.yaml                 # Test overrides (test DB, mock endpoints)
 │   └── production.yaml           # Prod overrides (log level, pool size)

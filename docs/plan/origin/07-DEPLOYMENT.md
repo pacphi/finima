@@ -563,7 +563,7 @@ All configuration is externalized into **YAML files** with a layered override hi
 ### Backend Configuration (config-rs + YAML)
 
 ```yaml
-# config/default.yaml — Base configuration (all keys, safe defaults)
+# config/server.yaml — Server configuration (see also database.yaml, auth.yaml, etc.)
 server:
   host: '0.0.0.0'
   port: 3000
@@ -675,7 +675,7 @@ APP__DATABASE__URL=postgres://finima:STRONG_PASSWORD@postgres:5432/finima
 POSTGRES_PASSWORD=STRONG_PASSWORD
 ```
 
-**Loading order:** `config/default.yaml` → `config/{APP_ENV}.yaml` → environment variables (double-underscore separator: `APP__DATABASE__URL` overrides `database.url`).
+**Loading order:** Individual section files (`config/server.yaml`, `config/database.yaml`, etc.) → `config/{APP_ENV}.yaml` → environment variables (double-underscore separator: `APP__DATABASE__URL` overrides `database.url`).
 
 ---
 

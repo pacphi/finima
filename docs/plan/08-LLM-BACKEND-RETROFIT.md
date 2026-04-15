@@ -16,7 +16,7 @@ All items complete. 52 tests passing (44 unit + 8 integration), 9 ignored (requi
 | **Phase 2: Candle In-Process Backend** | DONE   | `CandleClient` fully wired to `mistralrs` 0.8.1 API. `ModelBuilder`/`GgufModelBuilder` for model loading, `RequestBuilder` with tool calling, response conversion to shared JSON format.                 |
 | **Phase 3: Hardware Detection**        | DONE   | `hardware.rs` with `HardwareProfile`, `Accelerator` enum, CPU SIMD detection, CUDA stub, Metal detection, auto model resolution. 6 tests passing.                                                        |
 | **Phase 4: Tool Calling Engine**       | DONE   | `tool_calling.rs` extracts shared parsing from `OllamaClient`. Both Ollama and OpenAI response formats supported. 7 tests passing.                                                                       |
-| **Config YAML**                        | DONE   | `config/default.yaml` updated: `provider: "candle"`, `model: "auto"`, full `candle` block, removed `llamacpp`.                                                                                           |
+| **Config YAML**                        | DONE   | `config/llm.yaml` updated: `provider: "candle"`, `model: "auto"`, full `candle` block, removed `llamacpp`.                                                                                               |
 | **Config Structs**                     | DONE   | `finima-api/src/config.rs`: `CandleConfig` struct, `LlamaCppConfig` removed, serde defaults.                                                                                                             |
 | **State Provider Selection**           | DONE   | `finima-api/src/state.rs`: Three-way match (`candle`/`ollama`/`stub`) with feature gates and fallback. `AppState::new()` now async.                                                                      |
 | **ADR-010**                            | DONE   | New ADR documenting Candle/mistral.rs decision at `docs/ADRs/ADR-010-candle-mistralrs-inference-backend.md`.                                                                                             |
@@ -340,7 +340,7 @@ Users can override via config (`llm.model` in YAML or `APP__LLM__MODEL` env var)
 
 | File                       | Change                                           |
 | -------------------------- | ------------------------------------------------ |
-| `config/default.yaml`      | Add `candle` provider config block               |
+| `config/llm.yaml`          | Add `candle` provider config block               |
 | `finima-api/src/config.rs` | Add `CandleConfig` struct                        |
 | `finima-api/src/state.rs`  | Extend match on `provider` to include `"candle"` |
 | `finima-llm/src/lib.rs`    | Re-export `CandleClient`                         |

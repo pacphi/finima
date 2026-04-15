@@ -25,7 +25,14 @@ Use the **`config-rs`** crate (with YAML backend) to load configuration from a l
 
 ```text
 config/
-├── default.yaml          # Base configuration (all keys, safe defaults)
+├── server.yaml           # Server host/port
+├── database.yaml         # Database connection settings
+├── auth.yaml             # Authentication / JWT settings
+├── llm.yaml              # LLM provider configuration
+├── storage.yaml          # S3/MinIO object storage
+├── categories.yaml       # Category & subcategory hierarchy
+├── services.yaml         # Resend, feed, CORS settings
+├── logging.yaml          # Logging level & format
 ├── development.yaml      # Dev overrides (local URLs, debug logging)
 ├── test.yaml             # Test overrides (test DB, mock endpoints)
 └── production.yaml       # Prod overrides (real secrets, prod URLs)
@@ -33,7 +40,7 @@ config/
 
 **Loading order** (later overrides earlier):
 
-1. `config/default.yaml` — always loaded.
+1. Individual section files (`server.yaml`, `database.yaml`, `auth.yaml`, `llm.yaml`, `storage.yaml`, `categories.yaml`, `services.yaml`, `logging.yaml`) — each optional.
 2. `config/{APP_ENV}.yaml` — loaded based on `APP_ENV` environment variable (`development`, `test`, `production`).
 3. Environment variables — e.g., `APP__DATABASE__PASSWORD` overrides `database.password` in YAML (double-underscore separator).
 
@@ -42,7 +49,7 @@ This gives a clean hierarchy: YAML files define structure, `APP_ENV` selects the
 **Backend YAML structure:**
 
 ```yaml
-# config/default.yaml
+# config/server.yaml
 server:
   host: '0.0.0.0'
   port: 3000
@@ -176,7 +183,7 @@ The `.env` file still exists but **only for secret injection**, not for structur
 
 - Nested, structured configuration with clear hierarchy and grouping.
 - Type-safe deserialization via serde in Rust — misconfigurations caught at startup, not at first use.
-- Environment layering without duplication — `production.yaml` only overrides what differs from `default.yaml`.
+- Environment layering without duplication — `production.yaml` only overrides what differs from the section files.
 - Frontend config is runtime-swappable — no rebuild needed to change API URLs or toggle features.
 - Feed sources, rate limits, and CORS origins are configurable without code changes.
 - YAML is human-readable and supports comments (unlike `.env`).

@@ -34,6 +34,7 @@ fn make_test_batch(descriptions: Vec<&str>) -> CategorizationBatch {
     CategorizationBatch {
         transactions,
         user_overrides: vec![],
+        category_hierarchy: vec![],
     }
 }
 

@@ -1,0 +1,6 @@
+auth:
+  jwt_secret: "change-me-in-production"
+  magic_link_expiry_minutes: 15
+  from_email: "Finima <auth@finima.app>"
+  public_url: "http://localhost:5173"
+  rate_limit_per_hour: 5

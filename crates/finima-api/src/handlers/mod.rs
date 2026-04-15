@@ -8,6 +8,7 @@ pub mod feed;
 pub mod flows;
 pub mod helpers;
 pub mod overrides;
+pub mod payee_rules;
 pub mod portfolios;
 pub mod recurring;
 pub mod savings;

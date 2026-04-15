@@ -55,7 +55,7 @@ export function FileUpload({
   const api = useApi();
   const uploadApi = createUploadApi(api);
   const llmStatus = useHealthStore((s) => s.llmStatus);
-  const llmReady = llmStatus === 'ready';
+  const llmBlocking = llmStatus === 'loading';
 
   const [file, setFile] = useState<File | null>(null);
   const [detectedFormat, setDetectedFormat] = useState<FileFormat | null>(null);
@@ -87,7 +87,7 @@ export function FileUpload({
     accept: ACCEPT_MAP,
     maxFiles: 1,
     multiple: false,
-    disabled: !llmReady,
+    disabled: llmBlocking,
   });
 
   const handleUpload = async () => {
@@ -194,6 +194,14 @@ export function FileUpload({
                   : ''}
               </p>
             )}
+            {processingStatus.status === 'categorizing' &&
+              processingStatus.categorized_count != null &&
+              processingStatus.categorized_total != null && (
+                <p className="text-xs text-[var(--color-primary)]">
+                  {processingStatus.categorized_count} of {processingStatus.categorized_total}{' '}
+                  transactions categorized
+                </p>
+              )}
           </div>
         </div>
       </div>
@@ -216,7 +224,7 @@ export function FileUpload({
 
   return (
     <div className="space-y-4">
-      {!llmReady && (
+      {llmStatus === 'loading' && (
         <div
           className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800"
           role="status"
@@ -225,20 +233,18 @@ export function FileUpload({
             className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse"
             aria-hidden="true"
           />
-          {llmStatus === 'failed'
-            ? 'AI model failed to load — uploads that require categorization are unavailable.'
-            : 'AI model is loading — upload will be available once it is ready.'}
+          AI model is loading — upload will be available once it is ready.
         </div>
       )}
 
       <div
         {...getRootProps()}
         role="button"
-        tabIndex={llmReady ? 0 : -1}
-        aria-disabled={!llmReady}
+        tabIndex={llmBlocking ? -1 : 0}
+        aria-disabled={llmBlocking}
         aria-label="File drop zone. Drop a file or press Enter to browse. Supported formats: CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX."
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          !llmReady
+          llmBlocking
             ? 'border-[var(--color-border)] bg-[var(--color-surface)] cursor-not-allowed opacity-60'
             : isDragActive
               ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)] cursor-pointer'
@@ -256,6 +262,12 @@ export function FileUpload({
           CSV, TSV, OFX, QFX, QBO, QIF, XLS, XLSX
         </p>
       </div>
+
+      {llmStatus === 'disabled' && (
+        <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+          Categorization uses pattern matching. Enable an LLM provider for higher accuracy.
+        </p>
+      )}
 
       {error && (
         <div
@@ -282,9 +294,9 @@ export function FileUpload({
           </div>
           <button
             onClick={handleUpload}
-            disabled={!llmReady}
+            disabled={llmBlocking}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              llmReady
+              !llmBlocking
                 ? 'btn-primary'
                 : 'bg-[var(--color-primary-muted)] cursor-not-allowed text-white'
             }`}

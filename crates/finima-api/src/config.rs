@@ -3,7 +3,7 @@ use serde::Deserialize;
 /// Top-level application configuration deserialized from YAML files.
 ///
 /// Loading order (later overrides earlier):
-/// 1. `config/default.yaml`
+/// 1. Individual section files (`config/server.yaml`, `config/database.yaml`, etc.)
 /// 2. `config/{APP_ENV}.yaml` (development | test | production)
 /// 3. Environment variables prefixed with `APP` using `__` as separator
 #[derive(Debug, Deserialize, Clone)]
@@ -23,9 +23,17 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, serde::Serialize)]
+pub struct SubcategoryEntry {
+    pub key: String,
+    pub label: String,
+}
+
+#[derive(Debug, Deserialize, Clone, serde::Serialize)]
 pub struct CategoryEntry {
     pub key: String,
     pub label: String,
+    #[serde(default)]
+    pub subcategories: Vec<SubcategoryEntry>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -120,6 +128,14 @@ pub struct LlmConfig {
     #[serde(default = "default_max_retries")]
     #[allow(dead_code)]
     pub max_retries: u32,
+    /// Number of parallel batch requests to send to the LLM.
+    #[serde(default = "default_parallel_requests")]
+    #[allow(dead_code)]
+    pub parallel_requests: usize,
+    /// Context window size in tokens for the LLM.
+    #[serde(default = "default_num_ctx")]
+    #[allow(dead_code)]
+    pub num_ctx: usize,
 }
 
 fn default_batch_size() -> usize {
@@ -133,6 +149,12 @@ fn default_timeout_seconds() -> u64 {
 }
 fn default_max_retries() -> u32 {
     2
+}
+fn default_parallel_requests() -> usize {
+    1
+}
+fn default_num_ctx() -> usize {
+    4096
 }
 
 /// Candle backend configuration; fields are read when the `candle` feature is enabled.
@@ -299,9 +321,10 @@ pub fn validate_config(config: &AppConfig) {
 
 /// Load application configuration from YAML files and environment variables.
 ///
-/// Reads `config/default.yaml`, then overlays `config/{APP_ENV}.yaml` (defaulting
-/// to "development"), then overlays environment variables with prefix `APP` and
-/// separator `__` (e.g., `APP__DATABASE__PASSWORD`).
+/// Loads individual section files (`config/server.yaml`, `config/database.yaml`,
+/// etc.), then `config/{APP_ENV}.yaml` (defaulting to "development"), then
+/// environment variables with prefix `APP` and separator `__` (e.g.,
+/// `APP__DATABASE__PASSWORD`).
 pub fn load_config() -> Result<AppConfig, config::ConfigError> {
     let config = load_config_from("config")?;
     validate_config(&config);
@@ -312,19 +335,48 @@ pub fn load_config() -> Result<AppConfig, config::ConfigError> {
 ///
 /// This is the same as `load_config()` but allows specifying where the
 /// config files live. Useful for testing.
+///
+/// Loading order (later overrides earlier):
+/// 1. Individual section files (`server.yaml`, `database.yaml`, etc.)
+/// 2. `{APP_ENV}.yaml` — environment-specific overlay
+/// 3. Environment variables prefixed with `APP` using `__` as separator
 pub fn load_config_from(config_dir: &str) -> Result<AppConfig, config::ConfigError> {
     let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
 
-    let config = config::Config::builder()
-        .add_source(config::File::with_name(&format!("{}/default", config_dir)))
-        .add_source(config::File::with_name(&format!("{}/{}", config_dir, app_env)).required(false))
-        .add_source(
-            config::Environment::with_prefix("APP")
-                .separator("__")
-                .try_parsing(true),
-        )
-        .build()?;
+    // Individual section files are loaded first.  Each file is optional so
+    // the loader is flexible about which files are present.
+    let section_files = [
+        "server",
+        "database",
+        "auth",
+        "llm",
+        "storage",
+        "categories",
+        "services",
+        "logging",
+    ];
 
+    let mut builder = config::Config::builder();
+
+    for section in &section_files {
+        builder = builder.add_source(
+            config::File::with_name(&format!("{}/{}", config_dir, section)).required(false),
+        );
+    }
+
+    // Environment overlay (development / test / production).
+    builder = builder.add_source(
+        config::File::with_name(&format!("{}/{}", config_dir, app_env)).required(false),
+    );
+
+    // Environment variables take the highest precedence.
+    builder = builder.add_source(
+        config::Environment::with_prefix("APP")
+            .separator("__")
+            .try_parsing(true),
+    );
+
+    let config = builder.build()?;
     config.try_deserialize()
 }
 
@@ -402,10 +454,17 @@ s3:
 categories:
   - key: housing
     label: Housing
+    subcategories:
+      - key: rent
+        label: Rent
+      - key: mortgage
+        label: Mortgage
   - key: other
     label: Other
 "#;
-        let default_path = config_dir.join("default.yaml");
+        // Write as server.yaml — the loader reads individual section files,
+        // and the config crate merges all top-level keys from any source.
+        let default_path = config_dir.join("server.yaml");
         let mut file = std::fs::File::create(&default_path).unwrap();
         file.write_all(yaml.as_bytes()).unwrap();
 

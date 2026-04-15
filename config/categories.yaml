@@ -1,0 +1,434 @@
+categories:
+  - key: housing
+    label: Housing
+    subcategories:
+      - key: rent
+        label: Rent
+      - key: mortgage
+        label: Mortgage
+      - key: property_tax
+        label: Property Tax
+      - key: home_maintenance
+        label: Home Maintenance
+      - key: home_improvement
+        label: Home Improvement
+      - key: hoa_fees
+        label: HOA Fees
+      - key: home_furnishing
+        label: Home Furnishing
+      - key: lawn_garden
+        label: Lawn & Garden
+      - key: home_security
+        label: Home Security
+      - key: home_cleaning
+        label: Home Cleaning
+
+  - key: transportation
+    label: Transportation
+    subcategories:
+      - key: gas_fuel
+        label: Gas & Fuel
+      - key: car_payment
+        label: Car Payment
+      - key: car_insurance
+        label: Car Insurance
+      - key: car_maintenance
+        label: Car Maintenance
+      - key: parking
+        label: Parking
+      - key: tolls
+        label: Tolls
+      - key: public_transit
+        label: Public Transit
+      - key: rideshare_taxi
+        label: Rideshare & Taxi
+      - key: car_registration
+        label: Car Registration
+      - key: ev_charging
+        label: EV Charging
+
+  - key: food_dining
+    label: Food & Dining
+    subcategories:
+      - key: groceries
+        label: Groceries
+      - key: restaurants
+        label: Restaurants
+      - key: coffee_shops
+        label: Coffee Shops
+      - key: fast_food
+        label: Fast Food
+      - key: food_delivery
+        label: Food Delivery
+      - key: alcohol_bars
+        label: Alcohol & Bars
+      - key: meal_kits
+        label: Meal Kits
+      - key: work_lunches
+        label: Work Lunches
+      - key: snacks_beverages
+        label: Snacks & Beverages
+      - key: specialty_foods
+        label: Specialty Foods
+
+  - key: utilities
+    label: Utilities
+    subcategories:
+      - key: electricity
+        label: Electricity
+      - key: gas
+        label: Gas
+      - key: water_sewer
+        label: Water & Sewer
+      - key: trash_recycling
+        label: Trash & Recycling
+      - key: internet
+        label: Internet
+      - key: phone
+        label: Phone
+      - key: cable_streaming
+        label: Cable & Streaming
+      - key: cloud_storage
+        label: Cloud Storage
+      - key: software_subscriptions
+        label: Software Subscriptions
+      - key: solar_energy
+        label: Solar Energy
+
+  - key: healthcare
+    label: Healthcare
+    subcategories:
+      - key: doctor_visits
+        label: Doctor Visits
+      - key: dental
+        label: Dental
+      - key: vision
+        label: Vision
+      - key: prescriptions
+        label: Prescriptions
+      - key: mental_health
+        label: Mental Health
+      - key: hospital
+        label: Hospital
+      - key: lab_tests
+        label: Lab Tests
+      - key: physical_therapy
+        label: Physical Therapy
+      - key: medical_devices
+        label: Medical Devices
+      - key: urgent_care
+        label: Urgent Care
+
+  - key: insurance
+    label: Insurance
+    subcategories:
+      - key: health_insurance
+        label: Health Insurance
+      - key: life_insurance
+        label: Life Insurance
+      - key: home_insurance
+        label: Home Insurance
+      - key: auto_insurance
+        label: Auto Insurance
+      - key: renters_insurance
+        label: Renters Insurance
+      - key: disability_insurance
+        label: Disability Insurance
+      - key: umbrella_insurance
+        label: Umbrella Insurance
+      - key: pet_insurance
+        label: Pet Insurance
+      - key: dental_insurance
+        label: Dental Insurance
+      - key: vision_insurance
+        label: Vision Insurance
+
+  - key: entertainment
+    label: Entertainment
+    subcategories:
+      - key: movies_theater
+        label: Movies & Theater
+      - key: concerts_events
+        label: Concerts & Events
+      - key: streaming_services
+        label: Streaming Services
+      - key: gaming
+        label: Gaming
+      - key: sports_recreation
+        label: Sports & Recreation
+      - key: books_magazines
+        label: Books & Magazines
+      - key: hobbies
+        label: Hobbies
+      - key: music
+        label: Music
+      - key: amusement_parks
+        label: Amusement Parks
+      - key: nightlife
+        label: Nightlife
+
+  - key: shopping
+    label: Shopping
+    subcategories:
+      - key: clothing
+        label: Clothing
+      - key: electronics
+        label: Electronics
+      - key: home_goods
+        label: Home Goods
+      - key: accessories
+        label: Accessories
+      - key: shoes
+        label: Shoes
+      - key: sporting_goods
+        label: Sporting Goods
+      - key: office_supplies
+        label: Office Supplies
+      - key: toys_games
+        label: Toys & Games
+      - key: pet_supplies
+        label: Pet Supplies
+      - key: online_shopping
+        label: Online Shopping
+
+  - key: personal_care
+    label: Personal Care
+    subcategories:
+      - key: haircuts_salon
+        label: Haircuts & Salon
+      - key: skincare
+        label: Skincare
+      - key: cosmetics
+        label: Cosmetics
+      - key: spa_massage
+        label: Spa & Massage
+      - key: gym_fitness
+        label: Gym & Fitness
+      - key: toiletries
+        label: Toiletries
+      - key: nail_care
+        label: Nail Care
+      - key: supplements_vitamins
+        label: Supplements & Vitamins
+      - key: grooming
+        label: Grooming
+      - key: wellness
+        label: Wellness
+
+  - key: education
+    label: Education
+    subcategories:
+      - key: tuition
+        label: Tuition
+      - key: textbooks
+        label: Textbooks
+      - key: online_courses
+        label: Online Courses
+      - key: school_supplies
+        label: School Supplies
+      - key: tutoring
+        label: Tutoring
+      - key: student_loans
+        label: Student Loans
+      - key: workshops_seminars
+        label: Workshops & Seminars
+      - key: certifications
+        label: Certifications
+      - key: study_materials
+        label: Study Materials
+      - key: school_fees
+        label: School Fees
+
+  - key: travel
+    label: Travel
+    subcategories:
+      - key: flights
+        label: Flights
+      - key: hotels_lodging
+        label: Hotels & Lodging
+      - key: car_rental
+        label: Car Rental
+      - key: vacation_packages
+        label: Vacation Packages
+      - key: travel_insurance
+        label: Travel Insurance
+      - key: luggage
+        label: Luggage
+      - key: tours_activities
+        label: Tours & Activities
+      - key: travel_food
+        label: Travel Food
+      - key: cruises
+        label: Cruises
+      - key: travel_accessories
+        label: Travel Accessories
+
+  - key: gifts_donations
+    label: Gifts & Donations
+    subcategories:
+      - key: birthday_gifts
+        label: Birthday Gifts
+      - key: holiday_gifts
+        label: Holiday Gifts
+      - key: wedding_gifts
+        label: Wedding Gifts
+      - key: charitable_donations
+        label: Charitable Donations
+      - key: religious_tithes
+        label: Religious Tithes
+      - key: crowdfunding
+        label: Crowdfunding
+      - key: gift_cards
+        label: Gift Cards
+      - key: baby_shower_gifts
+        label: Baby Shower Gifts
+      - key: sympathy_flowers
+        label: Sympathy & Flowers
+      - key: tips_gratuities
+        label: Tips & Gratuities
+
+  - key: income
+    label: Income
+    subcategories:
+      - key: salary
+        label: Salary
+      - key: freelance_income
+        label: Freelance Income
+      - key: bonus
+        label: Bonus
+      - key: interest_income
+        label: Interest Income
+      - key: dividend_income
+        label: Dividend Income
+      - key: rental_income
+        label: Rental Income
+      - key: side_hustle
+        label: Side Hustle
+      - key: tax_refund
+        label: Tax Refund
+      - key: reimbursement
+        label: Reimbursement
+      - key: government_benefits
+        label: Government Benefits
+      - key: other_income
+        label: Other Income
+
+  - key: transfer
+    label: Transfer
+    subcategories:
+      - key: savings_transfer
+        label: Savings Transfer
+      - key: checking_transfer
+        label: Checking Transfer
+      - key: investment_transfer
+        label: Investment Transfer
+      - key: peer_to_peer
+        label: Peer-to-Peer
+      - key: wire_transfer
+        label: Wire Transfer
+      - key: ach_transfer
+        label: ACH Transfer
+      - key: international_transfer
+        label: International Transfer
+      - key: crypto_transfer
+        label: Crypto Transfer
+      - key: account_funding
+        label: Account Funding
+      - key: internal_transfer
+        label: Internal Transfer
+
+  - key: fees_charges
+    label: Fees & Charges
+    subcategories:
+      - key: bank_fees
+        label: Bank Fees
+      - key: atm_fees
+        label: ATM Fees
+      - key: overdraft_fees
+        label: Overdraft Fees
+      - key: late_fees
+        label: Late Fees
+      - key: service_charges
+        label: Service Charges
+      - key: foreign_transaction_fees
+        label: Foreign Transaction Fees
+      - key: annual_fees
+        label: Annual Fees
+      - key: account_maintenance
+        label: Account Maintenance
+      - key: wire_fees
+        label: Wire Fees
+      - key: convenience_fees
+        label: Convenience Fees
+
+  - key: investment
+    label: Investment
+    subcategories:
+      - key: stocks
+        label: Stocks
+      - key: bonds
+        label: Bonds
+      - key: mutual_funds
+        label: Mutual Funds
+      - key: etfs
+        label: ETFs
+      - key: retirement_401k
+        label: Retirement (401k)
+      - key: ira
+        label: IRA
+      - key: real_estate_investment
+        label: Real Estate Investment
+      - key: cryptocurrency
+        label: Cryptocurrency
+      - key: brokerage_fees
+        label: Brokerage Fees
+      - key: commodities
+        label: Commodities
+
+  - key: debt_payment
+    label: Debt Payment
+    subcategories:
+      - key: credit_card_payment
+        label: Credit Card Payment
+      - key: student_loan_payment
+        label: Student Loan Payment
+      - key: personal_loan
+        label: Personal Loan
+      - key: auto_loan
+        label: Auto Loan
+      - key: medical_debt
+        label: Medical Debt
+      - key: home_equity_loan
+        label: Home Equity Loan
+      - key: line_of_credit
+        label: Line of Credit
+      - key: collections
+        label: Collections
+      - key: debt_consolidation
+        label: Debt Consolidation
+      - key: other_debt
+        label: Other Debt
+
+  - key: other
+    label: Other
+    subcategories:
+      - key: miscellaneous
+        label: Miscellaneous
+      - key: pet_care
+        label: Pet Care
+      - key: cash_withdrawal
+        label: Cash Withdrawal
+      - key: taxes
+        label: Taxes
+      - key: legal_fees
+        label: Legal Fees
+      - key: childcare
+        label: Childcare
+      - key: alimony_child_support
+        label: Alimony & Child Support
+      - key: moving_expenses
+        label: Moving Expenses
+      - key: professional_services
+        label: Professional Services
+      - key: membership_dues
+        label: Membership Dues

@@ -128,7 +128,7 @@ export function AccountDetailPage() {
   const accountApi = createAccountApi(api);
   const txApi = createTransactionApi(api);
 
-  const { categoryMap } = useCategories();
+  const { categories, categoryMap } = useCategories();
   const [account, setAccount] = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
@@ -219,30 +219,38 @@ export function AccountDetailPage() {
 
   const chartData = chartMode === 'page' ? pageChartData : allChartData;
 
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>();
-    for (const t of transactions) {
-      if (t.category) cats.add(t.category);
-    }
-    return Array.from(cats).sort();
-  }, [transactions]);
-
-  const handleCategoryChange = async (transactionId: string, category: string) => {
+  const handleCategoryChange = async (
+    transactionId: string,
+    category: string,
+    subcategory?: string,
+  ) => {
     try {
-      await txApi.updateTransaction(transactionId, { category });
+      await txApi.updateTransaction(transactionId, { category, subcategory });
       setTransactions((prev) =>
-        prev.map((t) => (t.id === transactionId ? { ...t, category, user_overridden: true } : t)),
+        prev.map((t) =>
+          t.id === transactionId
+            ? { ...t, category, subcategory: subcategory ?? null, user_overridden: true }
+            : t,
+        ),
       );
     } catch (err) {
       console.error('Failed to update category:', err);
     }
   };
 
-  const handleBulkCategoryChange = async (ids: string[], category: string) => {
+  const handleBulkCategoryChange = async (
+    ids: string[],
+    category: string,
+    subcategory?: string,
+  ) => {
     try {
-      await txApi.bulkUpdateTransactions({ ids, category });
+      await txApi.bulkUpdateTransactions({ ids, category, subcategory });
       setTransactions((prev) =>
-        prev.map((t) => (ids.includes(t.id) ? { ...t, category, user_overridden: true } : t)),
+        prev.map((t) =>
+          ids.includes(t.id)
+            ? { ...t, category, subcategory: subcategory ?? null, user_overridden: true }
+            : t,
+        ),
       );
     } catch (err) {
       console.error('Failed to bulk update:', err);
@@ -461,7 +469,7 @@ export function AccountDetailPage() {
           sorting={sorting}
           filters={filters}
           accounts={account ? [account] : []}
-          allCategories={allCategories}
+          categories={categories}
           categoryMap={categoryMap}
           lockedAccountId={id}
           onSortingChange={setSorting}

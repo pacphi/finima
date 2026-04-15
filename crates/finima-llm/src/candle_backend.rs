@@ -241,7 +241,34 @@ impl LlmClient for CandleClient {
         &self,
         batch: &CategorizationBatch,
     ) -> Result<Vec<CategorizationResult>, LlmError> {
-        let system_prompt = crate::prompts::build_categorization_system_prompt();
+        // Try batch JSON first -- faster for models that support plain JSON output.
+        let json_system = crate::batch_json::build_batch_json_system_prompt(&batch.category_hierarchy);
+        let json_user = crate::batch_json::build_batch_json_user_prompt(
+            &batch.transactions,
+            &batch.user_overrides,
+        );
+
+        match self.chat(&json_system, &json_user, None).await {
+            Ok(response) => {
+                let content = tool_calling::extract_content(&response).unwrap_or_default();
+                match crate::batch_json::parse_batch_json_response(&content, &batch.transactions) {
+                    Ok(results) if !results.is_empty() => return Ok(results),
+                    Ok(_) => {
+                        tracing::warn!("Batch JSON returned empty results, falling back to tool-calling");
+                    }
+                    Err(e) => {
+                        tracing::warn!("Batch JSON parse failed, falling back to tool-calling: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Batch JSON chat failed, falling back to tool-calling: {}", e);
+            }
+        }
+
+        // Fallback: tool-calling protocol (grammar-constrained in Candle)
+        let system_prompt =
+            crate::prompts::build_categorization_system_prompt(&batch.category_hierarchy);
         let user_prompt = crate::prompts::build_categorization_user_prompt(
             &batch.transactions,
             &batch.user_overrides,

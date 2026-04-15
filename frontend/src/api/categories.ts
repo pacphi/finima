@@ -1,7 +1,14 @@
+export interface SubcategoryEntry {
+  key: string;
+  label: string;
+  is_system: boolean;
+}
+
 export interface CategoryEntry {
   key: string;
   label: string;
   is_system: boolean;
+  subcategories: SubcategoryEntry[];
 }
 
 export function createCategoryApi(api: {
@@ -13,8 +20,8 @@ export function createCategoryApi(api: {
   return {
     listCategories: () => api.get<CategoryEntry[]>('/api/categories'),
 
-    createCategory: (key: string, label: string) =>
-      api.post<CategoryEntry>('/api/categories', { key, label }),
+    createCategory: (key: string, label: string, parentKey?: string) =>
+      api.post<CategoryEntry>('/api/categories', { key, label, parent_key: parentKey }),
 
     updateCategory: (key: string, label: string) =>
       api.put<CategoryEntry>(`/api/categories/${encodeURIComponent(key)}`, { label }),

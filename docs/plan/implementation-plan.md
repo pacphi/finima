@@ -31,7 +31,7 @@ Stories are labeled by context: `[AUTH]`, `[PORT]`, `[INGEST]`, `[LLM]`, `[ANALY
 
 1. `[INFRA]` Initialize Cargo workspace with 8 crates (`finima-core`, `finima-db`, `finima-api`, `finima-auth`, `finima-ingest`, `finima-llm`, `finima-analysis`, `finima-feed`). Wire `Cargo.toml` dependencies. Verify `cargo build --workspace` succeeds.
 
-2. `[INFRA]` Create `docker-compose.yml` (dev profile) with PostgreSQL 16 and Ollama services. Create YAML config hierarchy: `config/default.yaml`, `config/development.yaml`, `config/test.yaml`, `config/production.yaml`. Create `.env.example` (secrets only: `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__URL`). Create root `Makefile` with `dev`, `build`, `test`, `lint`, `docker-up`, `docker-down`, `migrate` targets. See [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md).
+2. `[INFRA]` Create `docker-compose.yml` (dev profile) with PostgreSQL 16 and Ollama services. Create YAML config hierarchy: individual section files (`config/server.yaml`, `config/database.yaml`, etc.), `config/development.yaml`, `config/test.yaml`, `config/production.yaml`. Create `.env.example` (secrets only: `APP__AUTH__JWT_SECRET`, `APP__RESEND__API_KEY`, `APP__DATABASE__URL`). Create root `Makefile` with `dev`, `build`, `test`, `lint`, `docker-up`, `docker-down`, `migrate` targets. See [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md).
 
 3. `[CORE]` Define domain models in `finima-core`: `User`, `Portfolio`, `Account`, `Transaction`, `Upload`, `RecurringGroup`, `Budget`, `SavingsGoal`, `AccountFlow`, `FlowGroup`. Define enums: `AccountType`, `Frequency`, `UploadStatus`, `FileFormat`. Define `AppError` enum with `From` impls for Axum `IntoResponse`.
 
@@ -459,7 +459,7 @@ Stories are labeled by context: `[AUTH]`, `[PORT]`, `[INGEST]`, `[LLM]`, `[ANALY
 
 ## Cross-Cutting Concerns (Every Sprint)
 
-- **Configuration:** All configuration is externalized into YAML files (`config/default.yaml`, `config/{APP_ENV}.yaml`). Secrets are injected via environment variables. No hardcoded URLs, keys, or feature flags in source code. Frontend reads runtime config from `/config.yaml` at startup. See [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md).
+- **Configuration:** All configuration is externalized into individual YAML files per section (`config/server.yaml`, `config/database.yaml`, `config/auth.yaml`, `config/llm.yaml`, `config/storage.yaml`, `config/categories.yaml`, `config/services.yaml`, `config/logging.yaml`) with environment overlays (`config/{APP_ENV}.yaml`). Secrets are injected via environment variables. No hardcoded URLs, keys, or feature flags in source code. Frontend reads runtime config from `/config.yaml` at startup. See [ADR-009](../ADRs/ADR-009-externalized-yaml-configuration.md).
 - **Environment discipline:** Three profiles — `development`, `test`, `production`. Mock services, test doubles, and seed data exist **only in `development` and `test`**. Production connects exclusively to real services and starts with an empty database. CI verifies that production Docker images contain no test fixtures, seed scripts, or mock endpoints.
 - **Testing:** Every story includes unit tests. Integration tests for API endpoints. E2E tests for completed user flows. All mocks and seed data scoped to `APP_ENV=test`.
 - **Logging:** Structured logging with `tracing` (backend) from Sprint 1. Log level and format configured via YAML (`logging.level`, `logging.format`). Frontend error boundaries from Sprint 1.

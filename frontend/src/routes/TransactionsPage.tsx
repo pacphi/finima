@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { useApi } from '@/hooks/useApi';
@@ -20,7 +20,7 @@ export function TransactionsPage() {
   const api = useApi();
   const txApi = createTransactionApi(api);
   const accountApi = createAccountApi(api);
-  const { categoryMap } = useCategories();
+  const { categories, categoryMap } = useCategories();
   const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
   const storedAccounts = usePortfolioStore((s) => s.accounts);
 
@@ -87,30 +87,38 @@ export function TransactionsPage() {
     void fetchTransactions();
   }, [fetchTransactions]);
 
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>();
-    for (const t of transactions) {
-      if (t.category) cats.add(t.category);
-    }
-    return Array.from(cats).sort();
-  }, [transactions]);
-
-  const handleCategoryChange = async (transactionId: string, category: string) => {
+  const handleCategoryChange = async (
+    transactionId: string,
+    category: string,
+    subcategory?: string,
+  ) => {
     try {
-      await txApi.updateTransaction(transactionId, { category });
+      await txApi.updateTransaction(transactionId, { category, subcategory });
       setTransactions((prev) =>
-        prev.map((t) => (t.id === transactionId ? { ...t, category, user_overridden: true } : t)),
+        prev.map((t) =>
+          t.id === transactionId
+            ? { ...t, category, subcategory: subcategory ?? null, user_overridden: true }
+            : t,
+        ),
       );
     } catch (err) {
       console.error('Failed to update category:', err);
     }
   };
 
-  const handleBulkCategoryChange = async (ids: string[], category: string) => {
+  const handleBulkCategoryChange = async (
+    ids: string[],
+    category: string,
+    subcategory?: string,
+  ) => {
     try {
-      await txApi.bulkUpdateTransactions({ ids, category });
+      await txApi.bulkUpdateTransactions({ ids, category, subcategory });
       setTransactions((prev) =>
-        prev.map((t) => (ids.includes(t.id) ? { ...t, category, user_overridden: true } : t)),
+        prev.map((t) =>
+          ids.includes(t.id)
+            ? { ...t, category, subcategory: subcategory ?? null, user_overridden: true }
+            : t,
+        ),
       );
     } catch (err) {
       console.error('Failed to bulk update:', err);
@@ -317,7 +325,7 @@ export function TransactionsPage() {
           sorting={sorting}
           filters={filters}
           accounts={accounts}
-          allCategories={allCategories}
+          categories={categories}
           categoryMap={categoryMap}
           onSortingChange={setSorting}
           onPageChange={setPage}

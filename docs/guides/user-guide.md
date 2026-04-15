@@ -146,22 +146,29 @@ transaction with the same date, description, and amount already
 exists in the same account, it is skipped. This means you can safely
 re-import overlapping date ranges without creating duplicates.
 
-### AI categorization
+### Automatic categorization
 
-If Ollama is running and a model has been pulled, Finima automatically
-categorizes each imported transaction using AI. The model reads the
-transaction description and assigns a category such as "Groceries",
-"Utilities", or "Entertainment".
+Finima automatically categorizes each imported transaction using
+built-in merchant lookup and pattern matching. These rule-based
+engines handle the majority of common transactions (groceries, gas,
+streaming services, payroll, and so on) without any AI model.
 
-You can override any AI-assigned category manually (see "Transactions"
-below), and your overrides are preserved on future imports.
+You can change any assigned category manually -- click the category
+cell on the Transactions page and select a new value from the
+dropdown. Your overrides are preserved on future imports.
 
-To set up AI categorization:
+### Optional AI categorization
 
-1. Make sure the Ollama container is running (`make docker-infra`).
-2. Pull a model: `make download-model LLM=ollama`.
-3. Verify on the **Settings > LLM** tab that the connection status
-   shows "Connected".
+For higher accuracy on ambiguous transactions, you can optionally
+enable an AI model. When enabled, transactions that the built-in
+engines cannot categorize are sent to the LLM for classification.
+See the [Maintainer Guide](maintainer-guide.md#llm-backend-configuration)
+for setup instructions.
+
+To verify AI is active, check the **Settings > LLM** tab -- the
+connection status should show "Connected". If no AI model is
+configured, the status shows "Disabled" and categorization relies
+on the built-in engines plus your manual corrections.
 
 ---
 
@@ -435,7 +442,7 @@ reference:
 - **Connection Status** -- whether the backend can reach the LLM
   service (Connected, Disconnected, or Checking).
 
-LLM settings are configured in `config/default.yaml` on the server
+LLM settings are configured in `config/llm.yaml` on the server
 (or via `APP__LLM__*` environment variables in `.env`), not through
 the UI. See the
 [Maintainer Guide](maintainer-guide.md#llm-backend-configuration) for

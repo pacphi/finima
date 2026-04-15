@@ -1,27 +1,119 @@
 # Transaction Categorization
 
-This guide explains how Finima categorizes transactions — the two-layer
-pipeline, the category taxonomy, and how to trigger categorization on demand.
+This guide explains how Finima categorizes transactions -- the four-tier
+cascade engine, the category taxonomy, and how to trigger categorization on
+demand.
 
 For domain modeling details see [DDD-004](../DDDs/DDD-004-intelligence.md).
 For the architecture decision behind local LLM usage see
 [ADR-003](../ADRs/ADR-003-local-llm-gemma4-categorization.md).
+For the tiered categorization engine design see
+[ADR-012](../ADRs/ADR-012-tiered-categorization-engine.md).
 
 ---
 
 ## Overview
 
-Every imported transaction goes through a two-layer categorization pipeline:
+Every imported transaction flows through a **four-tier categorization
+cascade**. Each tier handles the subset of transactions that previous tiers
+could not categorize, so expensive tiers (like LLM inference) only process
+the long tail of ambiguous descriptions.
 
-1. **User Override Pattern Matching** — instant, no LLM required.
-2. **LLM Structured Tool Calling** — batched inference with confidence scoring.
+> **LLM is optional.** Tiers 0-2 (merchant lookup, pattern engine, and
+> semantic search) handle 80-95% of transactions without any LLM
+> configured. Transactions that remain uncategorized can be manually
+> categorized via the category dropdown in the Transactions page. The
+> LLM tier is opt-in -- enable it with `make start LLM=ollama` or
+> `make start LLM=candle` for higher accuracy on the remaining long
+> tail.
 
-User overrides always take precedence. The LLM only processes transactions
-that no override pattern matches.
+| Tier | Name              | Speed     | Typical Coverage | Confidence |
+| ---- | ----------------- | --------- | ---------------- | ---------- |
+| 0    | Merchant Lookup   | < 1 ms    | 50-60%           | 0.80-0.95  |
+| 1    | Pattern Engine    | < 1 ms    | 15-20%           | 0.65-0.95  |
+| 2    | Semantic Search   | < 10 ms   | 10-15% (planned) | 0.85+      |
+| 3    | LLM Inference     | 1-5 s     | 3-8%             | 0.50-0.99  |
+
+Tiers 0 and 1 handle **65-80% of transactions instantly** (sub-millisecond),
+dramatically reducing the number of expensive LLM calls. User overrides are
+applied by the LLM categorizer (Tier 3) and always take precedence over any
+tier.
+
+### Source Tracking
+
+The `source_tier` column on the `transactions` table records which tier
+assigned each transaction's category. Values: `merchant_lookup`,
+`pattern_engine`, `semantic_search`, `llm`, `user`.
 
 ---
 
-## Layer 1: User Override Patterns
+## Tier 0: Merchant Lookup
+
+The merchant registry provides instant O(1) categorization for known
+merchants. It is loaded once at startup and cached on `AppState` for the
+lifetime of the process.
+
+**Data sources:**
+- **Seed merchants** (`data/seed_merchants.json`) -- ~500 curated common
+  merchants loaded at startup.
+- **LLM-learned** -- high-confidence (>= 0.9) LLM results are automatically
+  promoted to the registry via the feedback loop.
+- **MCC codes** -- ISO 18245 Merchant Category Codes (when available).
+
+**Algorithm:**
+1. Normalize description (lowercase, strip digits/punctuation, collapse whitespace).
+2. Exact match against the registry -- O(1) HashMap lookup.
+3. If no exact match: fuzzy match via prefix index using Jaro-Winkler
+   similarity (threshold >= 0.88).
+4. If MCC code is available: direct category mapping.
+
+**Implementation:** `finima-categorize/src/tier0/merchant_db.rs`
+
+**Maintaining seed data:** Run `cargo run --bin merchant-audit` to identify
+LLM-categorized merchants that are not yet in the seed data. The tool prints
+JSON snippets that can be appended directly to `seed_merchants.json`. See the
+[Maintainer Guide](maintainer-guide.md#merchant-audit-tool) for details.
+
+---
+
+## Tier 1: Pattern Engine
+
+A regex-based pattern engine that evaluates ~35 built-in rules in a single
+pass using `RegexSet`. Covers common transaction types like streaming
+services, rideshare, payroll, and ATM withdrawals.
+
+**Algorithm:**
+1. Compile all patterns into a `RegexSet` (evaluated in a single pass).
+2. For each unmatched transaction, test against `RegexSet`.
+3. First matching pattern wins (priority-ordered).
+4. Amount-range heuristics for ambiguous matches (e.g., positive amounts with
+   payroll keywords -> income/salary).
+
+**Implementation:** `finima-categorize/src/tier1/mod.rs`
+
+---
+
+## Tier 2: Semantic Search (Planned)
+
+RuVector-based HNSW semantic search will handle another 10-15% of
+transactions by finding similar previously-categorized descriptions.
+
+- Embed transaction descriptions using an ONNX model (< 10 ms).
+- Query the HNSW index for the 5 nearest neighbors.
+- Weighted majority vote with confidence threshold >= 0.85.
+- SONA self-learning adapts weights based on prediction accuracy.
+
+**Status:** Interface defined in `finima-categorize/src/tier2/mod.rs`.
+Implementation in a future phase.
+
+---
+
+## Tier 3: LLM Batch Inference
+
+Transactions not matched by Tiers 0-2 are sent to the LLM. Because earlier
+tiers handle the majority, typically only 3-8% of transactions reach Tier 3.
+
+### User Override Patterns
 
 Users create override rules via `POST /api/overrides`. Each rule has:
 
@@ -35,33 +127,23 @@ Users create override rules via `POST /api/overrides`. Each rule has:
 
 - Case-insensitive substring match against the transaction `description`.
 - First matching override wins.
-- Matched transactions receive `confidence = 1.0` and skip the LLM entirely.
-
-Example: if the user has an override with pattern `"starbucks"`, then a
-transaction with description `"STARBUCKS #12345 NEW YORK"` will be
-instantly categorized without any LLM call.
-
----
-
-## Layer 2: LLM Batch Categorization
-
-Transactions not matched by overrides are sent to the LLM in **batches of 20**.
+- Matched transactions receive `confidence = 1.0` and skip LLM inference.
 
 ### Prompt Structure
 
 The LLM receives three components:
 
-1. **System prompt** (`finima-llm/src/prompts.rs`) — instructs the model to
+1. **System prompt** (`finima-llm/src/prompts.rs`) -- instructs the model to
    act as a financial transaction categorizer and call the
    `categorize_transaction` tool once per transaction.
 
-2. **User override examples** — injected as few-shot context:
+2. **User override examples** -- injected as few-shot context:
 
    ```text
    The user has previously categorized "WHOLEFDS MKT" as food_dining > groceries.
    ```
 
-3. **Transaction list** — each transaction as:
+3. **Transaction list** -- each transaction as:
 
    ```text
    1. date=2026-04-08, amount=-87.42, description="WHOLEFDS MKT #10432"
@@ -77,7 +159,7 @@ The LLM calls a structured tool (`finima-llm/src/tool_defs.rs`) with:
 | `category`          | enum    | One of 18 fixed categories (see below) |
 | `subcategory`       | string  | Free-text finer classification         |
 | `merchant_name`     | string  | Normalized merchant name               |
-| `confidence`        | number  | 0.0–1.0 certainty score                |
+| `confidence`        | number  | 0.0-1.0 certainty score                |
 
 ### Backend-Specific Behavior
 
@@ -90,13 +172,38 @@ The LLM calls a structured tool (`finima-llm/src/tool_defs.rs`) with:
 
 ---
 
+## Self-Learning Feedback Loop
+
+The categorization engine improves over time through a self-learning feedback
+loop. After each LLM categorization run:
+
+1. **LLM results with confidence >= 0.9** are automatically promoted to
+   the Tier 0 merchant registry. This means the next time a transaction
+   from the same merchant appears, it will be categorized instantly without
+   any LLM call.
+
+2. **User corrections** (manual category edits, payee rules) override all
+   tiers and are applied with the highest priority.
+
+3. The merchant registry grows over the lifetime of the process. After
+   processing ~50,000 transactions, Tier 0 typically handles ~70% of
+   transactions and Tier 3 (LLM) drops to ~5%.
+
+**Cold-start bootstrap:**
+- Minute 0: Seed merchants loaded -- Tier 0 works immediately.
+- Minutes 1-10: First batch processed. Tier 3 handles most. Results feed
+  back to Tier 0.
+- Subsequent batches: Tier 0 coverage increases. LLM calls decrease.
+
+---
+
 ## Category Taxonomy
 
 Finima ships with 18 top-level categories. These are **externalized to YAML
-configuration** (`config/default.yaml`) rather than hardcoded, so they can be
+configuration** (`config/categories.yaml`) rather than hardcoded, so they can be
 modified without recompiling the application.
 
-### System Categories (default.yaml)
+### System Categories (categories.yaml)
 
 Each entry has a machine-readable `key` (used in the database and LLM tool
 schema) and a human-readable `label` (shown in the UI):
@@ -163,7 +270,7 @@ can distinguish system categories from user-created ones.
 
 The LLM tool schema (`finima-llm/src/tool_defs.rs`) defines the category enum
 that constrains which values the model can return. The system categories from
-`config/default.yaml` provide the canonical key list used in this enum. Custom
+`config/categories.yaml` provide the canonical key list used in this enum. Custom
 user categories are included in the prompt context so the LLM can assign them,
 but they do not modify the tool schema enum at runtime.
 
@@ -262,54 +369,50 @@ and how many transactions each received.
 ## Pipeline Flow Diagram
 
 ```text
-Transaction (uncategorized)
+Transactions (uncategorized)
         |
         v
-  Override Patterns
-  (substring match)
-        |
-   +----+----+
-   |         |
- Match     No match
-   |         |
-   v         v
- Apply    Batch (20)
- cat/sub    |
- conf=1.0   v
-          LLM Tool Call
-          (categorize_transaction)
-            |
-            v
-          Parse results
-          (category, subcategory,
-           merchant_name, confidence)
-            |
-            v
-       confidence < 0.7?
-        |          |
-       Yes        No
-        |          |
-        v          v
-     Flagged    Auto-accepted
-        |          |
-        +----+-----+
-             |
-             v
-       WS: categorization_progress
-       (after each batch)
-             |
-             v
-       Shutdown requested? ──Yes──> Save partial results, exit
-             |
-             No
-             v
-       Update DB
-       (transactions table)
-             |
-             v
+  ┌─ Tier 0: Merchant Lookup ─┐
+  │  (exact, fuzzy, MCC)       │
+  │  ~50-60% matched           │
+  └────────────┬───────────────┘
+               |
+        Remaining unmatched
+               |
+               v
+  ┌─ Tier 1: Pattern Engine ──┐
+  │  (RegexSet + heuristics)   │
+  │  ~15-20% matched           │
+  └────────────┬───────────────┘
+               |
+        Remaining unmatched
+               |
+               v
+       Persist cascade results
+       (source_tier = merchant_lookup | pattern_engine)
+               |
+               v
+  ┌─ Tier 3: LLM Inference ──┐
+  │  Override patterns applied │
+  │  Batched tool-calling      │
+  │  ~3-8% remaining           │
+  └────────────┬───────────────┘
+               |
+               v
+       Persist LLM results
+       (source_tier = llm)
+               |
+               v
+  ┌─ Feedback Loop ───────────┐
+  │  confidence >= 0.9?        │
+  │  Yes -> add to Tier 0      │
+  │         merchant registry  │
+  └────────────┬───────────────┘
+               |
+               v
        WS: categorization_complete
-             |
-             v
+               |
+               v
        Recurring Detection
 ```
 
@@ -345,18 +448,26 @@ the task exits so it does not remain stuck in `categorizing`.
 
 ## Key Source Files
 
-| File                                                        | Purpose                                        |
-| ----------------------------------------------------------- | ---------------------------------------------- |
-| `config/default.yaml`                                       | System category definitions (key + label)      |
-| `crates/finima-llm/src/categorizer.rs`                      | Orchestrates the two-layer pipeline            |
-| `crates/finima-llm/src/prompts.rs`                          | System and user prompt construction            |
-| `crates/finima-llm/src/tool_defs.rs`                        | Tool schema (category enum, subcategory, etc.) |
-| `crates/finima-llm/src/tool_calling.rs`                     | Parses LLM tool-call responses                 |
-| `crates/finima-llm/src/client.rs`                           | `LlmClient` trait and implementations          |
-| `crates/finima-api/src/handlers/categorization.rs`          | Shared pipeline used by upload + on-demand     |
-| `crates/finima-api/src/handlers/categories.rs`              | Category CRUD endpoints                        |
-| `crates/finima-api/src/handlers/transactions.rs`            | On-demand categorization endpoints             |
-| `crates/finima-db/src/repos/transaction_repo.rs`            | `find_uncategorized`, `update_llm_results`     |
-| `crates/finima-db/src/migrations/015_custom_categories.sql` | Custom categories table                        |
-| `frontend/src/hooks/useCategories.ts`                       | Category map hook with cache + labels          |
-| `frontend/src/routes/SettingsPage.tsx`                      | Categories management tab UI                   |
+| File                                                        | Purpose                                            |
+| ----------------------------------------------------------- | -------------------------------------------------- |
+| `config/categories.yaml`                                    | System category definitions (key + label)          |
+| `crates/finima-categorize/src/lib.rs`                       | Cascade engine entry point + public API            |
+| `crates/finima-categorize/src/tier0/merchant_db.rs`         | Tier 0: Merchant registry with fuzzy matching      |
+| `crates/finima-categorize/src/tier1/mod.rs`                 | Tier 1: RegexSet pattern engine + amount heuristics|
+| `crates/finima-categorize/src/tier2/mod.rs`                 | Tier 2: Semantic search trait (planned)            |
+| `crates/finima-categorize/src/engine.rs`                    | CascadeEngine orchestrating tiers 0-1              |
+| `crates/finima-categorize/data/seed_merchants.json`         | ~500 curated merchant entries for Tier 0           |
+| `crates/finima-llm/src/categorizer.rs`                      | Tier 3: LLM batch categorization with overrides    |
+| `crates/finima-llm/src/prompts.rs`                          | System and user prompt construction                |
+| `crates/finima-llm/src/tool_defs.rs`                        | Tool schema (category enum, subcategory, etc.)     |
+| `crates/finima-llm/src/tool_calling.rs`                     | Parses LLM tool-call responses                     |
+| `crates/finima-llm/src/client.rs`                           | `LlmClient` trait and implementations              |
+| `crates/finima-api/src/handlers/categorization.rs`          | Cascade + LLM pipeline with feedback loop          |
+| `crates/finima-api/src/state.rs`                            | AppState with cached MerchantRegistry              |
+| `crates/finima-api/src/handlers/categories.rs`              | Category CRUD endpoints                            |
+| `crates/finima-api/src/handlers/transactions.rs`            | On-demand categorization endpoints                 |
+| `crates/finima-db/src/repos/transaction_repo.rs`            | `find_uncategorized`, `update_llm_results`, `set_source_tier` |
+| `crates/finima-db/src/migrations/015_custom_categories.sql` | Custom categories table                            |
+| `crates/finima-db/src/migrations/017_categorization_tier.sql` | `source_tier` column on transactions             |
+| `frontend/src/hooks/useCategories.ts`                       | Category map hook with cache + labels              |
+| `frontend/src/routes/SettingsPage.tsx`                      | Categories management tab UI                       |

@@ -1,5 +1,6 @@
 # Development overrides
-# Inherits from default.yaml; only override what differs.
+# Inherits from config section files (server.yaml, database.yaml, etc.);
+# only override what differs.
 
 database:
   url: "postgres://finima:finima_dev@localhost:5432/finima"

@@ -1,18 +1,45 @@
 import { useState, useRef, useEffect } from 'react';
+import type { CategoryEntry } from '@/api/categories';
 import type { CategoryMap } from '@/hooks/useCategories';
 import { categoryLabel } from '@/hooks/useCategories';
 
+interface FlatItem {
+  category: string;
+  subcategory?: string;
+  label: string;
+  parentLabel?: string;
+}
+
+function flattenCategories(categories: CategoryEntry[], categoryMap: CategoryMap): FlatItem[] {
+  const items: FlatItem[] = [];
+  for (const cat of categories) {
+    items.push({
+      category: cat.key,
+      label: categoryLabel(cat.key, categoryMap),
+    });
+    for (const sub of cat.subcategories ?? []) {
+      items.push({
+        category: cat.key,
+        subcategory: sub.key,
+        label: categoryLabel(sub.key, categoryMap),
+        parentLabel: categoryLabel(cat.key, categoryMap),
+      });
+    }
+  }
+  return items;
+}
+
 interface BulkEditBarProps {
   selectedCount: number;
-  allCategories: string[];
+  categories: CategoryEntry[];
   categoryMap: CategoryMap;
-  onBulkCategoryChange: (category: string) => void;
+  onBulkCategoryChange: (category: string, subcategory?: string) => void;
   onClearSelection: () => void;
 }
 
 export function BulkEditBar({
   selectedCount,
-  allCategories,
+  categories,
   categoryMap,
   onBulkCategoryChange,
   onClearSelection,
@@ -22,9 +49,16 @@ export function BulkEditBar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  const filtered = allCategories.filter((c) => {
-    const label = categoryLabel(c, categoryMap).toLowerCase();
-    return label.includes(search.toLowerCase()) || c.toLowerCase().includes(search.toLowerCase());
+  const allItems = flattenCategories(categories, categoryMap);
+
+  const filtered = allItems.filter((item) => {
+    const q = search.toLowerCase();
+    return (
+      item.label.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      (item.parentLabel?.toLowerCase().includes(q) ?? false) ||
+      (item.subcategory?.toLowerCase().includes(q) ?? false)
+    );
   });
 
   // Focus search input when picker opens
@@ -35,6 +69,13 @@ export function BulkEditBar({
   }, [showCategoryPicker]);
 
   if (selectedCount === 0) return null;
+
+  const handleSelect = (item: FlatItem) => {
+    onBulkCategoryChange(item.category, item.subcategory);
+    setShowCategoryPicker(false);
+    setSearch('');
+    setActiveIndex(-1);
+  };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -54,10 +95,7 @@ export function BulkEditBar({
       return;
     }
     if (e.key === 'Enter' && activeIndex >= 0 && filtered[activeIndex]) {
-      onBulkCategoryChange(filtered[activeIndex]);
-      setShowCategoryPicker(false);
-      setSearch('');
-      setActiveIndex(-1);
+      handleSelect(filtered[activeIndex]);
     }
   };
 
@@ -115,30 +153,30 @@ export function BulkEditBar({
               aria-label="Categories"
               className="max-h-48 overflow-y-auto"
             >
-              {filtered.map((cat, index) => (
-                <li
-                  key={cat}
-                  id={`bulk-cat-${index}`}
-                  role="option"
-                  aria-selected={index === activeIndex}
-                >
-                  <button
-                    onClick={() => {
-                      onBulkCategoryChange(cat);
-                      setShowCategoryPicker(false);
-                      setSearch('');
-                      setActiveIndex(-1);
-                    }}
-                    className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
-                      index === activeIndex
-                        ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
-                        : ''
-                    }`}
+              {filtered.map((item, index) => {
+                const isSubcategory = !!item.subcategory;
+                return (
+                  <li
+                    key={`${item.category}-${item.subcategory ?? '_'}`}
+                    id={`bulk-cat-${index}`}
+                    role="option"
+                    aria-selected={index === activeIndex}
                   >
-                    {categoryLabel(cat, categoryMap)}
-                  </button>
-                </li>
-              ))}
+                    <button
+                      onClick={() => handleSelect(item)}
+                      className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)] ${
+                        isSubcategory ? 'pl-6' : 'font-medium'
+                      } ${
+                        index === activeIndex
+                          ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                          : ''
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                );
+              })}
               {filtered.length === 0 && (
                 <li
                   className="px-3 py-2 text-sm text-[var(--color-text-secondary)]"

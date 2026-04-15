@@ -1,0 +1,8 @@
+logging:
+  # Production-safe default: only warnings and errors.
+  # development.yaml raises this to debug with per-crate suppressions.
+  # Override at runtime with RUST_LOG env var.
+  level: "warn"
+  format: "json"
+  # Daily-rotating log file directory. Leave empty to disable file logging.
+  log_dir: ""

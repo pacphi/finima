@@ -28,6 +28,10 @@ pub struct OverridePattern {
 pub struct CategorizationBatch {
     pub transactions: Vec<TransactionInput>,
     pub user_overrides: Vec<OverridePattern>,
+    /// Category hierarchy: `(category_key, [subcategory_keys])`.
+    /// Used to build the system prompt with valid subcategory values.
+    #[serde(default)]
+    pub category_hierarchy: Vec<(String, Vec<String>)>,
 }
 
 /// The categorization result for a single transaction.
@@ -71,6 +75,13 @@ pub struct RecurringEnrichment {
 /// Trait abstracting the LLM backend.
 #[async_trait]
 pub trait LlmClient: Send + Sync {
+    /// Warm up the backend so the first real request doesn't pay cold-start
+    /// latency. For Ollama this loads the model into GPU memory; for Candle
+    /// the model is already loaded in-process so this is a no-op.
+    async fn warmup(&self) -> Result<(), LlmError> {
+        Ok(()) // Default no-op; providers override if needed.
+    }
+
     /// Categorize a batch of transactions using structured tool calling.
     async fn categorize_batch(
         &self,
@@ -87,12 +98,34 @@ pub trait LlmClient: Send + Sync {
     async fn generate_insight(&self, prompt: &str) -> Result<String, LlmError>;
 }
 
+/// Options for the Ollama chat request beyond the standard fields.
+#[cfg(feature = "ollama")]
+#[derive(Debug, Clone)]
+pub struct ChatOptions {
+    /// Context window size in tokens. Default: 4096.
+    pub num_ctx: usize,
+    /// Enable constrained JSON output mode. Default: false.
+    pub json_format: bool,
+}
+
+#[cfg(feature = "ollama")]
+impl Default for ChatOptions {
+    fn default() -> Self {
+        Self {
+            num_ctx: 4096,
+            json_format: false,
+        }
+    }
+}
+
 /// Ollama-backed LLM client using the `/api/chat` endpoint.
 #[cfg(feature = "ollama")]
 pub struct OllamaClient {
     pub base_url: String,
     pub model: String,
     pub http_client: reqwest::Client,
+    pub timeout_seconds: u64,
+    pub max_retries: u32,
 }
 
 #[cfg(feature = "ollama")]
@@ -102,32 +135,142 @@ impl OllamaClient {
             base_url: base_url.trim_end_matches('/').to_string(),
             model: model.to_string(),
             http_client: reqwest::Client::new(),
+            timeout_seconds: 60,
+            max_retries: 2,
         }
     }
 
-    /// Maximum number of retry attempts for transient failures.
-    const MAX_RETRIES: u32 = 2;
+    /// Create a new client with configurable timeout and retry settings.
+    pub fn with_config(
+        base_url: &str,
+        model: &str,
+        timeout_seconds: u64,
+        max_retries: u32,
+    ) -> Self {
+        Self {
+            base_url: base_url.trim_end_matches('/').to_string(),
+            model: model.to_string(),
+            http_client: reqwest::Client::new(),
+            timeout_seconds,
+            max_retries,
+        }
+    }
+
+    /// Categorize multiple batches in parallel using the batch JSON protocol.
+    ///
+    /// Sends up to `parallel` concurrent requests to Ollama, each processing
+    /// one batch independently. Returns results in the same order as the input
+    /// batches.
+    pub async fn categorize_batch_parallel(
+        &self,
+        batches: Vec<CategorizationBatch>,
+        parallel: usize,
+        num_ctx: usize,
+    ) -> Vec<Result<Vec<CategorizationResult>, LlmError>> {
+        use tokio::task::JoinSet;
+
+        let parallel = parallel.max(1);
+        let total = batches.len();
+        let mut results: Vec<Option<Result<Vec<CategorizationResult>, LlmError>>> =
+            (0..total).map(|_| None).collect();
+
+        // Process batches in chunks of `parallel`.
+        let mut offset = 0;
+        while offset < total {
+            let chunk_end = (offset + parallel).min(total);
+            let mut join_set = JoinSet::new();
+
+            // Spawn up to `parallel` tasks.
+            for batch_idx in offset..chunk_end {
+                let batch = batches[batch_idx].clone();
+                let base_url = self.base_url.clone();
+                let model = self.model.clone();
+                let http_client = self.http_client.clone();
+                let timeout_seconds = self.timeout_seconds;
+                let max_retries = self.max_retries;
+                let ctx = num_ctx;
+
+                join_set.spawn(async move {
+                    let client = OllamaClient {
+                        base_url,
+                        model,
+                        http_client,
+                        timeout_seconds,
+                        max_retries,
+                    };
+                    let result =
+                        crate::batch_json::categorize_batch_json(&client, &batch, ctx).await;
+                    (batch_idx, result)
+                });
+            }
+
+            // Collect results.
+            while let Some(join_result) = join_set.join_next().await {
+                match join_result {
+                    Ok((idx, result)) => {
+                        results[idx] = Some(result);
+                    }
+                    Err(e) => {
+                        tracing::error!("Parallel batch task panicked: {}", e);
+                    }
+                }
+            }
+
+            offset = chunk_end;
+        }
+
+        // Convert Option<Result> -> Result, filling in errors for any missing.
+        results
+            .into_iter()
+            .map(|opt| {
+                opt.unwrap_or_else(|| Err(LlmError::Http("Batch task failed to complete".into())))
+            })
+            .collect()
+    }
 
     async fn chat(
         &self,
         messages: Vec<serde_json::Value>,
         tools: Option<Vec<serde_json::Value>>,
     ) -> Result<serde_json::Value, LlmError> {
+        self.chat_with_options(messages, tools, None).await
+    }
+
+    /// Send a chat request with optional format and num_ctx overrides.
+    async fn chat_with_options(
+        &self,
+        messages: Vec<serde_json::Value>,
+        tools: Option<Vec<serde_json::Value>>,
+        options: Option<ChatOptions>,
+    ) -> Result<serde_json::Value, LlmError> {
+        let opts = options.unwrap_or_default();
+
         let mut body = serde_json::json!({
             "model": self.model,
             "messages": messages,
             "stream": false,
+            "options": {
+                "num_ctx": opts.num_ctx
+            }
         });
 
         if let Some(tools) = tools {
             body["tools"] = serde_json::Value::Array(tools);
+            // Only disable thinking for tool-calling mode where Gemma 4
+            // wastes tokens on internal reasoning. For plain chat/JSON
+            // output, some models (Qwen3) need thinking to follow instructions.
+            body["think"] = serde_json::json!(false);
+        }
+
+        if opts.json_format {
+            body["format"] = serde_json::json!("json");
         }
 
         let url = format!("{}/api/chat", self.base_url);
 
         let mut last_error: Option<LlmError> = None;
 
-        for attempt in 0..=Self::MAX_RETRIES {
+        for attempt in 0..=self.max_retries {
             if attempt > 0 {
                 // Exponential backoff: 1s for first retry, 2s for second.
                 let backoff = std::time::Duration::from_secs(1 << (attempt - 1));
@@ -138,7 +281,7 @@ impl OllamaClient {
                 .http_client
                 .post(&url)
                 .json(&body)
-                .timeout(std::time::Duration::from_secs(60))
+                .timeout(std::time::Duration::from_secs(self.timeout_seconds))
                 .send()
                 .await;
 
@@ -195,11 +338,55 @@ impl OllamaClient {
 #[cfg(feature = "ollama")]
 #[async_trait]
 impl LlmClient for OllamaClient {
+    async fn warmup(&self) -> Result<(), LlmError> {
+        tracing::info!(model = %self.model, "Warming up Ollama model...");
+        let messages = vec![serde_json::json!({
+            "role": "user",
+            "content": "Hi"
+        })];
+        // Send a tiny request to force model loading into GPU memory.
+        // Use a minimal context window and ignore the response content.
+        let mut body = serde_json::json!({
+            "model": self.model,
+            "messages": messages,
+            "stream": false,
+            "options": { "num_ctx": 128, "num_predict": 1 }
+        });
+        body["think"] = serde_json::json!(false);
+
+        let url = format!("{}/api/chat", self.base_url);
+        let _ = self
+            .http_client
+            .post(&url)
+            .json(&body)
+            .timeout(std::time::Duration::from_secs(120))
+            .send()
+            .await
+            .map_err(|e| LlmError::Http(e.to_string()))?;
+
+        tracing::info!(model = %self.model, "Ollama model warm and ready");
+        Ok(())
+    }
+
     async fn categorize_batch(
         &self,
         batch: &CategorizationBatch,
     ) -> Result<Vec<CategorizationResult>, LlmError> {
-        let system_prompt = crate::prompts::build_categorization_system_prompt();
+        // Use the batch JSON protocol -- faster and more reliable than tool-calling.
+        // Falls back to tool-calling if batch JSON parsing fails.
+        match crate::batch_json::categorize_batch_json(self, batch, 4096).await {
+            Ok(results) => return Ok(results),
+            Err(e) => {
+                tracing::warn!(
+                    "Batch JSON categorization failed, falling back to tool-calling: {}",
+                    e
+                );
+            }
+        }
+
+        // Fallback: tool-calling protocol
+        let system_prompt =
+            crate::prompts::build_categorization_system_prompt(&batch.category_hierarchy);
         let user_prompt = crate::prompts::build_categorization_user_prompt(
             &batch.transactions,
             &batch.user_overrides,

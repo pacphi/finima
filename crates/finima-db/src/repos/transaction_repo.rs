@@ -17,6 +17,7 @@ pub struct TransactionForAnalysisRow {
     pub description: String,
     pub merchant_name: Option<String>,
     pub category: Option<String>,
+    pub subcategory: Option<String>,
     pub account_id: Uuid,
 }
 
@@ -115,6 +116,12 @@ pub struct LlmCategorizationUpdate {
 }
 
 impl PgTransactionRepo {
+    /// Number of rows per SQL batch for bulk INSERT and UPDATE operations.
+    ///
+    /// Keeps the parameter count well within PostgreSQL's limits while
+    /// avoiding excessive round-trips.
+    const DB_CHUNK_SIZE: usize = 100;
+
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -133,7 +140,7 @@ impl PgTransactionRepo {
         let mut inserted: usize = 0;
 
         // Process in chunks to avoid exceeding PostgreSQL parameter limits.
-        for chunk in transactions.chunks(100) {
+        for chunk in transactions.chunks(Self::DB_CHUNK_SIZE) {
             let mut ids = Vec::with_capacity(chunk.len());
             let mut account_ids = Vec::with_capacity(chunk.len());
             let mut dates = Vec::with_capacity(chunk.len());
@@ -379,7 +386,7 @@ impl PgTransactionRepo {
             return Ok(());
         }
 
-        for chunk in results.chunks(100) {
+        for chunk in results.chunks(Self::DB_CHUNK_SIZE) {
             let ids: Vec<Uuid> = chunk.iter().map(|r| r.transaction_id).collect();
             let categories: Vec<String> = chunk.iter().map(|r| r.category.clone()).collect();
             let subcategories: Vec<String> = chunk.iter().map(|r| r.subcategory.clone()).collect();
@@ -404,6 +411,36 @@ impl PgTransactionRepo {
             .bind(&subcategories)
             .bind(&merchant_names)
             .bind(&confidences)
+            .execute(&self.pool)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Set the `source_tier` column for a batch of transactions.
+    ///
+    /// Used by the categorization cascade to record which tier produced the
+    /// category assignment (e.g. `"merchant_lookup"`, `"pattern_engine"`, `"llm"`).
+    pub async fn set_source_tier(
+        &self,
+        transaction_ids: &[Uuid],
+        tier: &str,
+    ) -> Result<(), AppError> {
+        if transaction_ids.is_empty() {
+            return Ok(());
+        }
+
+        for chunk in transaction_ids.chunks(Self::DB_CHUNK_SIZE) {
+            sqlx::query(
+                r#"
+                UPDATE transactions
+                SET source_tier = $1
+                WHERE id = ANY($2)
+                "#,
+            )
+            .bind(tier)
+            .bind(chunk)
             .execute(&self.pool)
             .await?;
         }
@@ -477,7 +514,7 @@ impl PgTransactionRepo {
         let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
             r#"
             SELECT t.id, t.date, t.amount, t.description,
-                   t.merchant_name, t.category, t.account_id
+                   t.merchant_name, t.category, t.subcategory, t.account_id
             FROM transactions t
             JOIN accounts a ON a.id = t.account_id
             WHERE a.portfolio_id = $1
@@ -503,7 +540,7 @@ impl PgTransactionRepo {
         let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
             r#"
             SELECT id, date, amount, description,
-                   merchant_name, category, account_id
+                   merchant_name, category, subcategory, account_id
             FROM transactions
             WHERE account_id = $1
             ORDER BY date

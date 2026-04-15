@@ -93,6 +93,7 @@ mod tests {
                 description: "TEST STORE".to_string(),
             }],
             user_overrides: vec![],
+            category_hierarchy: vec![],
         };
 
         let results = client.categorize_batch(&batch).await.unwrap();

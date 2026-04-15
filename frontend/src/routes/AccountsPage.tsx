@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useApi } from '@/hooks/useApi';
-import { createPortfolioApi } from '@/api/portfolios';
 import { createAccountApi } from '@/api/accounts';
 import { formatCurrency } from '@/utils/format';
 import { usePortfolioStore } from '@/stores/portfolioStore';
@@ -49,26 +48,17 @@ const LIABILITY_TYPES = new Set<AccountType>(['credit_card', 'loan']);
 export function AccountsPage() {
   const navigate = useNavigate();
   const api = useApi();
-  const portfolioApi = createPortfolioApi(api);
   const accountApi = createAccountApi(api);
 
   const portfolios = usePortfolioStore((s) => s.portfolios);
   const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
   const accounts = usePortfolioStore((s) => s.accounts);
-  const setPortfolios = usePortfolioStore((s) => s.setPortfolios);
-  const selectPortfolio = usePortfolioStore((s) => s.selectPortfolio);
   const setAccounts = usePortfolioStore((s) => s.setAccounts);
   const addAccount = usePortfolioStore((s) => s.addAccount);
-  const addPortfolio = usePortfolioStore((s) => s.addPortfolio);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState<string | null>(null);
-  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
-  const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
-  const [portfolioName, setPortfolioName] = useState('');
-  const [portfolioDesc, setPortfolioDesc] = useState('');
-  const [savingPortfolio, setSavingPortfolio] = useState(false);
 
   const {
     register,
@@ -83,15 +73,6 @@ export function AccountsPage() {
       opening_balance: 0,
     },
   });
-
-  useEffect(() => {
-    portfolioApi
-      .listPortfolios()
-      .then((p) => {
-        setPortfolios(p);
-      })
-      .catch(console.error);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!activePortfolioId) {
@@ -150,44 +131,6 @@ export function AccountsPage() {
     }
   };
 
-  const handleOpenPortfolioModal = (portfolio?: Portfolio) => {
-    if (portfolio) {
-      setEditingPortfolio(portfolio);
-      setPortfolioName(portfolio.name);
-      setPortfolioDesc(portfolio.description ?? '');
-    } else {
-      setEditingPortfolio(null);
-      setPortfolioName('');
-      setPortfolioDesc('');
-    }
-    setShowPortfolioModal(true);
-  };
-
-  const handleSavePortfolio = async () => {
-    if (!portfolioName.trim()) return;
-    setSavingPortfolio(true);
-    try {
-      if (editingPortfolio) {
-        const updated = await portfolioApi.updatePortfolio(editingPortfolio.id, {
-          name: portfolioName.trim(),
-          description: portfolioDesc.trim() || undefined,
-        });
-        setPortfolios(portfolios.map((p) => (p.id === updated.id ? updated : p)));
-      } else {
-        const created = await portfolioApi.createPortfolio({
-          name: portfolioName.trim(),
-          description: portfolioDesc.trim() || undefined,
-        });
-        addPortfolio(created);
-      }
-      setShowPortfolioModal(false);
-    } catch (err) {
-      console.error('Failed to save portfolio:', err);
-    } finally {
-      setSavingPortfolio(false);
-    }
-  };
-
   const handleArchive = async (e: React.MouseEvent, accountId: string) => {
     e.stopPropagation();
     if (!confirm('Archive this account? It will be hidden from your account list.')) return;
@@ -218,42 +161,6 @@ export function AccountsPage() {
         )}
       </div>
 
-      {/* Portfolio selector */}
-      <div className="mb-6 flex items-end gap-3">
-        {portfolios.length > 1 && (
-          <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-              Portfolio
-            </label>
-            <select
-              value={activePortfolioId ?? ''}
-              onChange={(e) => selectPortfolio(e.target.value)}
-              className="input-themed"
-            >
-              {portfolios.map((p: Portfolio) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {activePortfolioId && (
-          <button
-            onClick={() => {
-              const p = portfolios.find((p) => p.id === activePortfolioId);
-              if (p) handleOpenPortfolioModal(p);
-            }}
-            className="px-3 py-2 text-sm text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text)] transition-colors"
-          >
-            Edit Portfolio
-          </button>
-        )}
-        <button onClick={() => handleOpenPortfolioModal()} className="btn-primary">
-          + New Portfolio
-        </button>
-      </div>
-
       {loading ? (
         <div className="text-center py-12 text-[var(--color-text-secondary)]">
           Loading accounts...
@@ -264,7 +171,14 @@ export function AccountsPage() {
             Create a portfolio to get started
           </p>
           <p className="text-sm text-[var(--color-text-secondary)]">
-            You need at least one portfolio before adding accounts.
+            Go to{' '}
+            <button
+              onClick={() => navigate('/portfolios')}
+              className="text-[var(--color-primary)] hover:underline"
+            >
+              Portfolios
+            </button>{' '}
+            to create one before adding accounts.
           </p>
         </div>
       ) : accounts.length === 0 ? (
@@ -353,71 +267,6 @@ export function AccountsPage() {
             </div>
           </div>
         </>
-      )}
-
-      {/* Portfolio Modal */}
-      {showPortfolioModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowPortfolioModal(false)}
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="portfolio-modal-title"
-            className="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-xl w-full max-w-md p-6 z-10"
-          >
-            <h2
-              id="portfolio-modal-title"
-              className="text-lg font-semibold text-[var(--color-text)] mb-4"
-            >
-              {editingPortfolio ? 'Edit Portfolio' : 'New Portfolio'}
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={portfolioName}
-                  onChange={(e) => setPortfolioName(e.target.value)}
-                  className="input-themed"
-                  placeholder="My Portfolio"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1 uppercase tracking-wider">
-                  Description (optional)
-                </label>
-                <textarea
-                  value={portfolioDesc}
-                  onChange={(e) => setPortfolioDesc(e.target.value)}
-                  rows={2}
-                  className="input-themed"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowPortfolioModal(false)}
-                className="px-4 py-2 text-[var(--color-text-secondary)] border border-[var(--color-border)] text-sm font-medium rounded-xl hover:bg-[var(--color-primary-subtle)] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleSavePortfolio()}
-                disabled={savingPortfolio || !portfolioName.trim()}
-                className="btn-primary"
-              >
-                {savingPortfolio ? 'Saving...' : editingPortfolio ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Add Account Modal */}
