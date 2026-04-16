@@ -556,11 +556,56 @@ pub async fn get_full_sankey(
         }
     }
 
+    // ---- Insert spender-role virtual nodes for primary direct spending ----
+    //
+    // To keep the 4-column layout strictly unidirectional (every link
+    // goes col N → col N+1), we use the textbook Sugiyama dummy-node
+    // technique: when a primary account has direct spending (debit
+    // card, autopay), we synthesize a "{Primary} — Direct Debit"
+    // node in column 2 and route the spending through it.
+    //
+    // Result:
+    //   primary (col 1) → "{Primary} — Direct Debit" (col 2) → category (col 3)
+    //
+    // Without this, primary→category edges skip column 2 visually,
+    // which produced the layout problems we hit in earlier
+    // experiments. See ADR-008 Amendment 2 for the full rationale.
+    let primary_names: std::collections::HashSet<String> = accounts
+        .iter()
+        .filter(|a| primary_ids.contains(&a.id))
+        .map(|a| a.name.clone())
+        .collect();
+
+    let direct_debit_label = |primary: &str| format!("{} — Direct Debit", primary);
+
+    let (primary_spending, secondary_spending): (
+        HashMap<(String, String), Decimal>,
+        HashMap<(String, String), Decimal>,
+    ) = spending_links
+        .into_iter()
+        .partition(|((src, _), _)| primary_names.contains(src));
+
+    // For each primary→category link, emit two replacement links:
+    //   primary (col 1) → spender_role (col 2)
+    //   spender_role (col 2) → category (col 3)
+    let mut spender_role_inflows: HashMap<(String, String), Decimal> = HashMap::new();
+    let mut spender_role_spending: HashMap<(String, String), Decimal> = HashMap::new();
+    for ((primary, category), amount) in primary_spending {
+        let spender = direct_debit_label(&primary);
+        *spender_role_inflows
+            .entry((primary, spender.clone()))
+            .or_default() += amount;
+        *spender_role_spending
+            .entry((spender, category))
+            .or_default() += amount;
+    }
+
     // ---- Collect nodes with column tags ----
     // 4-column layout so all flows go strictly left-to-right:
     //   col 0 ("left")      = income sources
     //   col 1 ("primary")   = primary account(s) — hub that receives income & sends transfers
     //   col 2 ("secondary") = non-primary accounts (credit cards, savings, etc.)
+    //                         + spender-role virtual nodes for primary direct spending
     //   col 3 ("right")     = spending categories
     let mut nodes: Vec<FullSankeyNodeResponse> = Vec::new();
     let mut seen_nodes: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -594,8 +639,25 @@ pub async fn get_full_sankey(
         }
     }
 
+    // Spender-role virtual nodes (col 2) — one per primary that had
+    // direct spending. Marked with node_type="spender_role" so the
+    // frontend can render them with a distinguishing visual treatment.
+    for (_primary, spender) in spender_role_inflows.keys() {
+        if seen_nodes.insert(spender.clone()) {
+            nodes.push(FullSankeyNodeResponse {
+                id: spender.clone(),
+                name: spender.clone(),
+                node_type: "spender_role".into(),
+                column: "secondary".into(),
+            });
+        }
+    }
+
     // Spending category nodes (col 3).
-    for (_src, tgt) in spending_links.keys() {
+    for (_src, tgt) in secondary_spending
+        .keys()
+        .chain(spender_role_spending.keys())
+    {
         if seen_nodes.insert(tgt.clone()) {
             nodes.push(FullSankeyNodeResponse {
                 id: tgt.clone(),
@@ -623,7 +685,24 @@ pub async fn get_full_sankey(
             value: *val,
         });
     }
-    for ((src, tgt), val) in &spending_links {
+    // Primary → spender-role inflows (col 1 → col 2).
+    for ((src, tgt), val) in &spender_role_inflows {
+        links.push(SankeyLinkResponse {
+            source: src.clone(),
+            target: tgt.clone(),
+            value: *val,
+        });
+    }
+    // Spender-role → category outflows (col 2 → col 3).
+    for ((src, tgt), val) in &spender_role_spending {
+        links.push(SankeyLinkResponse {
+            source: src.clone(),
+            target: tgt.clone(),
+            value: *val,
+        });
+    }
+    // Secondary account → category outflows (col 2 → col 3).
+    for ((src, tgt), val) in &secondary_spending {
         links.push(SankeyLinkResponse {
             source: src.clone(),
             target: tgt.clone(),
