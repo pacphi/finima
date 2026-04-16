@@ -72,6 +72,28 @@ function formatOutflowType(type: string): string {
     .join(' ');
 }
 
+/** Convert a Title-Cased category label ("Food Dining") back to the
+ *  backend slug ("food_dining") used in the `category` query param. */
+function categorySlug(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+/** Build a Transactions-page deep link that filters to this category
+ *  for the given month. Used for "View" on category rows in the
+ *  Outflow Ranking. */
+function transactionsLinkForCategory(month: string, categoryLabel: string): string {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const lastDay = new Date(y, m, 0).getDate(); // month is 1-based into Date(.., m, 0)
+  const from = `${month}-01`;
+  const to = `${month}-${String(lastDay).padStart(2, '0')}`;
+  const params = new URLSearchParams({
+    category: categorySlug(categoryLabel),
+    date_from: from,
+    date_to: to,
+  });
+  return `/transactions?${params.toString()}`;
+}
+
 // ── Detected Flows Tab ─────────────────────────────────────────────
 
 function DetectedFlowsTab({
@@ -333,7 +355,12 @@ function SankeyTab({
                         View
                       </a>
                     ) : (
-                      <span className="text-xs text-[var(--color-text-secondary)]">—</span>
+                      <a
+                        href={transactionsLinkForCategory(month, o.account_name)}
+                        className="text-xs text-[var(--color-accent)] hover:underline"
+                      >
+                        View
+                      </a>
                     )}
                   </td>
                 </tr>

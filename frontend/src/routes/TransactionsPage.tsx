@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { useApi } from '@/hooks/useApi';
@@ -52,6 +53,27 @@ export function TransactionsPage() {
       setFilters((prev) => ({ ...prev, portfolio_id: activePortfolioId }));
     }
   }, [activePortfolioId]);
+
+  // Deep-link support: read ?category=&date_from=&date_to=&account_id=
+  // from the URL on mount (and whenever they change) and merge into the
+  // filter state. Enables FlowsPage's "View" action on category rows to
+  // drop the user here with the correct filter pre-applied.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const category = searchParams.get('category') ?? undefined;
+    const date_from = searchParams.get('date_from') ?? undefined;
+    const date_to = searchParams.get('date_to') ?? undefined;
+    const account_id = searchParams.get('account_id') ?? undefined;
+    if (!category && !date_from && !date_to && !account_id) return;
+    setFilters((prev) => ({
+      ...prev,
+      ...(category !== undefined ? { category } : {}),
+      ...(date_from !== undefined ? { date_from } : {}),
+      ...(date_to !== undefined ? { date_to } : {}),
+      ...(account_id !== undefined ? { account_id } : {}),
+    }));
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     if (storedAccounts.length > 0) {
