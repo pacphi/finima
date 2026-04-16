@@ -19,6 +19,8 @@ Handles the complete lifecycle of importing financial data from external files i
 | **Preview**         | The first 20 rows of a parsed file, shown to the user before final import. Includes inferred column assignments.                 |
 | **Dedup Hash**      | `SHA-256(date                                                                                                                    |     | amount |     | description)` scoped to an account. Used to detect duplicate transactions across imports. |
 | **Raw Transaction** | A parsed row from a file before it becomes a persisted Transaction entity.                                                       |
+| **Transaction Direction** | Canonical `inflow` or `outflow` relative to the account. Set at import time by `SignNormalizer` (see ADR-018). Consumed by all downstream analytics instead of inspecting the sign of `amount`, which varies by institution. |
+| **Sign Convention** | Whether a positive `amount` on a given account represents an inflow or an outflow. Resolved at import via the chain: per-account override -> per-institution YAML rule -> autodetection -> account-type default. |
 
 ## 3. Aggregates
 
@@ -82,6 +84,26 @@ trait FileParser: Send + Sync {
 
 Implementations: `OfxParser`, `QifParser`, `CsvParser`, `XlsxParser`.
 
+### SignNormalizer
+
+Institution-aware direction resolver applied once per import batch. See ADR-018.
+
+- `direction_for(ctx: AccountContext, amount: Decimal) -> TransactionDirection`
+  — maps a raw `amount` to canonical `Inflow` or `Outflow` based on the configured `SignConvention` for the account.
+- `direction_for_with_detection(..., detected: Option<SignConvention>) -> TransactionDirection`
+  — variant that slots the `SignAutodetector` verdict into the resolution chain when neither the per-account override nor the per-institution YAML rule applies.
+- Resolution order (strongest to weakest): per-account override stored on `accounts.sign_convention_override` → `config.sign_conventions.by_institution[name]` (case-insensitive) → autodetected convention → account-type default.
+- Pure function; no I/O. Built from `AppConfig.sign_conventions` at request time so per-account overrides can be merged into `by_account_id` before use.
+
+### SignAutodetector
+
+Fallback convention inference from the uploaded file itself; consulted only when the configured rules do not resolve a convention.
+
+- `detect(account_type: AccountType, rows: &[RawRow]) -> AutodetectResult { verdict, confidence, reason }`
+- **Liability inference:** inspects `debt_payment` category rows and payment-keyword descriptions (`"PAYMENT - THANK YOU"`, `"AUTOPAY"`, etc.). Sign of payments reveals the convention: positive payments ⇒ `PositiveMeansInflow` (Chase-style); negative payments ⇒ `PositiveMeansOutflow` (Amex/Discover-style).
+- **Asset inference:** inspects payroll/deposit-keyword descriptions and `income`/`paycheck`/`payroll` categories.
+- `verdict: None` when no signal is present; caller falls back to the account-type default.
+
 ### DedupService
 
 - `compute_hash(date, amount, description) -> String` — SHA-256 hash.
@@ -95,7 +117,7 @@ Coordinates the full import pipeline:
 1. Receive file -> detect format -> create Upload record (`pending`).
 2. Parse preview -> return to frontend (`previewing`).
 3. Receive column mapping confirmation -> store mapping (`confirmed`).
-4. Parse all rows -> dedup -> bulk insert transactions -> update Upload status (`processing` -> `complete`).
+4. Parse all rows -> **normalize direction via `SignNormalizer`** (with `SignAutodetector` fallback for unknown institutions) -> dedup -> bulk insert transactions with `direction` populated -> update Upload status (`processing` -> `complete`).
 5. Queue LLM categorization for new transactions (handoff to Intelligence context).
 6. Push WebSocket progress events throughout.
 

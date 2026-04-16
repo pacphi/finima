@@ -17,3 +17,5 @@
 | [ADR-014](ADR-014-dashboard-primary-organizing-frame.md) | Net Worth as Primary Dashboard Organizing Frame     | Proposed |
 | [ADR-015](ADR-015-widget-canvas-dashboard.md)            | Widget-Based Customisable Dashboard Canvas          | Accepted |
 | [ADR-016](ADR-016-calendar-month-time-window.md)         | Calendar Month Default with Three-Position Switcher | Proposed |
+| [ADR-017](ADR-017-sona-enhanced-flow-detection.md)       | SONA-Enhanced Flow Detection                        | Proposed |
+| [ADR-018](ADR-018-import-time-sign-normalization.md)     | Import-Time Sign Normalization                      | Accepted |

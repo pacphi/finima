@@ -166,6 +166,26 @@ FlowGroup
   - Outflows = flows to each destination account.
   - End balance = start + income - sum(outflows).
 
+### FullSankeyBuilder
+
+- `build(portfolio_id, month) -> FullSankeyData { nodes: Vec<Node>, links: Vec<Link>, metadata: SankeyMetadata }`
+  - Composes four columns into a single Sankey dataset (see ADR-008 Amendment 2):
+    1. **Income inflows (column `left`):** Positive transactions on primary income accounts, grouped by merchant/category. Excludes transactions already in `account_flows` or with `category = 'transfer'`.
+    2. **Primary accounts (column `primary`):** Accounts with `is_primary_income = true` — the paycheck hub.
+    3. **Secondary accounts (column `secondary`):** Non-primary accounts (credit cards, savings, loans), plus **spender-role virtual nodes** synthesized when a primary account has direct spending. The virtual node for primary `Joint` is named `"Joint — Direct Debit"` and carries `node_type: "spender_role"`. Inserting it (Sugiyama dummy-node technique) keeps every spending edge a single-column step.
+    4. **Spending categories (column `right`):** Categories receiving outflow transactions. Aggregated by `(source_account_or_spender, category)` pairs.
+  - Spending source-of-truth: `transactions.direction = 'outflow'` (set at import time by `SignNormalizer`; see ADR-018). Replaces the old account-type-conditional sign branch which silently misclassified Chase-issued credit cards.
+  - Excluded from spending: rows whose `category` is in `config.sankey.transfer_categories` (default `["transfer", "debt_payment"]`) and rows whose `id` appears in `account_flows`.
+  - Link classes:
+    - **income_links** — `left → primary`
+    - **transfer_links** — `primary → secondary` (from `account_flows`)
+    - **spender_role_inflows** — `primary → spender_role` (virtual; col 1 → col 2)
+    - **spender_role_spending** — `spender_role → right` (virtual; col 2 → col 3)
+    - **secondary_spending** — `secondary → right` (col 2 → col 3)
+  - Applies a 2% small-value aggregation threshold per column: nodes below the threshold are collapsed into "Other" / "Other Income" buckets.
+  - Returns `SankeyMetadata { month, total_income, total_spending, net_flow }`.
+  - Consumed by `InteractiveSankey` in the frontend, which renders the diagram with one interaction law: only category leaves are clickable; clicking opens a subcategory donut (no account-level drilling).
+
 ## 5. Domain Events
 
 | Event            | Triggered By                                 | Consumed By                      |
