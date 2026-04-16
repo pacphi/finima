@@ -1,4 +1,11 @@
+use std::collections::HashMap;
+
+use finima_core::services::sign_normalizer::{
+    SignConvention, SignConventions as CoreSignConventions,
+};
+use finima_core::AccountType;
 use serde::Deserialize;
+use uuid::Uuid;
 
 /// Top-level application configuration deserialized from YAML files.
 ///
@@ -20,6 +27,13 @@ pub struct AppConfig {
     pub s3: S3Config,
     #[serde(default)]
     pub categories: Vec<CategoryEntry>,
+    /// Maintainer-curated sign-convention rules used by the
+    /// SignNormalizer at import time (see ADR-018).
+    #[serde(default)]
+    pub sign_conventions: SignConventionsConfig,
+    /// Sankey visualization tuning (transfer-category exclusions, etc.).
+    #[serde(default)]
+    pub sankey: SankeyConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, serde::Serialize)]
@@ -293,6 +307,95 @@ impl Default for S3Config {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Sign conventions (ADR-018)
+// ───────────────────────────────────────────────────────────────────
+
+/// Wire-format enum for `sign_convention_*` values in YAML/JSON.
+/// Maps 1:1 to [`finima_core::services::sign_normalizer::SignConvention`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignConventionConfig {
+    /// Positive amount = inflow (money in), negative = outflow.
+    PositiveMeansInflow,
+    /// Positive amount = outflow (money out), negative = inflow.
+    PositiveMeansOutflow,
+}
+
+impl From<SignConventionConfig> for SignConvention {
+    fn from(c: SignConventionConfig) -> Self {
+        match c {
+            SignConventionConfig::PositiveMeansInflow => SignConvention::PositiveMeansInflow,
+            SignConventionConfig::PositiveMeansOutflow => SignConvention::PositiveMeansOutflow,
+        }
+    }
+}
+
+/// YAML-shipped sign-convention registry. Maintainers add entries here
+/// to capture per-institution quirks (e.g. Chase exporting credit-card
+/// charges as negative). End users do NOT edit this — they correct
+/// individual accounts via the UI, which writes a per-account override
+/// stored on the `accounts` table.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SignConventionsConfig {
+    /// Optional per-account pins. Rare; primarily for one-off
+    /// migrations or test scenarios. The UI normally writes per-account
+    /// overrides directly to the database.
+    #[serde(default)]
+    pub by_account_id: HashMap<Uuid, SignConventionConfig>,
+    /// Maintainer-curated per-institution rules. Keys are matched
+    /// case-insensitively against the account's institution name.
+    #[serde(default)]
+    pub by_institution: HashMap<String, SignConventionConfig>,
+}
+
+impl SignConventionsConfig {
+    /// Convert this YAML-friendly config into the core service type
+    /// used by `SignNormalizer`. Built-in defaults are merged in by
+    /// `SignNormalizer::new`, so callers don't need to pre-populate
+    /// `defaults_by_account_type`.
+    pub fn into_service_rules(self) -> CoreSignConventions {
+        let mut rules = CoreSignConventions::default();
+        for (id, c) in self.by_account_id {
+            rules.by_account_id.insert(id, c.into());
+        }
+        for (name, c) in self.by_institution {
+            rules.by_institution.insert(name.to_lowercase(), c.into());
+        }
+        rules
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Sankey configuration (ADR-008 Amendment 2)
+// ───────────────────────────────────────────────────────────────────
+
+/// Sankey aggregation/rendering tuning.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SankeyConfig {
+    /// Categories whose transactions are NOT counted as "spending"
+    /// in the Sankey (because they represent transfers, not consumption).
+    /// Applied uniformly to all account types. Default:
+    /// `["transfer", "debt_payment"]`.
+    #[serde(default = "default_transfer_categories")]
+    pub transfer_categories: Vec<String>,
+}
+
+fn default_transfer_categories() -> Vec<String> {
+    vec!["transfer".to_string(), "debt_payment".to_string()]
+}
+
+impl Default for SankeyConfig {
+    fn default() -> Self {
+        Self {
+            transfer_categories: default_transfer_categories(),
+        }
+    }
+}
+
+#[allow(dead_code)] // referenced via AccountType import only when wired into ingest
+fn _account_type_marker(_t: AccountType) {}
+
 /// Validate critical configuration values at startup.
 ///
 /// Panics if any of the following conditions are met:
@@ -354,6 +457,7 @@ pub fn load_config_from(config_dir: &str) -> Result<AppConfig, config::ConfigErr
         "categories",
         "services",
         "logging",
+        "sankey",
     ];
 
     let mut builder = config::Config::builder();
@@ -488,6 +592,67 @@ categories:
         assert!(cfg.feed.sources.is_empty());
         assert_eq!(cfg.logging.level, "info");
         assert_eq!(cfg.cors.allowed_origins.len(), 1);
+    }
+
+    #[test]
+    fn sign_conventions_default_is_empty() {
+        let cfg = SignConventionsConfig::default();
+        assert!(cfg.by_account_id.is_empty());
+        assert!(cfg.by_institution.is_empty());
+    }
+
+    #[test]
+    fn sign_conventions_parse_from_yaml() {
+        let yaml = r#"
+by_institution:
+  chase: positive_means_inflow
+  citi:  positive_means_inflow
+by_account_id:
+  "00000000-0000-0000-0000-000000000001": positive_means_outflow
+"#;
+        let cfg: SignConventionsConfig = serde_yaml::from_str(yaml).expect("parse");
+        assert_eq!(
+            cfg.by_institution.get("chase"),
+            Some(&SignConventionConfig::PositiveMeansInflow)
+        );
+        assert_eq!(
+            cfg.by_institution.get("citi"),
+            Some(&SignConventionConfig::PositiveMeansInflow)
+        );
+        let pinned = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        assert_eq!(
+            cfg.by_account_id.get(&pinned),
+            Some(&SignConventionConfig::PositiveMeansOutflow)
+        );
+    }
+
+    #[test]
+    fn sign_conventions_into_service_rules_lowercases_institutions() {
+        let mut cfg = SignConventionsConfig::default();
+        cfg.by_institution
+            .insert("CHASE".to_string(), SignConventionConfig::PositiveMeansInflow);
+        let rules = cfg.into_service_rules();
+        assert!(rules.by_institution.contains_key("chase"));
+        assert!(!rules.by_institution.contains_key("CHASE"));
+    }
+
+    #[test]
+    fn sankey_config_default_excludes_transfer_categories() {
+        let cfg = SankeyConfig::default();
+        assert!(cfg.transfer_categories.contains(&"transfer".to_string()));
+        assert!(cfg
+            .transfer_categories
+            .contains(&"debt_payment".to_string()));
+    }
+
+    #[test]
+    fn sankey_config_parses_from_yaml() {
+        let yaml = r#"transfer_categories: ["transfer", "debt_payment", "investment_buy"]"#;
+        let cfg: SankeyConfig = serde_yaml::from_str(yaml).expect("parse");
+        assert_eq!(cfg.transfer_categories.len(), 3);
+        assert!(cfg
+            .transfer_categories
+            .contains(&"investment_buy".to_string()));
     }
 
     #[test]

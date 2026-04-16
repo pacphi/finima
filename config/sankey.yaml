@@ -1,0 +1,50 @@
+# Sankey + sign-convention configuration.
+# See ADR-008 (Sankey) and ADR-018 (Import-Time Sign Normalization).
+#
+# This file is maintainer-curated. End users do NOT edit it — they
+# correct individual accounts via the UI ("Flip this account" on the
+# Account detail page), which writes a per-account override stored
+# directly on the `accounts` table.
+
+# ─── Sign Conventions ────────────────────────────────────────────────
+#
+# Resolution order at import time:
+#   1. accounts.sign_convention_override (UI-set; highest precedence)
+#   2. by_institution rule below (case-insensitive match)
+#   3. SignAutodetector inference from the uploaded transaction file
+#   4. Built-in account-type default
+#       Assets       (checking/savings/cash/crypto/investment_*) → positive_means_inflow
+#       Liabilities  (credit_card / loan_*)                       → positive_means_outflow
+#
+# Add a row to `by_institution` only when:
+#   - The institution exports the OPPOSITE polarity from the
+#     account-type default (e.g. Chase exports credit-card charges
+#     as negative, payments as positive — the inverse of Amex/Discover).
+#   - You want to ship that knowledge as a default for ALL users
+#     of that institution, instead of relying on autodetection.
+#
+# Allowed values: positive_means_inflow | positive_means_outflow
+sign_conventions:
+  by_institution:
+    # Chase consumer cards (Sapphire, Freedom, United Explorer,
+    # Amazon Prime Visa) export charges as negative amounts and
+    # payments as positive — the inverse of Amex/Discover.
+    chase: positive_means_inflow
+  # Per-account pins are normally set via the UI; this section is
+  # reserved for one-off migrations or test scenarios.
+  by_account_id: {}
+
+# ─── Sankey Aggregation Rules ────────────────────────────────────────
+
+sankey:
+  # Categories whose transactions are NOT counted as "spending" in
+  # the right column of the Money Flow Sankey, because they represent
+  # transfers between accounts rather than consumption.
+  #
+  # Applied uniformly across all account types. Inter-account flows
+  # are still rendered as primary→secondary transfer ribbons in the
+  # middle of the diagram; this list just keeps them from being
+  # double-counted as spending.
+  transfer_categories:
+    - transfer
+    - debt_payment
