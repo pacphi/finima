@@ -5,4 +5,5 @@
 //! into the database, HTTP handlers, or import pipelines happens in the
 //! `finima-api` and `finima-ingest` crates.
 
+pub mod sign_autodetector;
 pub mod sign_normalizer;
