@@ -10,9 +10,7 @@ use uuid::Uuid;
 
 use finima_auth::middleware::AuthUser;
 use finima_core::models::Account;
-use finima_core::services::sign_normalizer::{
-    AccountContext, SignConvention, SignNormalizer,
-};
+use finima_core::services::sign_normalizer::{AccountContext, SignConvention, SignNormalizer};
 use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::types::{AccountType, TransactionDirection};
 use finima_core::AppError;
@@ -351,12 +349,11 @@ pub async fn set_sign_override(
         institution: account.institution.clone(),
     };
 
-    let txn_rows: Vec<(Uuid, Decimal, Option<TransactionDirection>)> = sqlx::query_as(
-        "SELECT id, amount, direction FROM transactions WHERE account_id = $1",
-    )
-    .bind(id)
-    .fetch_all(state.pool())
-    .await?;
+    let txn_rows: Vec<(Uuid, Decimal, Option<TransactionDirection>)> =
+        sqlx::query_as("SELECT id, amount, direction FROM transactions WHERE account_id = $1")
+            .bind(id)
+            .fetch_all(state.pool())
+            .await?;
 
     let mut flipped: u64 = 0;
     let total = txn_rows.len() as u64;

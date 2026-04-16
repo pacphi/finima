@@ -11,16 +11,16 @@ Handles the complete lifecycle of importing financial data from external files i
 
 ## 2. Ubiquitous Language
 
-| Term                | Definition                                                                                                                       |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------ | --- | ----------------------------------------------------------------------------------------- |
-| **Upload**          | A file submitted by the user for transaction import. Tracked through states: `pending` -> `processing` -> `complete` or `error`. |
-| **File Format**     | The detected type of an uploaded file: OFX, QFX, QBO, QIF, CSV, TSV, XLS, XLSX.                                                  |
-| **Column Mapping**  | User-defined assignment of CSV/XLS columns to transaction fields (date, amount, description). Required for unstructured formats. |
-| **Preview**         | The first 20 rows of a parsed file, shown to the user before final import. Includes inferred column assignments.                 |
-| **Dedup Hash**      | `SHA-256(date                                                                                                                    |     | amount |     | description)` scoped to an account. Used to detect duplicate transactions across imports. |
-| **Raw Transaction** | A parsed row from a file before it becomes a persisted Transaction entity.                                                       |
+| Term                      | Definition                                                                                                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ | --- | ----------------------------------------------------------------------------------------- |
+| **Upload**                | A file submitted by the user for transaction import. Tracked through states: `pending` -> `processing` -> `complete` or `error`.                                                                                             |
+| **File Format**           | The detected type of an uploaded file: OFX, QFX, QBO, QIF, CSV, TSV, XLS, XLSX.                                                                                                                                              |
+| **Column Mapping**        | User-defined assignment of CSV/XLS columns to transaction fields (date, amount, description). Required for unstructured formats.                                                                                             |
+| **Preview**               | The first 20 rows of a parsed file, shown to the user before final import. Includes inferred column assignments.                                                                                                             |
+| **Dedup Hash**            | `SHA-256(date                                                                                                                                                                                                                |     | amount |     | description)` scoped to an account. Used to detect duplicate transactions across imports. |
+| **Raw Transaction**       | A parsed row from a file before it becomes a persisted Transaction entity.                                                                                                                                                   |
 | **Transaction Direction** | Canonical `inflow` or `outflow` relative to the account. Set at import time by `SignNormalizer` (see ADR-018). Consumed by all downstream analytics instead of inspecting the sign of `amount`, which varies by institution. |
-| **Sign Convention** | Whether a positive `amount` on a given account represents an inflow or an outflow. Resolved at import via the chain: per-account override -> per-institution YAML rule -> autodetection -> account-type default. |
+| **Sign Convention**       | Whether a positive `amount` on a given account represents an inflow or an outflow. Resolved at import via the chain: per-account override -> per-institution YAML rule -> autodetection -> account-type default.             |
 
 ## 3. Aggregates
 

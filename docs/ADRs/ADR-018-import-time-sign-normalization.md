@@ -73,20 +73,20 @@ consults rules in this order, returning the first match:
 
 ### Built-in defaults
 
-| account_type            | convention              |
-| ----------------------- | ----------------------- |
-| checking                | positive_means_inflow   |
-| savings                 | positive_means_inflow   |
-| cash                    | positive_means_inflow   |
-| crypto                  | positive_means_inflow   |
-| investment_brokerage    | positive_means_inflow   |
-| investment_retirement   | positive_means_inflow   |
-| credit_card             | positive_means_outflow  |
-| loan_mortgage           | positive_means_outflow  |
-| loan_auto               | positive_means_outflow  |
-| loan_student            | positive_means_outflow  |
-| loan_personal           | positive_means_outflow  |
-| other                   | positive_means_inflow   |
+| account_type          | convention             |
+| --------------------- | ---------------------- |
+| checking              | positive_means_inflow  |
+| savings               | positive_means_inflow  |
+| cash                  | positive_means_inflow  |
+| crypto                | positive_means_inflow  |
+| investment_brokerage  | positive_means_inflow  |
+| investment_retirement | positive_means_inflow  |
+| credit_card           | positive_means_outflow |
+| loan_mortgage         | positive_means_outflow |
+| loan_auto             | positive_means_outflow |
+| loan_student          | positive_means_outflow |
+| loan_personal         | positive_means_outflow |
+| other                 | positive_means_inflow  |
 
 ### YAML configuration
 
@@ -98,8 +98,8 @@ institution. Per-account corrections never live in YAML.
 ```yaml
 sign_conventions:
   by_institution:
-    chase: positive_means_inflow   # inverse of Amex/Discover
-  by_account_id: {}                 # rare; see schema for syntax
+    chase: positive_means_inflow # inverse of Amex/Discover
+  by_account_id: {} # rare; see schema for syntax
 ```
 
 ### Migration path
@@ -121,13 +121,13 @@ sign_conventions:
 
 ### Layered roles
 
-| Layer                      | Audience          | Mechanism                                                                              | Purpose                                                                                                                |
-| -------------------------- | ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `accounts.sign_convention_override` | End user   | "Flip this account" button on the Account detail page (writes via PUT /api/accounts/:id/sign-override) | One-click correction when an import looks reversed. Never requires YAML or CLI.                                         |
-| `sankey.yaml` `sign_conventions.by_institution` | Maintainer | Git-tracked YAML, PR-reviewed, shipped with releases                            | Ship sensible institution defaults so 95% of users never see a misclassification. Tax-bracket-table-style registry.    |
-| `SignAutodetector`         | Nobody — silent   | Runs during import when no institution rule matches                                    | Inspects payment / deposit signals in the file itself. Falls back to account-type default if inconclusive.            |
-| `with_builtin_defaults`    | Maintainer        | Code (`sign_normalizer.rs`)                                                            | Last-resort sensible default by account_type.                                                                          |
-| `finima-normalize-directions` | Maintainer/op  | Shell command: `cargo run --bin finima-normalize-directions -- [--dry-run]`           | Backfill / re-normalize after a YAML rule change. Never user-facing.                                                  |
+| Layer                                           | Audience        | Mechanism                                                                                              | Purpose                                                                                                             |
+| ----------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `accounts.sign_convention_override`             | End user        | "Flip this account" button on the Account detail page (writes via PUT /api/accounts/:id/sign-override) | One-click correction when an import looks reversed. Never requires YAML or CLI.                                     |
+| `sankey.yaml` `sign_conventions.by_institution` | Maintainer      | Git-tracked YAML, PR-reviewed, shipped with releases                                                   | Ship sensible institution defaults so 95% of users never see a misclassification. Tax-bracket-table-style registry. |
+| `SignAutodetector`                              | Nobody — silent | Runs during import when no institution rule matches                                                    | Inspects payment / deposit signals in the file itself. Falls back to account-type default if inconclusive.          |
+| `with_builtin_defaults`                         | Maintainer      | Code (`sign_normalizer.rs`)                                                                            | Last-resort sensible default by account_type.                                                                       |
+| `finima-normalize-directions`                   | Maintainer/op   | Shell command: `cargo run --bin finima-normalize-directions -- [--dry-run]`                            | Backfill / re-normalize after a YAML rule change. Never user-facing.                                                |
 
 ## Consequences
 

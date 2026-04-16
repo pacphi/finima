@@ -163,7 +163,7 @@ Nodes representing less than 2% of their column's total are collapsed into an "O
 
 ### Context
 
-Amendment 1 described a 3-column Sankey (income → accounts → categories). In practice, users needed to distinguish the *primary* income-receiving account (the paycheck hub) from *secondary* accounts (credit cards, savings, loans) that receive transfers from the hub. Collapsing all accounts into a single middle column obscured the canonical "paycheck → checking → credit card → category" story.
+Amendment 1 described a 3-column Sankey (income → accounts → categories). In practice, users needed to distinguish the _primary_ income-receiving account (the paycheck hub) from _secondary_ accounts (credit cards, savings, loans) that receive transfers from the hub. Collapsing all accounts into a single middle column obscured the canonical "paycheck → checking → credit card → category" story.
 
 Two additional problems surfaced:
 
@@ -199,19 +199,19 @@ Backend `GET /api/flows/sankey-full?month=YYYY-MM` returns nodes with `column �
 Joint (col 1) → Joint — Direct Debit (col 2) → Groceries (col 3)
 ```
 
-This is the textbook Sugiyama dummy-node insertion technique for layered DAG layout. It eliminates skip edges entirely; every link satisfies `column_index(source) + 1 == column_index(target)` (with the legitimate exception of `primary → secondary`). The frontend renders spender-role nodes with a dashed outline so users see the dual role explicitly: a checking account is *both* a hub for incoming transfers and a source of direct spending.
+This is the textbook Sugiyama dummy-node insertion technique for layered DAG layout. It eliminates skip edges entirely; every link satisfies `column_index(source) + 1 == column_index(target)` (with the legitimate exception of `primary → secondary`). The frontend renders spender-role nodes with a dashed outline so users see the dual role explicitly: a checking account is _both_ a hub for incoming transfers and a source of direct spending.
 
 **3. Direction-based aggregation.** The spending-link aggregation no longer inspects the sign of `amount` or branches on `account_type`. Instead it queries `direction == Outflow` (set at import time by the `SignNormalizer` service — see ADR-018) and excludes categories listed in `config.sankey.transfer_categories` (default: `["transfer", "debt_payment"]`). One predicate, every account type, every institution.
 
 ### Interaction model
 
-| User action                  | Result                                                            |
-| ---------------------------- | ----------------------------------------------------------------- |
-| Default view                 | Full 4-column DAG, always visible. No drill state.                |
-| Click income / primary node  | No-op. Display-only.                                              |
-| Click secondary / spender    | No-op. The full chain is already visible.                         |
-| Click category (right col)   | Subcategory donut opens beside the diagram.                       |
-| Click category again, or X   | Donut dismisses.                                                  |
+| User action                 | Result                                             |
+| --------------------------- | -------------------------------------------------- |
+| Default view                | Full 4-column DAG, always visible. No drill state. |
+| Click income / primary node | No-op. Display-only.                               |
+| Click secondary / spender   | No-op. The full chain is already visible.          |
+| Click category (right col)  | Subcategory donut opens beside the diagram.        |
+| Click category again, or X  | Donut dismisses.                                   |
 
 The interaction law is uniform: **leaves are always categories; only categories are clickable; the only drill is category → subcategory donut.** Account-level drilling, breadcrumbs, navigation stack, and back buttons were removed in the Phase 7 frontend simplification.
 

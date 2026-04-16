@@ -114,8 +114,8 @@ function computeLayout(
   // the first and last columns so text is never clipped.
   const firstColKey = columnKeys[0];
   const lastColKey = columnKeys[columnKeys.length - 1];
-  const firstColNodes = firstColKey ? columnGroups.get(firstColKey) ?? [] : [];
-  const lastColNodes = lastColKey ? columnGroups.get(lastColKey) ?? [] : [];
+  const firstColNodes = firstColKey ? (columnGroups.get(firstColKey) ?? []) : [];
+  const lastColNodes = lastColKey ? (columnGroups.get(lastColKey) ?? []) : [];
 
   const maxFirstLabel = firstColNodes.reduce((m, n) => Math.max(m, n.name.length), 0);
   const maxLastLabel = lastColNodes.reduce((m, n) => Math.max(m, n.name.length), 0);
@@ -357,10 +357,12 @@ export function SankeyDiagram({
           // - Last column: labels to the right
           // - Interior columns: labels centered above the node
           const colIdx = layout.has3Columns
-            ? (['left', 'primary', 'middle', 'secondary', 'right'].indexOf(node.column) >= 0
-                ? ['left', 'primary', 'middle', 'secondary', 'right'].indexOf(node.column)
-                : 1)
-            : (layout.links.some((l) => l.source.id === node.id) ? 0 : 2);
+            ? ['left', 'primary', 'middle', 'secondary', 'right'].indexOf(node.column) >= 0
+              ? ['left', 'primary', 'middle', 'secondary', 'right'].indexOf(node.column)
+              : 1
+            : layout.links.some((l) => l.source.id === node.id)
+              ? 0
+              : 2;
           const isFirstCol = colIdx === 0;
           const isLastCol = node.column === 'right' || (!layout.has3Columns && colIdx === 2);
           const isInterior = !isFirstCol && !isLastCol;
@@ -386,7 +388,8 @@ export function SankeyDiagram({
           // In 2-column mode (no column hints), all target nodes are clickable.
           // In multi-column mode, only right-column nodes are clickable.
           const isTarget = !layout.has3Columns
-            ? !layout.links.some((l) => l.source.id === node.id) && layout.links.some((l) => l.target.id === node.id)
+            ? !layout.links.some((l) => l.source.id === node.id) &&
+              layout.links.some((l) => l.target.id === node.id)
             : node.column === 'right';
           const isClickable = isTarget && onCategoryClick;
 

@@ -28,9 +28,7 @@ mod config;
 
 use std::collections::HashMap;
 
-use finima_core::services::sign_normalizer::{
-    AccountContext, SignConvention, SignNormalizer,
-};
+use finima_core::services::sign_normalizer::{AccountContext, SignConvention, SignNormalizer};
 use finima_core::types::{AccountType, TransactionDirection};
 use rust_decimal::Decimal;
 use sqlx::postgres::PgPoolOptions;
@@ -54,9 +52,8 @@ fn parse_args() -> Args {
             "--institution" => args.institution = iter.next(),
             "--account-id" => {
                 let raw = iter.next().expect("--account-id requires a UUID value");
-                args.account_id = Some(
-                    Uuid::parse_str(&raw).expect("--account-id value must be a valid UUID"),
-                );
+                args.account_id =
+                    Some(Uuid::parse_str(&raw).expect("--account-id value must be a valid UUID"));
             }
             "--dry-run" => args.dry_run = true,
             "--help" | "-h" => {
@@ -158,7 +155,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         updates_attempted += 1;
     }
 
-    let prefix = if args.dry_run { "would update" } else { "updated" };
+    let prefix = if args.dry_run {
+        "would update"
+    } else {
+        "updated"
+    };
     println!(
         "{prefix} {} rows ({} inflow, {} outflow)",
         updates_attempted,

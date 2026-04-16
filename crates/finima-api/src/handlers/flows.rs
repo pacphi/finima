@@ -412,7 +412,11 @@ pub async fn get_full_sankey(
     // Transaction IDs already represented in account_flows (transfers).
     let transfer_txn_ids: std::collections::HashSet<Uuid> = db_flows
         .iter()
-        .flat_map(|f| f.source_transaction_id.into_iter().chain(f.target_transaction_id))
+        .flat_map(|f| {
+            f.source_transaction_id
+                .into_iter()
+                .chain(f.target_transaction_id)
+        })
         .collect();
 
     // ---- Inter-account transfer links (middle) ----
@@ -456,7 +460,9 @@ pub async fn get_full_sankey(
             .get(&row.account_id)
             .cloned()
             .unwrap_or_else(|| "Unknown".into());
-        *income_links.entry((source_label, target_label)).or_default() += row.amount;
+        *income_links
+            .entry((source_label, target_label))
+            .or_default() += row.amount;
     }
 
     // ---- Spending links (middle → right) ----
@@ -549,9 +555,7 @@ pub async fn get_full_sankey(
         }
         for (src, val) in other_by_source {
             if val > Decimal::ZERO {
-                *spending_links
-                    .entry((src, "Other".into()))
-                    .or_default() += val;
+                *spending_links.entry((src, "Other".into())).or_default() += val;
             }
         }
     }
@@ -578,10 +582,8 @@ pub async fn get_full_sankey(
 
     let direct_debit_label = |primary: &str| format!("{} — Direct Debit", primary);
 
-    let (primary_spending, secondary_spending): (
-        HashMap<(String, String), Decimal>,
-        HashMap<(String, String), Decimal>,
-    ) = spending_links
+    type SpendingLinks = HashMap<(String, String), Decimal>;
+    let (primary_spending, secondary_spending): (SpendingLinks, SpendingLinks) = spending_links
         .into_iter()
         .partition(|((src, _), _)| primary_names.contains(src));
 
@@ -940,10 +942,8 @@ pub async fn detect_flows_handler(
     // even those the heuristic matcher missed (no matching inflow). This catches
     // credit card payments where the card side doesn't show a corresponding inflow.
     let mut extra_candidates: Vec<(Uuid, Uuid, Uuid, Decimal, chrono::NaiveDate)> = Vec::new();
-    let heuristic_source_txns: std::collections::HashSet<Uuid> = candidates
-        .iter()
-        .map(|c| c.source_transaction_id)
-        .collect();
+    let heuristic_source_txns: std::collections::HashSet<Uuid> =
+        candidates.iter().map(|c| c.source_transaction_id).collect();
 
     for primary_id in &primary_ids {
         if let Some(txns) = by_account.get(primary_id) {
@@ -956,7 +956,13 @@ pub async fn detect_flows_handler(
                 }
                 // Try to resolve target from description keywords.
                 if let Some(target_id) = resolve_target_from_description(&txn.description) {
-                    extra_candidates.push((*primary_id, target_id, txn.id, txn.amount.abs(), txn.date));
+                    extra_candidates.push((
+                        *primary_id,
+                        target_id,
+                        txn.id,
+                        txn.amount.abs(),
+                        txn.date,
+                    ));
                 }
             }
         }
@@ -982,17 +988,15 @@ pub async fn detect_flows_handler(
         }
 
         // For one-sided flows, try to resolve the target from description.
-        let target_account_id = candidate
-            .target_account_id
-            .or_else(|| {
-                let desc = by_account
-                    .values()
-                    .flat_map(|txns| txns.iter())
-                    .find(|t| t.id == candidate.source_transaction_id)
-                    .map(|t| t.description.as_str())
-                    .unwrap_or("");
-                resolve_target_from_description(desc)
-            });
+        let target_account_id = candidate.target_account_id.or_else(|| {
+            let desc = by_account
+                .values()
+                .flat_map(|txns| txns.iter())
+                .find(|t| t.id == candidate.source_transaction_id)
+                .map(|t| t.description.as_str())
+                .unwrap_or("");
+            resolve_target_from_description(desc)
+        });
 
         let Some(target_account_id) = target_account_id else {
             continue;

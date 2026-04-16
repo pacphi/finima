@@ -10,10 +10,8 @@ interface AccountSignCardProps {
 }
 
 const LABEL: Record<SignConvention, string> = {
-  positive_means_inflow:
-    'Positive amounts are money in (deposits, payments received)',
-  positive_means_outflow:
-    'Positive amounts are money out (purchases, charges)',
+  positive_means_inflow: 'Positive amounts are money in (deposits, payments received)',
+  positive_means_outflow: 'Positive amounts are money out (purchases, charges)',
 };
 
 /** Per-account sign-convention override card. End users use the
@@ -42,14 +40,11 @@ export function AccountSignCard({ account, onChange }: AccountSignCardProps) {
         // For asset accounts the default is positive_means_inflow,
         // so flip to outflow. Use account_type to choose.
         const isLiability =
-          account.account_type === 'credit_card' ||
-          account.account_type.startsWith('loan_');
+          account.account_type === 'credit_card' || account.account_type.startsWith('loan_');
         next = isLiability ? 'positive_means_inflow' : 'positive_means_outflow';
       } else {
         next =
-          current === 'positive_means_inflow'
-            ? 'positive_means_outflow'
-            : 'positive_means_inflow';
+          current === 'positive_means_inflow' ? 'positive_means_outflow' : 'positive_means_inflow';
       }
       await onChange(next);
     } finally {
@@ -77,13 +72,11 @@ export function AccountSignCard({ account, onChange }: AccountSignCardProps) {
             Amount Sign
           </h4>
           <p className="mt-1 text-sm text-[var(--color-text)]">
-            {isExplicit
-              ? LABEL[current]
-              : 'Automatically detected from imported transactions.'}
+            {isExplicit ? LABEL[current] : 'Automatically detected from imported transactions.'}
           </p>
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            Use this only if your imports look reversed (purchases appear as
-            income, or payments appear as charges).
+            Use this only if your imports look reversed (purchases appear as income, or payments
+            appear as charges).
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2">

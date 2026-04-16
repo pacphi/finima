@@ -629,8 +629,10 @@ by_account_id:
     #[test]
     fn sign_conventions_into_service_rules_lowercases_institutions() {
         let mut cfg = SignConventionsConfig::default();
-        cfg.by_institution
-            .insert("CHASE".to_string(), SignConventionConfig::PositiveMeansInflow);
+        cfg.by_institution.insert(
+            "CHASE".to_string(),
+            SignConventionConfig::PositiveMeansInflow,
+        );
         let rules = cfg.into_service_rules();
         assert!(rules.by_institution.contains_key("chase"));
         assert!(!rules.by_institution.contains_key("CHASE"));

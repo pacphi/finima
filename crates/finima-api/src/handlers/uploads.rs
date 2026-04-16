@@ -14,8 +14,7 @@ use finima_core::types::UploadStatus;
 use finima_core::{AppError, FileFormat};
 use finima_db::NewTransaction;
 use finima_ingest::{
-    compute_dedup_hash, detect_format, generate_preview, normalize_batch, ColumnMapping,
-    FileParser,
+    compute_dedup_hash, detect_format, generate_preview, normalize_batch, ColumnMapping, FileParser,
 };
 
 use crate::state::AppState;
@@ -454,9 +453,7 @@ pub async fn confirm_upload(
     // override (if any) into the normalizer's by_account_id map.
     let mut rules = state.config().sign_conventions.clone().into_service_rules();
     if let Some(override_convention) = account.sign_convention_override {
-        rules
-            .by_account_id
-            .insert(account.id, override_convention);
+        rules.by_account_id.insert(account.id, override_convention);
     }
     let normalizer = SignNormalizer::new(rules);
     let normalization = normalize_batch(

@@ -44,9 +44,7 @@ use crate::types::{AccountType, TransactionDirection};
 ///
 /// Persisted as a `TEXT` column on `accounts.sign_convention_override`
 /// when set as a per-account user override. See ADR-018.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, sqlx::Type,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text")]
 #[sqlx(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -173,11 +171,7 @@ impl SignNormalizer {
     }
 
     /// Compute the direction for a single transaction.
-    pub fn direction_for(
-        &self,
-        ctx: &AccountContext,
-        amount: Decimal,
-    ) -> TransactionDirection {
+    pub fn direction_for(&self, ctx: &AccountContext, amount: Decimal) -> TransactionDirection {
         let convention = self.resolve(ctx);
         Self::apply(convention, amount)
     }
@@ -263,14 +257,8 @@ mod tests {
     fn checking_positive_is_inflow_by_default() {
         let n = SignNormalizer::new(SignConventions::default());
         let c = ctx(AccountType::Checking, None);
-        assert_eq!(
-            n.direction_for(&c, dec(100)),
-            TransactionDirection::Inflow
-        );
-        assert_eq!(
-            n.direction_for(&c, dec(-50)),
-            TransactionDirection::Outflow
-        );
+        assert_eq!(n.direction_for(&c, dec(100)), TransactionDirection::Inflow);
+        assert_eq!(n.direction_for(&c, dec(-50)), TransactionDirection::Outflow);
     }
 
     #[test]
@@ -373,11 +361,7 @@ mod tests {
         let n = SignNormalizer::new(SignConventions::default());
         let c = ctx(AccountType::CreditCard, Some("unknown_bank"));
         assert_eq!(
-            n.direction_for_with_detection(
-                &c,
-                dec(100),
-                Some(SignConvention::PositiveMeansInflow)
-            ),
+            n.direction_for_with_detection(&c, dec(100), Some(SignConvention::PositiveMeansInflow)),
             TransactionDirection::Inflow,
             "detected convention overrides default for unknown institution"
         );

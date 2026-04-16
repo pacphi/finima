@@ -109,14 +109,8 @@ impl SignAutodetector {
             };
         }
 
-        let positive = payments
-            .iter()
-            .filter(|r| r.amount > Decimal::ZERO)
-            .count();
-        let negative = payments
-            .iter()
-            .filter(|r| r.amount < Decimal::ZERO)
-            .count();
+        let positive = payments.iter().filter(|r| r.amount > Decimal::ZERO).count();
+        let negative = payments.iter().filter(|r| r.amount < Decimal::ZERO).count();
         let total_signed = positive + negative;
         if total_signed == 0 {
             return AutodetectResult {
@@ -163,14 +157,8 @@ impl SignAutodetector {
             };
         }
 
-        let positive = deposits
-            .iter()
-            .filter(|r| r.amount > Decimal::ZERO)
-            .count();
-        let negative = deposits
-            .iter()
-            .filter(|r| r.amount < Decimal::ZERO)
-            .count();
+        let positive = deposits.iter().filter(|r| r.amount > Decimal::ZERO).count();
+        let negative = deposits.iter().filter(|r| r.amount < Decimal::ZERO).count();
         let total_signed = positive + negative;
         if total_signed == 0 {
             return AutodetectResult {

@@ -1,9 +1,4 @@
-import type {
-  Account,
-  AccountType,
-  SignConvention,
-  SignOverrideResponse,
-} from '@/types/models';
+import type { Account, AccountType, SignConvention, SignOverrideResponse } from '@/types/models';
 
 export function createAccountApi(api: {
   get: <T>(path: string) => Promise<T>;

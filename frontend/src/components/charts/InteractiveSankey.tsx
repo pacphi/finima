@@ -123,9 +123,16 @@ export function InteractiveSankey({ data, onLoadSubcategories }: InteractiveSank
                     <Cell
                       key={i}
                       fill={
-                        ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'][
-                          i % 8
-                        ]
+                        [
+                          '#3B82F6',
+                          '#22C55E',
+                          '#F59E0B',
+                          '#EF4444',
+                          '#8B5CF6',
+                          '#EC4899',
+                          '#14B8A6',
+                          '#F97316',
+                        ][i % 8]
                       }
                     />
                   ))}
