@@ -107,14 +107,20 @@ export function InteractiveSankey({ data, onLoadSubcategories }: InteractiveSank
           {loadingSub ? (
             <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">Loading…</p>
           ) : subcategoryData && subcategoryData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
+            // Chart height scales with legend row count (~24px per row, ~3
+            // legend items per row at typical tile width) so the donut gets
+            // a fixed top inset and never clips against the tile edge.
+            <ResponsiveContainer
+              width="100%"
+              height={260 + Math.ceil(subcategoryData.length / 3) * 24}
+            >
+              <PieChart margin={{ top: 16, right: 8, bottom: 8, left: 8 }}>
                 <Pie
                   data={subcategoryData}
                   cx="50%"
                   cy="45%"
-                  innerRadius={50}
-                  outerRadius={85}
+                  innerRadius="40%"
+                  outerRadius="78%"
                   paddingAngle={2}
                   dataKey="amount"
                   nameKey="subcategory"
@@ -139,6 +145,7 @@ export function InteractiveSankey({ data, onLoadSubcategories }: InteractiveSank
                 </Pie>
                 <Legend
                   verticalAlign="bottom"
+                  wrapperStyle={{ paddingTop: 12 }}
                   formatter={(value: string) => {
                     const item = subcategoryData.find((s) => s.subcategory === value);
                     const amt = item ? `$${item.amount.toLocaleString()}` : '';
