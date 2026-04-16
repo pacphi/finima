@@ -85,22 +85,26 @@ export function SpendingDonut({
   subcategoryData,
   onDismissSubcategory,
 }: SpendingDonutProps) {
-  // Show top 5 categories + group the rest as "Other"
+  // Show top categories + group the rest as "Other".
+  // If data already contains an "Other" bucket (from backend aggregation),
+  // show up to 8 items without re-grouping to avoid duplicate "Other" entries.
   const sorted = [...data].sort((a, b) => b.amount - a.amount);
-  const top5 = sorted.slice(0, 5);
-  const rest = sorted.slice(5);
+  const hasOther = sorted.some((c) => c.category === 'Other');
+  const maxSlices = hasOther ? sorted.length : 5;
+  const top = sorted.slice(0, maxSlices);
+  const rest = sorted.slice(maxSlices);
 
   const chartData =
     rest.length > 0
       ? [
-          ...top5,
+          ...top,
           {
             category: 'Other',
             amount: rest.reduce((sum, c) => sum + c.amount, 0),
             percentage: rest.reduce((sum, c) => sum + c.percentage, 0),
           },
         ]
-      : top5;
+      : top;
 
   const summary = buildSummary(data);
 

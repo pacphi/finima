@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { createFlowApi } from '@/api/flows';
+import { createAccountApi } from '@/api/accounts';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 import { formatCurrencyCompact as formatCurrency } from '@/utils/format';
-import { SankeyDiagram } from '@/components/charts/SankeyDiagram';
+import { InteractiveSankey } from '@/components/charts/InteractiveSankey';
 import { WaterfallChart } from '@/components/charts/WaterfallChart';
 import type {
   Account,
   AccountFlow,
+  SubcategorySpend,
   SankeyData,
   OutflowRank,
   WaterfallData,
@@ -16,14 +19,34 @@ import type {
 type Tab = 'detected-flows' | 'sankey' | 'balance-impact' | 'flow-groups';
 
 function formatMonthDisplay(month: string): string {
-  const d = new Date(month + '-01');
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  // Parse year/month directly to avoid timezone issues with Date constructor.
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const names = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return `${names[m - 1]} ${y}`;
 }
 
 function shiftMonth(month: string, delta: number): string {
-  const d = new Date(month + '-01');
-  d.setMonth(d.getMonth() + delta);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  // Parse year/month directly to avoid timezone-induced off-by-one errors.
+  // new Date('2026-03-01') is UTC midnight, which in US timezones becomes
+  // the previous day, causing getMonth() to return the wrong value.
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const totalMonths = y * 12 + (m - 1) + delta;
+  const newYear = Math.floor(totalMonths / 12);
+  const newMonth = (totalMonths % 12) + 1;
+  return `${newYear}-${String(newMonth).padStart(2, '0')}`;
 }
 
 function getCurrentMonth(): string {
@@ -104,13 +127,19 @@ function DetectedFlowsTab({
                   Date
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
-                  Source
+                  From
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
-                  Destination
+                  To
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
+                  Description
                 </th>
                 <th className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]">
                   Amount
+                </th>
+                <th className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)]">
+                  Status
                 </th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)]">
                   Actions
@@ -121,30 +150,46 @@ function DetectedFlowsTab({
               {flows.map((flow) => (
                 <tr key={flow.id} className="border-b border-[var(--color-border)]">
                   <td className="px-4 py-3 text-[var(--color-text)]">{flow.date}</td>
-                  <td className="px-4 py-3 text-[var(--color-text)]">
-                    {flow.source_account_id.slice(0, 8)}...
+                  <td className="px-4 py-3 text-[var(--color-text)] font-medium">
+                    {flow.source_account_name}
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-text)]">
-                    {flow.destination_account_id.slice(0, 8)}...
+                  <td className="px-4 py-3 text-[var(--color-text)] font-medium">
+                    {flow.destination_account_name}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)] max-w-xs truncate">
+                    {flow.source_description ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-right text-[var(--color-text)]">
                     {formatCurrency(flow.amount)}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => void handleConfirm(flow.id)}
-                        className="text-xs text-[var(--color-accent)] hover:underline"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => void handleDismiss(flow.id)}
-                        className="text-xs text-red-500 hover:underline"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
+                    {flow.is_confirmed ? (
+                      <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-500">
+                        Confirmed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500">
+                        Pending
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {!flow.is_confirmed && (
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => void handleConfirm(flow.id)}
+                          className="text-xs text-[var(--color-accent)] hover:underline"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => void handleDismiss(flow.id)}
+                          className="text-xs text-red-500 hover:underline"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -166,9 +211,11 @@ function DetectedFlowsTab({
 function SankeyTab({
   month,
   flowApi,
+  api,
 }: {
   month: string;
   flowApi: ReturnType<typeof createFlowApi>;
+  api: ReturnType<typeof useApi>;
 }) {
   const [sankeyData, setSankeyData] = useState<SankeyData>({
     nodes: [],
@@ -182,7 +229,7 @@ function SankeyTab({
       setLoading(true);
       try {
         const [sankey, ranking] = await Promise.allSettled([
-          flowApi.getSankeyData(month),
+          flowApi.getFullSankeyData(month),
           flowApi.getOutflowRanking(month),
         ]);
         if (sankey.status === 'fulfilled') setSankeyData(sankey.value);
@@ -196,6 +243,16 @@ function SankeyTab({
     void load();
   }, [month, flowApi]);
 
+  const loadSubcategories = useCallback(
+    async (category: string) => {
+      const apiCategory = category.toLowerCase().replace(/\s+/g, '_');
+      return api.get<SubcategorySpend[]>(
+        `/api/dashboard/spending/subcategories?category=${encodeURIComponent(apiCategory)}&month=${month}`,
+      );
+    },
+    [api, month],
+  );
+
   if (loading) {
     return <p className="text-sm text-[var(--color-text-secondary)]">Loading...</p>;
   }
@@ -204,10 +261,8 @@ function SankeyTab({
 
   return (
     <div className="space-y-6">
-      {/* Sankey Diagram */}
-      <div className="overflow-x-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-        <SankeyDiagram data={sankeyData} width={700} height={400} />
-      </div>
+      {/* Interactive Progressive Sankey */}
+      <InteractiveSankey data={sankeyData} onLoadSubcategories={loadSubcategories} />
 
       {/* Outflow Ranking Table */}
       <div>
@@ -284,14 +339,6 @@ function SankeyTab({
           )}
         </div>
       </div>
-
-      {/* LLM Insight Card */}
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-        <p className="text-sm italic text-[var(--color-text-secondary)]">
-          Insight: Flow trend analysis will appear here once enough transaction data is available
-          across multiple months.
-        </p>
-      </div>
     </div>
   );
 }
@@ -301,32 +348,23 @@ function SankeyTab({
 function BalanceImpactTab({
   month,
   flowApi,
-  api,
+  accounts,
 }: {
   month: string;
   flowApi: ReturnType<typeof createFlowApi>;
-  api: ReturnType<typeof useApi>;
+  accounts: Account[];
 }) {
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [waterfallData, setWaterfallData] = useState<WaterfallData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Pre-select the primary income account, or first account.
   useEffect(() => {
-    async function loadAccounts() {
-      try {
-        const data = await api.get<Account[]>('/api/accounts?primary_income=true');
-        setAccounts(data);
-        if (data.length > 0 && !selectedAccount) {
-          const first = data[0];
-          if (first) setSelectedAccount(first.id);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    void loadAccounts();
-  }, [api, selectedAccount]);
+    if (selectedAccount || accounts.length === 0) return;
+    const primary = accounts.find((a) => a.is_primary_income);
+    const first = primary ?? accounts[0];
+    if (first) setSelectedAccount(first.id);
+  }, [accounts, selectedAccount]);
 
   useEffect(() => {
     if (!selectedAccount) return;
@@ -389,11 +427,9 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
   const [groups, setGroups] = useState<FlowGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [newSource, setNewSource] = useState('');
-  const [newDest, setNewDest] = useState('');
+  const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editSource, setEditSource] = useState('');
-  const [editDest, setEditDest] = useState('');
+  const [editName, setEditName] = useState('');
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -412,20 +448,16 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
   }, [loadGroups]);
 
   const handleCreate = useCallback(async () => {
-    if (!newSource.trim() || !newDest.trim()) return;
+    if (!newName.trim()) return;
     try {
-      await flowApi.createFlowGroup({
-        source_account_id: newSource.trim(),
-        destination_account_id: newDest.trim(),
-      });
+      await flowApi.createFlowGroup(newName.trim());
       setShowCreate(false);
-      setNewSource('');
-      setNewDest('');
+      setNewName('');
       await loadGroups();
     } catch {
       // ignore
     }
-  }, [newSource, newDest, flowApi, loadGroups]);
+  }, [newName, flowApi, loadGroups]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -441,19 +473,16 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
 
   const handleUpdate = useCallback(
     async (id: string) => {
-      if (!editSource.trim() || !editDest.trim()) return;
+      if (!editName.trim()) return;
       try {
-        await flowApi.updateFlowGroup(id, {
-          source_account_id: editSource.trim(),
-          destination_account_id: editDest.trim(),
-        });
+        await flowApi.updateFlowGroup(id, editName.trim());
         setEditingId(null);
         await loadGroups();
       } catch {
         // ignore
       }
     },
-    [editSource, editDest, flowApi, loadGroups],
+    [editName, flowApi, loadGroups],
   );
 
   if (loading) {
@@ -462,41 +491,37 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => setShowCreate(true)}
-        className="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-      >
-        + Create Group
-      </button>
+      <div>
+        <p className="mb-3 text-sm text-[var(--color-text-secondary)]">
+          Flow groups let you label related transfers (e.g., &ldquo;Housing Costs&rdquo; for
+          mortgage + property tax + insurance). Grouped flows collapse into a single band in the
+          Sankey diagram.
+        </p>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+        >
+          + Create Group
+        </button>
+      </div>
 
       {showCreate && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">New Flow Group</h3>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label htmlFor="flow-source" className="sr-only">
-                Source Account ID
+              <label htmlFor="flow-group-name" className="sr-only">
+                Group Name
               </label>
               <input
-                id="flow-source"
+                id="flow-group-name"
                 type="text"
-                placeholder="Source Account ID"
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
-                aria-required="true"
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)]"
-              />
-            </div>
-            <div className="flex-1">
-              <label htmlFor="flow-dest" className="sr-only">
-                Destination Account ID
-              </label>
-              <input
-                id="flow-dest"
-                type="text"
-                placeholder="Destination Account ID"
-                value={newDest}
-                onChange={(e) => setNewDest(e.target.value)}
+                placeholder='e.g., "Housing Costs", "Debt Payments", "Savings"'
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleCreate();
+                }}
                 aria-required="true"
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)]"
               />
@@ -508,7 +533,10 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
               Create
             </button>
             <button
-              onClick={() => setShowCreate(false)}
+              onClick={() => {
+                setShowCreate(false);
+                setNewName('');
+              }}
               className="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text)]"
             >
               Cancel
@@ -523,22 +551,13 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                 <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
-                  Source
+                  Group Name
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
-                  Destination
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]">
-                  Avg Amount
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">
-                  Frequency
-                </th>
-                <th className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]">
-                  Flows
+                  Created
                 </th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--color-text-secondary)]">
-                  Action
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -549,33 +568,22 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
                     {editingId === g.id ? (
                       <input
                         type="text"
-                        value={editSource}
-                        onChange={(e) => setEditSource(e.target.value)}
-                        aria-label="Source Account ID"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void handleUpdate(g.id);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                        aria-label="Group name"
                         className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-sm"
                       />
                     ) : (
-                      g.source_account_id
+                      <span className="font-medium">{g.name}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-text)]">
-                    {editingId === g.id ? (
-                      <input
-                        type="text"
-                        value={editDest}
-                        onChange={(e) => setEditDest(e.target.value)}
-                        aria-label="Destination Account ID"
-                        className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-sm"
-                      />
-                    ) : (
-                      g.destination_account_id
-                    )}
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+                    {new Date(g.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-right text-[var(--color-text)]">
-                    {formatCurrency(g.average_amount)}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{g.frequency}</td>
-                  <td className="px-4 py-3 text-right text-[var(--color-text)]">{g.flow_count}</td>
                   <td className="px-4 py-3 text-center">
                     {editingId === g.id ? (
                       <div className="flex items-center justify-center gap-2">
@@ -597,12 +605,11 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
                         <button
                           onClick={() => {
                             setEditingId(g.id);
-                            setEditSource(g.source_account_id);
-                            setEditDest(g.destination_account_id);
+                            setEditName(g.name);
                           }}
                           className="text-xs text-[var(--color-accent)] hover:underline"
                         >
-                          Edit
+                          Rename
                         </button>
                         <button
                           onClick={() => void handleDelete(g.id)}
@@ -620,7 +627,8 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
         </div>
       ) : (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-8 text-center text-sm text-[var(--color-text-secondary)]">
-          No flow groups yet. Create groups to organize related account flows.
+          No flow groups yet. Create groups to organize related account flows (e.g., &ldquo;Housing
+          Costs&rdquo;, &ldquo;Debt Payments&rdquo;).
         </div>
       )}
     </div>
@@ -632,9 +640,39 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
 export function FlowsPage() {
   const api = useApi();
   const flowApi = useMemo(() => createFlowApi(api), [api]);
+  const accountApi = useMemo(() => createAccountApi(api), [api]);
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
 
   const [activeTab, setActiveTab] = useState<Tab>('sankey');
   const [month, setMonth] = useState(getCurrentMonth);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const [detectResult, setDetectResult] = useState<string | null>(null);
+  // Bump this to force tab data refresh after detection.
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleDetectFlows = useCallback(async () => {
+    setDetecting(true);
+    setDetectResult(null);
+    try {
+      const result = await flowApi.detectFlows(month);
+      setDetectResult(`Detected ${result.detected} flows, created ${result.created} new.`);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setDetectResult(err instanceof Error ? err.message : 'Detection failed.');
+    } finally {
+      setDetecting(false);
+    }
+  }, [flowApi, month]);
+
+  // Fetch accounts for the active portfolio.
+  useEffect(() => {
+    if (!activePortfolioId) return;
+    void accountApi
+      .listAccounts(activePortfolioId)
+      .then(setAccounts)
+      .catch(() => {});
+  }, [accountApi, activePortfolioId]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'detected-flows', label: 'Detected Flows' },
@@ -647,7 +685,19 @@ export function FlowsPage() {
     <div className="p-6">
       {/* Header with month nav */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">Money Flow</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-[var(--color-text)]">Money Flow</h1>
+          <button
+            onClick={() => void handleDetectFlows()}
+            disabled={detecting}
+            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] disabled:opacity-50"
+          >
+            {detecting ? 'Detecting...' : 'Detect Flows'}
+          </button>
+          {detectResult && (
+            <span className="text-sm text-[var(--color-text-secondary)]">{detectResult}</span>
+          )}
+        </div>
         <div className="flex items-center gap-3" role="group" aria-label="Month navigation">
           <button
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
@@ -696,18 +746,28 @@ export function FlowsPage() {
 
       {/* Tab content */}
       {activeTab === 'detected-flows' && (
-        <div role="tabpanel" id="tabpanel-detected-flows" aria-labelledby="tab-detected-flows">
+        <div
+          key={refreshKey}
+          role="tabpanel"
+          id="tabpanel-detected-flows"
+          aria-labelledby="tab-detected-flows"
+        >
           <DetectedFlowsTab month={month} flowApi={flowApi} />
         </div>
       )}
       {activeTab === 'sankey' && (
-        <div role="tabpanel" id="tabpanel-sankey" aria-labelledby="tab-sankey">
-          <SankeyTab month={month} flowApi={flowApi} />
+        <div key={refreshKey} role="tabpanel" id="tabpanel-sankey" aria-labelledby="tab-sankey">
+          <SankeyTab month={month} flowApi={flowApi} api={api} />
         </div>
       )}
       {activeTab === 'balance-impact' && (
-        <div role="tabpanel" id="tabpanel-balance-impact" aria-labelledby="tab-balance-impact">
-          <BalanceImpactTab month={month} flowApi={flowApi} api={api} />
+        <div
+          key={refreshKey}
+          role="tabpanel"
+          id="tabpanel-balance-impact"
+          aria-labelledby="tab-balance-impact"
+        >
+          <BalanceImpactTab month={month} flowApi={flowApi} accounts={accounts} />
         </div>
       )}
       {activeTab === 'flow-groups' && (

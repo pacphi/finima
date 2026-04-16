@@ -9,6 +9,7 @@ pub mod flows;
 pub mod health_score;
 pub mod net_worth;
 pub mod recurring;
+pub mod sona;
 
 pub use budget::{
     auto_suggest_budgets, compute_budget_vs_actual, BudgetEntry, BudgetSuggestion, BudgetVsActual,

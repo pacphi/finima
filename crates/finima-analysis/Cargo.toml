@@ -13,5 +13,8 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 
+[features]
+sona = []  # Enable SONA/RuVector integration (add ruvector dep when available)
+
 [dev-dependencies]
 rust_decimal_macros = "1"

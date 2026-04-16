@@ -59,6 +59,7 @@ export function AccountsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
 
   const {
     register,
@@ -128,6 +129,23 @@ export function AccountsPage() {
       reset();
     } catch (err) {
       console.error('Failed to create account:', err);
+    }
+  };
+
+  const handleSetPrimary = async (e: React.MouseEvent, accountId: string) => {
+    e.stopPropagation();
+    setSettingPrimary(accountId);
+    try {
+      await accountApi.setPrimary(accountId);
+      // Refresh accounts to reflect the change.
+      if (activePortfolioId) {
+        const refreshed = await accountApi.listAccounts(activePortfolioId);
+        setAccounts(refreshed);
+      }
+    } catch (err) {
+      console.error('Failed to set primary account:', err);
+    } finally {
+      setSettingPrimary(null);
     }
   };
 
@@ -204,6 +222,14 @@ export function AccountsPage() {
                         <span className="badge-primary">
                           {ACCOUNT_TYPE_LABELS[account.account_type]}
                         </span>
+                        {account.is_primary_income && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500"
+                            title="Primary income account"
+                          >
+                            Primary
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-[var(--color-text-secondary)]">
                         {account.institution ?? 'No institution'}
@@ -229,6 +255,16 @@ export function AccountsPage() {
                           : ' (negative balance)'}
                       </span>
                     </span>
+                    {!account.is_primary_income && (
+                      <button
+                        onClick={(e) => void handleSetPrimary(e, account.id)}
+                        disabled={settingPrimary === account.id}
+                        className="px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors disabled:opacity-50"
+                        aria-label={`Set ${account.name} as primary income account`}
+                      >
+                        {settingPrimary === account.id ? 'Setting...' : 'Set Primary'}
+                      </button>
+                    )}
                     <button
                       onClick={(e) => void handleArchive(e, account.id)}
                       disabled={archiving === account.id}

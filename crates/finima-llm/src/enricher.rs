@@ -60,9 +60,14 @@ fn strip_trailing_numbers(s: &str) -> String {
     result.trim().to_string()
 }
 
-/// Convert a string to title case.
-fn titlecase(s: &str) -> String {
-    s.split_whitespace()
+/// Convert a snake_case, kebab-case, or whitespace-separated string to Title Case.
+///
+/// Splits on underscores, hyphens, and whitespace, then capitalises the first
+/// letter of each word.  e.g. `"fast_food"` → `"Fast Food"`,
+/// `"debt-payment"` → `"Debt Payment"`.
+pub fn titlecase(s: &str) -> String {
+    s.split(|c: char| c == '_' || c == '-' || c.is_whitespace())
+        .filter(|w| !w.is_empty())
         .map(|word| {
             let mut chars = word.chars();
             match chars.next() {

@@ -27,7 +27,7 @@ pub use client::{
     CategorizationBatch, CategorizationResult, LlmClient, OverridePattern, RecurringEnrichment,
     RecurringGroupCandidate, RecurringTransactionSummary, TransactionInput,
 };
-pub use enricher::normalize_merchant;
+pub use enricher::{normalize_merchant, titlecase};
 pub use error::LlmError;
 pub use hardware::{detect_hardware, resolve_model, HardwareProfile, ModelSelection};
 

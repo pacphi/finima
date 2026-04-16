@@ -51,6 +51,7 @@ lcov.info
 .claude-flow/
 .swarm/
 .mcp.json
+.playwright-mcp/
 
 # OS files
 Thumbs.db

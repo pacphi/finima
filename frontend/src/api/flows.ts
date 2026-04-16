@@ -24,13 +24,19 @@ export function createFlowApi(api: {
       destination_transaction_id?: string;
     }) => api.post<AccountFlow>('/api/flows', data),
 
-    confirmFlow: (id: string) => api.put<AccountFlow>(`/api/flows/${id}`, { confirmed: true }),
+    confirmFlow: (id: string) => api.put<AccountFlow>(`/api/flows/${id}`, { action: 'confirm' }),
 
-    dismissFlow: (id: string) => api.put<AccountFlow>(`/api/flows/${id}`, { dismissed: true }),
+    dismissFlow: (id: string) => api.put<AccountFlow>(`/api/flows/${id}`, { action: 'dismiss' }),
 
     deleteFlow: (id: string) => api.del<void>(`/api/flows/${id}`),
 
+    detectFlows: (month: string) =>
+      api.post<{ detected: number; created: number }>(`/api/flows/detect?month=${month}`),
+
     getSankeyData: (month: string) => api.get<SankeyData>(`/api/flows/sankey?month=${month}`),
+
+    getFullSankeyData: (month: string) =>
+      api.get<SankeyData>(`/api/flows/sankey-full?month=${month}`),
 
     getOutflowRanking: (month: string) =>
       api.get<OutflowRank[]>(`/api/flows/outflow-ranking?month=${month}`),
@@ -40,13 +46,10 @@ export function createFlowApi(api: {
 
     listFlowGroups: () => api.get<FlowGroup[]>('/api/flow-groups'),
 
-    createFlowGroup: (data: { source_account_id: string; destination_account_id: string }) =>
-      api.post<FlowGroup>('/api/flow-groups', data),
+    createFlowGroup: (name: string) => api.post<FlowGroup>('/api/flow-groups', { name }),
 
-    updateFlowGroup: (
-      id: string,
-      data: Partial<{ source_account_id: string; destination_account_id: string }>,
-    ) => api.put<FlowGroup>(`/api/flow-groups/${id}`, data),
+    updateFlowGroup: (id: string, name: string) =>
+      api.put<FlowGroup>(`/api/flow-groups/${id}`, { name }),
 
     deleteFlowGroup: (id: string) => api.del<void>(`/api/flow-groups/${id}`),
   };
