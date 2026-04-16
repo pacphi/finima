@@ -1,0 +1,15 @@
+# Recurring-payment detector tuning.
+#
+# A merchant qualifies as a "Variable" recurring payment only when it has
+# at least `min_occurrences_for_variable` transactions inside a sliding
+# window of `variable_window_months` months (anchored on the merchant's
+# most recent transaction). Anything below the threshold is treated as
+# noise and dropped from the recurring list.
+#
+# These knobs do NOT affect fixed cadences (daily/weekly/biweekly/monthly/
+# quarterly/semiannual/annual) — those are gated by interval-classification
+# tolerances inside the detector itself.
+
+recurring:
+  min_occurrences_for_variable: 3
+  variable_window_months: 6

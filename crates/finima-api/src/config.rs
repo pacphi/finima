@@ -34,6 +34,10 @@ pub struct AppConfig {
     /// Sankey visualization tuning (transfer-category exclusions, etc.).
     #[serde(default)]
     pub sankey: SankeyConfig,
+    /// Recurring-payment detection thresholds (sliding window for variable
+    /// classification, minimum occurrence count, etc.).
+    #[serde(default)]
+    pub recurring: RecurringConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, serde::Serialize)]
@@ -393,6 +397,51 @@ impl Default for SankeyConfig {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Recurring detection (configurable thresholds)
+// ───────────────────────────────────────────────────────────────────
+
+/// Maintainer-tunable thresholds for the recurring-transaction detector.
+///
+/// `min_occurrences_for_variable` is the minimum number of times a candidate
+/// merchant must occur within the sliding window to be kept when its inter-
+/// date intervals don't fit any fixed cadence. `variable_window_months`
+/// controls the size of that window (anchored on the candidate's most recent
+/// transaction).
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct RecurringConfig {
+    #[serde(default = "default_recurring_min_occurrences_for_variable")]
+    pub min_occurrences_for_variable: usize,
+    #[serde(default = "default_recurring_variable_window_months")]
+    pub variable_window_months: u32,
+}
+
+fn default_recurring_min_occurrences_for_variable() -> usize {
+    finima_analysis::RecurringDetectorConfig::DEFAULT_MIN_OCCURRENCES_FOR_VARIABLE
+}
+
+fn default_recurring_variable_window_months() -> u32 {
+    finima_analysis::RecurringDetectorConfig::DEFAULT_VARIABLE_WINDOW_MONTHS
+}
+
+impl Default for RecurringConfig {
+    fn default() -> Self {
+        Self {
+            min_occurrences_for_variable: default_recurring_min_occurrences_for_variable(),
+            variable_window_months: default_recurring_variable_window_months(),
+        }
+    }
+}
+
+impl From<RecurringConfig> for finima_analysis::RecurringDetectorConfig {
+    fn from(c: RecurringConfig) -> Self {
+        finima_analysis::RecurringDetectorConfig {
+            min_occurrences_for_variable: c.min_occurrences_for_variable,
+            variable_window_months: c.variable_window_months,
+        }
+    }
+}
+
 #[allow(dead_code)] // referenced via AccountType import only when wired into ingest
 fn _account_type_marker(_t: AccountType) {}
 
@@ -458,6 +507,7 @@ pub fn load_config_from(config_dir: &str) -> Result<AppConfig, config::ConfigErr
         "services",
         "logging",
         "sankey",
+        "recurring",
     ];
 
     let mut builder = config::Config::builder();

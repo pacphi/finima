@@ -22,5 +22,6 @@ pub use flows::{
 pub use health_score::{compute_health_score, HealthScore, HealthScoreInput};
 pub use net_worth::{compute_net_worth_series, AccountSnapshot, NetWorthPoint};
 pub use recurring::{
-    detect_recurring, RecurringDetector, RecurringGroupCandidate, TransactionForAnalysis,
+    detect_recurring, detect_recurring_with_config, RecurringDetector, RecurringDetectorConfig,
+    RecurringGroupCandidate, TransactionForAnalysis,
 };

@@ -77,6 +77,30 @@ impl PgRecurringRepo {
         Ok(group)
     }
 
+    /// Delete all unconfirmed recurring groups for a portfolio.
+    ///
+    /// Used at the start of a fresh detection pass so candidates that no
+    /// longer satisfy the detector's thresholds (e.g. a "variable" group
+    /// that has dropped below the minimum occurrence count) actually
+    /// disappear from the UI. User-confirmed groups are preserved.
+    pub async fn delete_unconfirmed_by_portfolio(
+        &self,
+        portfolio_id: Uuid,
+    ) -> Result<u64, AppError> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM recurring_groups
+            WHERE portfolio_id = $1
+              AND is_confirmed = false
+            "#,
+        )
+        .bind(portfolio_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
     /// List all non-dismissed recurring groups for a portfolio.
     pub async fn list_by_portfolio(
         &self,

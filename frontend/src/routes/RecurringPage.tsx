@@ -12,6 +12,7 @@ type SortField =
   | 'next_expected_date'
   | 'type';
 type SortDir = 'asc' | 'desc';
+type TypeFilter = 'income' | 'expense';
 
 export function RecurringPage() {
   const api = useApi();
@@ -22,6 +23,7 @@ export function RecurringPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>('merchant_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('expense');
 
   const loadRecurring = useCallback(async () => {
     setLoading(true);
@@ -54,9 +56,15 @@ export function RecurringPage() {
     return sortDir === 'asc' ? ' \u2191' : ' \u2193';
   };
 
+  const filtered = useMemo(() => {
+    return groups.filter((g) =>
+      typeFilter === 'income' ? g.avg_amount > 0 : g.avg_amount <= 0,
+    );
+  }, [groups, typeFilter]);
+
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
-    return [...groups].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'merchant_name':
           return dir * a.merchant_name.localeCompare(b.merchant_name);
@@ -77,20 +85,32 @@ export function RecurringPage() {
           return 0;
       }
     });
-  }, [groups, sortBy, sortDir]);
+  }, [filtered, sortBy, sortDir]);
 
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center p-6">
-        <span className="text-[var(--color-text-secondary)]">Loading recurring payments...</span>
+        <span className="text-[var(--color-text-secondary)]">Loading recurring transactions...</span>
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">Recurring Payments</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-[var(--color-text)]">Recurring</h1>
+        <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+          <span>Type</span>
+          <select
+            aria-label="Filter by type"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+            className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent,#10b981)]"
+          >
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </label>
       </div>
 
       {error && (
@@ -103,9 +123,9 @@ export function RecurringPage() {
         </div>
       )}
 
-      {groups.length > 0 ? (
+      {sorted.length > 0 ? (
         <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]">
-          <table className="w-full text-sm" aria-label="Recurring payments">
+          <table className="w-full text-sm" aria-label="Recurring transactions">
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                 <th
@@ -196,8 +216,9 @@ export function RecurringPage() {
       ) : (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-12 text-center">
           <p className="text-[var(--color-text-secondary)]">
-            No recurring payments detected yet. Import more transactions to allow automatic
-            detection of recurring patterns.
+            {groups.length > 0
+              ? `No recurring ${typeFilter === 'income' ? 'income' : 'expenses'} match this filter.`
+              : 'No recurring transactions detected yet. Import more transactions to allow automatic detection of recurring patterns.'}
           </p>
         </div>
       )}

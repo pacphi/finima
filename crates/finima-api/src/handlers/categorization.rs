@@ -18,9 +18,6 @@ use finima_llm::{CategorizationProgress, Categorizer, OverridePattern, Transacti
 use crate::state::AppState;
 use crate::ws::{CategoryCount, WsMessage};
 
-/// Maximum number of transactions fetched for recurring-transaction detection.
-const RECURRING_DETECTION_PAGE_SIZE: i64 = 10_000;
-
 /// Result returned after a categorization run completes.
 pub struct CategorizationOutcome {
     pub total: usize,
@@ -429,22 +426,15 @@ pub async fn run_categorization_for_account_with_upload(
     let account = state.account_repo().find_by_id(account_id).await?;
     let portfolio_id = account.portfolio_id;
 
-    let (all_txns, _) = state
+    // Pull the whole portfolio (no pagination clamp) so the detector sees the
+    // full history — recurring patterns need months of data, not just the
+    // most recent 100 rows.
+    let analysis_rows = state
         .transaction_repo()
-        .list(
-            &finima_db::TransactionFilters {
-                portfolio_id: Some(portfolio_id),
-                ..Default::default()
-            },
-            &finima_db::Pagination {
-                page: 1,
-                per_page: RECURRING_DETECTION_PAGE_SIZE,
-            },
-            &finima_db::Sort::default(),
-        )
+        .list_for_analysis(portfolio_id, None, None)
         .await?;
 
-    let analysis_txns: Vec<finima_analysis::TransactionForAnalysis> = all_txns
+    let analysis_txns: Vec<finima_analysis::TransactionForAnalysis> = analysis_rows
         .iter()
         .map(|t| finima_analysis::TransactionForAnalysis {
             id: t.id,
@@ -457,7 +447,17 @@ pub async fn run_categorization_for_account_with_upload(
         })
         .collect();
 
-    let recurring_candidates = finima_analysis::detect_recurring(&analysis_txns);
+    let detector_config = finima_analysis::RecurringDetectorConfig::from(state.config().recurring);
+    let recurring_candidates =
+        finima_analysis::detect_recurring_with_config(&analysis_txns, detector_config);
+
+    // Wipe unconfirmed entries before upserting so candidates that no longer
+    // satisfy the detector's thresholds disappear from the UI. Confirmed
+    // (user-validated) entries are preserved.
+    let _ = state
+        .recurring_repo()
+        .delete_unconfirmed_by_portfolio(portfolio_id)
+        .await;
 
     for candidate in &recurring_candidates {
         let insert = finima_db::RecurringGroupInsert {
