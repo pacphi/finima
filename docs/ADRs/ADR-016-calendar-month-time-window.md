@@ -43,7 +43,7 @@ month and offers no switcher.
 Additionally, widgets that show period-relative data (spending, cash flow, budget vs
 actual, category pace) expose a **three-position switcher**:
 
-```
+```text
 [ MTD ]  [ Rolling 30 ]  [ Last Month ]
 ```
 

@@ -78,7 +78,7 @@ SafeToSpend
 
 **Computation rule:**
 
-```
+```text
 discretionary = (monthly_income_estimate − income_received_mtd)
               + remaining_confirmed_recurring_income
               − remaining_confirmed_recurring_expenses

@@ -210,7 +210,7 @@ Implementation (see DDD-007 SafeToSpendCalculator):
 
 A new widget card:
 
-```
+```text
 Safe to Spend
 $4,821
 after bills and goals
