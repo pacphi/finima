@@ -60,6 +60,18 @@ function getTrendArrow(trend: string): string {
   return '-';
 }
 
+/** Human-readable label for the Outflow Ranking `Type` column.
+ *  Converts raw account_type values (`credit_card`, `loan_mortgage`)
+ *  and the synthetic `"category"` type into Title Case. */
+function formatOutflowType(type: string): string {
+  if (!type) return '—';
+  return type
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // ── Detected Flows Tab ─────────────────────────────────────────────
 
 function DetectedFlowsTab({
@@ -294,10 +306,15 @@ function SankeyTab({
               </tr>
             </thead>
             <tbody>
-              {outflows.map((o) => (
-                <tr key={o.account_id} className="border-b border-[var(--color-border)]">
+              {outflows.map((o, idx) => (
+                <tr
+                  key={o.account_id ?? `cat-${o.account_name}-${idx}`}
+                  className="border-b border-[var(--color-border)]"
+                >
                   <td className="px-4 py-3 text-[var(--color-text)]">{o.account_name}</td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{o.account_type}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+                    {formatOutflowType(o.account_type)}
+                  </td>
                   <td className="px-4 py-3 text-right text-[var(--color-text)]">
                     {formatCurrency(o.monthly_amount)}
                   </td>
@@ -308,12 +325,16 @@ function SankeyTab({
                     {getTrendArrow(o.trend)} {o.trend}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <a
-                      href={`/accounts/${o.account_id}`}
-                      className="text-xs text-[var(--color-accent)] hover:underline"
-                    >
-                      View
-                    </a>
+                    {o.account_id ? (
+                      <a
+                        href={`/accounts/${o.account_id}`}
+                        className="text-xs text-[var(--color-accent)] hover:underline"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-xs text-[var(--color-text-secondary)]">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -8,9 +8,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use finima_analysis::{
-    build_outflow_ranking, build_sankey_data, build_waterfall, detect_flows, FlowRecord,
-};
+use finima_analysis::{build_sankey_data, build_waterfall, detect_flows, FlowRecord};
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::AppError;
@@ -716,6 +714,16 @@ pub async fn get_full_sankey(
 }
 
 /// GET /api/flows/outflow-ranking?month=2026-04
+///
+/// Ranks every primary-account outflow by monthly amount. Each row
+/// is either:
+///   - a **transfer** to a secondary account (type = account_type), or
+///   - a **direct category** spend from a primary account
+///     (type = "category").
+///
+/// This mirrors the edges leaving primary nodes in the Money Flow
+/// Sankey so the ranking and the diagram tell the same story. See
+/// ADR-008 Amendment 2.
 pub async fn get_outflow_ranking(
     user: AuthUser,
     State(state): State<AppState>,
@@ -730,67 +738,123 @@ pub async fn get_outflow_ranking(
         .await?;
 
     let accounts = state.account_repo().list_by_portfolio(portfolio_id).await?;
-    let acct_names: HashMap<Uuid, String> =
-        accounts.iter().map(|a| (a.id, a.name.clone())).collect();
-
-    let flow_records: Vec<FlowRecord> = db_flows
+    let primary_ids: std::collections::HashSet<Uuid> = accounts
         .iter()
-        .map(|f| FlowRecord {
-            source_account_id: f.source_account_id,
-            source_account_name: acct_names
-                .get(&f.source_account_id)
-                .cloned()
-                .unwrap_or_else(|| "Unknown".to_string()),
-            target_account_id: Some(f.target_account_id),
-            target_account_name: acct_names.get(&f.target_account_id).cloned(),
-            amount: f.amount,
-            flow_date: f.flow_date,
-            category: acct_names.get(&f.target_account_id).cloned(),
-        })
+        .filter(|a| a.is_primary_income)
+        .map(|a| a.id)
         .collect();
 
-    // Compute total income for the month from transactions.
+    // Load transactions for the month (used for income total + direct spending).
+    let end_of_month = if month.month() == 12 {
+        chrono::NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
+    } else {
+        chrono::NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
+    };
     let txn_rows = state
         .transaction_repo()
-        .list_for_analysis(portfolio_id, Some(month), None)
+        .list_for_analysis(portfolio_id, Some(month), Some(end_of_month))
         .await?;
+
+    // Total income: inflow on primary accounts (post-normalization).
+    // Falls back to "positive amounts" for legacy NULL-direction rows.
+    use finima_core::TransactionDirection;
     let total_income: Decimal = txn_rows
         .iter()
-        .filter(|t| t.amount > Decimal::ZERO)
-        .map(|t| t.amount)
+        .filter(|t| primary_ids.contains(&t.account_id))
+        .filter(|t| match t.direction {
+            Some(TransactionDirection::Inflow) => true,
+            Some(TransactionDirection::Outflow) => false,
+            None => t.amount > Decimal::ZERO,
+        })
+        .map(|t| t.amount.abs())
         .sum();
 
-    let ranking = build_outflow_ranking(&flow_records, total_income);
+    // ─── Transfer rows: primary → secondary ───────────────────────
+    let mut rows: Vec<OutflowRankResponse> = Vec::new();
+    let mut transfer_totals: HashMap<Uuid, Decimal> = HashMap::new();
+    for f in &db_flows {
+        if primary_ids.contains(&f.source_account_id)
+            && !primary_ids.contains(&f.target_account_id)
+        {
+            *transfer_totals.entry(f.target_account_id).or_default() += f.amount;
+        }
+    }
+    for (account_id, amount) in transfer_totals {
+        let account = accounts.iter().find(|a| a.id == account_id);
+        let (account_name, account_type) = match account {
+            Some(a) => (a.name.clone(), a.account_type.to_string()),
+            None => ("Unknown".to_string(), "unknown".to_string()),
+        };
+        let pct_income = if total_income > Decimal::ZERO {
+            (amount / total_income).to_string().parse::<f64>().unwrap_or(0.0) * 100.0
+        } else {
+            0.0
+        };
+        rows.push(OutflowRankResponse {
+            account_id: Some(account_id),
+            account_name,
+            account_type,
+            monthly_amount: amount,
+            pct_income,
+            trend: "stable".to_string(),
+        });
+    }
 
-    // Build account name → (id, type) lookup for richer response.
-    let acct_by_name: HashMap<String, (Uuid, String)> = accounts
+    // ─── Direct category rows: primary → category (debit, autopay) ──
+    let transfer_txn_ids: std::collections::HashSet<Uuid> = db_flows
         .iter()
-        .map(|a| {
-            let type_str = serde_json::to_value(a.account_type)
-                .ok()
-                .and_then(|v| v.as_str().map(String::from))
-                .unwrap_or_else(|| "unknown".to_string());
-            (a.name.clone(), (a.id, type_str))
-        })
+        .flat_map(|f| f.source_transaction_id.into_iter().chain(f.target_transaction_id))
+        .collect();
+    let transfer_categories: std::collections::HashSet<&str> = state
+        .config()
+        .sankey
+        .transfer_categories
+        .iter()
+        .map(String::as_str)
         .collect();
 
-    let response: Vec<OutflowRankResponse> = ranking
-        .into_iter()
-        .map(|r| {
-            let (acct_id, acct_type) = acct_by_name
-                .get(&r.category)
-                .map(|(id, t)| (Some(*id), t.clone()))
-                .unwrap_or((None, "unknown".to_string()));
-            OutflowRankResponse {
-                account_id: acct_id,
-                account_name: r.category,
-                account_type: acct_type,
-                monthly_amount: r.monthly_outflow,
-                pct_income: r.percentage_of_income,
-                trend: "stable".to_string(),
+    let mut category_totals: HashMap<String, Decimal> = HashMap::new();
+    for t in &txn_rows {
+        if !primary_ids.contains(&t.account_id) {
+            continue;
+        }
+        if transfer_txn_ids.contains(&t.id) {
+            continue;
+        }
+        if t.direction != Some(TransactionDirection::Outflow) {
+            continue;
+        }
+        if let Some(cat) = t.category.as_deref() {
+            if transfer_categories.contains(cat) {
+                continue;
             }
-        })
-        .collect();
+        }
+        let label = t
+            .category
+            .as_ref()
+            .map(|c| finima_llm::titlecase(c))
+            .unwrap_or_else(|| "Uncategorized".to_string());
+        *category_totals.entry(label).or_default() += t.amount.abs();
+    }
+    for (category_label, amount) in category_totals {
+        let pct_income = if total_income > Decimal::ZERO {
+            (amount / total_income).to_string().parse::<f64>().unwrap_or(0.0) * 100.0
+        } else {
+            0.0
+        };
+        rows.push(OutflowRankResponse {
+            account_id: None,
+            account_name: category_label,
+            account_type: "category".to_string(),
+            monthly_amount: amount,
+            pct_income,
+            trend: "stable".to_string(),
+        });
+    }
+
+    // Sort by monthly amount, descending.
+    rows.sort_by(|a, b| b.monthly_amount.cmp(&a.monthly_amount));
+    let response = rows;
 
     Ok(Json(response))
 }
