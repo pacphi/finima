@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use finima_auth::middleware::AuthUser;
+use finima_core::services::sign_normalizer::SignNormalizer;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::types::UploadStatus;
 use finima_core::{AppError, FileFormat};
 use finima_db::NewTransaction;
 use finima_ingest::{
-    compute_dedup_hash, detect_format, generate_preview, ColumnMapping, FileParser,
+    compute_dedup_hash, detect_format, generate_preview, normalize_batch, ColumnMapping,
+    FileParser,
 };
 
 use crate::state::AppState;
@@ -443,10 +445,34 @@ pub async fn confirm_upload(
 
     let total = raw_transactions.len();
 
+    // Normalize per-row direction (inflow/outflow) using the configured
+    // SignNormalizer. See ADR-018. The result includes any autodetection
+    // outcome we can surface back to the user as a post-import banner.
+    let normalizer =
+        SignNormalizer::new(state.config().sign_conventions.clone().into_service_rules());
+    let normalization = normalize_batch(
+        &raw_transactions,
+        upload.account_id,
+        account.account_type,
+        account.institution.as_deref(),
+        &normalizer,
+    );
+    if let Some(detection) = &normalization.autodetection {
+        tracing::info!(
+            account_id = %upload.account_id,
+            account_type = %account.account_type,
+            verdict = ?detection.verdict,
+            confidence = detection.confidence,
+            reason = %detection.reason,
+            "sign-convention autodetection completed"
+        );
+    }
+
     // Compute dedup hashes and build NewTransaction records
     let new_transactions: Vec<NewTransaction> = raw_transactions
         .iter()
-        .map(|raw| {
+        .zip(normalization.directions.iter())
+        .map(|(raw, &direction)| {
             let hash = compute_dedup_hash(&raw.date, &raw.amount, &raw.original_description);
             NewTransaction {
                 account_id: upload.account_id,
@@ -459,6 +485,7 @@ pub async fn confirm_upload(
                 merchant_name: None,
                 memo: raw.memo.clone(),
                 dedup_hash: hash,
+                direction,
             }
         })
         .collect();

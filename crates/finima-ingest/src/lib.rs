@@ -5,6 +5,7 @@
 pub mod csv_parser;
 pub mod dedup;
 pub mod detect;
+pub mod normalize;
 pub mod ofx;
 pub mod preview;
 pub mod qif;
@@ -117,6 +118,7 @@ pub trait FileParser: Send + Sync {
 pub use csv_parser::CsvParser;
 pub use dedup::compute_dedup_hash;
 pub use detect::detect_format;
+pub use normalize::{normalize_batch, NormalizationResult};
 pub use ofx::OfxParser;
 pub use preview::generate_preview;
 pub use qif::QifParser;

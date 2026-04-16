@@ -40,6 +40,9 @@ pub struct NewTransaction {
     pub merchant_name: Option<String>,
     pub memo: Option<String>,
     pub dedup_hash: String,
+    /// Canonical direction (inflow/outflow) computed by the
+    /// SignNormalizer at import time. See ADR-018.
+    pub direction: finima_core::TransactionDirection,
 }
 
 /// Filters for listing transactions.
@@ -151,6 +154,7 @@ impl PgTransactionRepo {
             let mut subcategories: Vec<Option<String>> = Vec::with_capacity(chunk.len());
             let mut merchant_names: Vec<Option<String>> = Vec::with_capacity(chunk.len());
             let mut dedup_hashes = Vec::with_capacity(chunk.len());
+            let mut directions: Vec<String> = Vec::with_capacity(chunk.len());
 
             for txn in chunk {
                 ids.push(Uuid::new_v4());
@@ -163,6 +167,7 @@ impl PgTransactionRepo {
                 subcategories.push(txn.subcategory.clone());
                 merchant_names.push(txn.merchant_name.clone());
                 dedup_hashes.push(txn.dedup_hash.clone());
+                directions.push(txn.direction.to_string());
             }
 
             let result = sqlx::query_scalar::<_, i64>(
@@ -170,14 +175,14 @@ impl PgTransactionRepo {
                 WITH ins AS (
                     INSERT INTO transactions (
                         id, account_id, date, amount, description, original_description,
-                        category, subcategory, merchant_name, dedup_hash, created_at
+                        category, subcategory, merchant_name, dedup_hash, direction, created_at
                     )
                     SELECT * FROM UNNEST(
                         $1::uuid[], $2::uuid[], $3::date[], $4::numeric[],
                         $5::text[], $6::text[], $7::text[], $8::text[],
-                        $9::text[], $10::text[]
+                        $9::text[], $10::text[], $11::text[]
                     ) AS t(id, account_id, date, amount, description, original_description,
-                           category, subcategory, merchant_name, dedup_hash)
+                           category, subcategory, merchant_name, dedup_hash, direction)
                     CROSS JOIN (SELECT NOW() AS created_at) AS ts
                     ON CONFLICT (account_id, dedup_hash) DO NOTHING
                     RETURNING 1
@@ -195,6 +200,7 @@ impl PgTransactionRepo {
             .bind(&subcategories as &Vec<Option<String>>)
             .bind(&merchant_names as &Vec<Option<String>>)
             .bind(&dedup_hashes)
+            .bind(&directions)
             .fetch_one(&self.pool)
             .await?;
 
