@@ -41,7 +41,15 @@ use uuid::Uuid;
 use crate::types::{AccountType, TransactionDirection};
 
 /// Which polarity a positive raw `amount` represents on a given account.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Persisted as a `TEXT` column on `accounts.sign_convention_override`
+/// when set as a per-account user override. See ADR-018.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, sqlx::Type,
+)]
+#[sqlx(type_name = "text")]
+#[sqlx(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum SignConvention {
     /// Positive `amount` = inflow (money in), negative = outflow.
     /// Standard convention for asset accounts (checking, savings) and

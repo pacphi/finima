@@ -28,7 +28,8 @@ impl AccountRepo for PgAccountRepo {
                                   opening_balance, is_primary_income, is_archived, notes, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
             RETURNING id, portfolio_id, name, institution, account_type, currency,
-                      opening_balance, is_primary_income, is_archived, notes, created_at
+                      opening_balance, is_primary_income, is_archived, notes, created_at,
+                      sign_convention_override
             "#,
         )
         .bind(account.id)
@@ -51,7 +52,8 @@ impl AccountRepo for PgAccountRepo {
         let accounts = sqlx::query_as::<_, Account>(
             r#"
             SELECT id, portfolio_id, name, institution, account_type, currency,
-                   opening_balance, is_primary_income, is_archived, notes, created_at
+                   opening_balance, is_primary_income, is_archived, notes, created_at,
+                   sign_convention_override
             FROM accounts
             WHERE portfolio_id = $1 AND is_archived = false
             ORDER BY created_at
@@ -68,7 +70,8 @@ impl AccountRepo for PgAccountRepo {
         let account = sqlx::query_as::<_, Account>(
             r#"
             SELECT id, portfolio_id, name, institution, account_type, currency,
-                   opening_balance, is_primary_income, is_archived, notes, created_at
+                   opening_balance, is_primary_income, is_archived, notes, created_at,
+                   sign_convention_override
             FROM accounts
             WHERE id = $1
             "#,
@@ -88,7 +91,8 @@ impl AccountRepo for PgAccountRepo {
                 currency = $6, opening_balance = $7, is_primary_income = $8, notes = $9
             WHERE id = $1
             RETURNING id, portfolio_id, name, institution, account_type, currency,
-                      opening_balance, is_primary_income, is_archived, notes, created_at
+                      opening_balance, is_primary_income, is_archived, notes, created_at,
+                      sign_convention_override
             "#,
         )
         .bind(account.id)
@@ -119,6 +123,22 @@ impl AccountRepo for PgAccountRepo {
         sqlx::query("UPDATE accounts SET is_primary_income = $2 WHERE id = $1")
             .bind(id)
             .bind(is_primary)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn set_sign_convention_override(
+        &self,
+        id: Uuid,
+        convention: Option<finima_core::services::sign_normalizer::SignConvention>,
+    ) -> Result<(), AppError> {
+        // Persist as TEXT for clarity in the DB; sqlx::Type derive on
+        // SignConvention matches the column convention.
+        sqlx::query("UPDATE accounts SET sign_convention_override = $2 WHERE id = $1")
+            .bind(id)
+            .bind(convention)
             .execute(&self.pool)
             .await?;
 

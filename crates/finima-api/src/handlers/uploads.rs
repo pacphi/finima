@@ -448,8 +448,17 @@ pub async fn confirm_upload(
     // Normalize per-row direction (inflow/outflow) using the configured
     // SignNormalizer. See ADR-018. The result includes any autodetection
     // outcome we can surface back to the user as a post-import banner.
-    let normalizer =
-        SignNormalizer::new(state.config().sign_conventions.clone().into_service_rules());
+    //
+    // Account-level overrides (set via the UI Flip-this-account button)
+    // take precedence over institution YAML rules. We merge the
+    // override (if any) into the normalizer's by_account_id map.
+    let mut rules = state.config().sign_conventions.clone().into_service_rules();
+    if let Some(override_convention) = account.sign_convention_override {
+        rules
+            .by_account_id
+            .insert(account.id, override_convention);
+    }
+    let normalizer = SignNormalizer::new(rules);
     let normalization = normalize_batch(
         &raw_transactions,
         upload.account_id,

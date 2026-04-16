@@ -1,4 +1,9 @@
-import type { Account, AccountType } from '@/types/models';
+import type {
+  Account,
+  AccountType,
+  SignConvention,
+  SignOverrideResponse,
+} from '@/types/models';
 
 export function createAccountApi(api: {
   get: <T>(path: string) => Promise<T>;
@@ -64,5 +69,14 @@ export function createAccountApi(api: {
     ) => api.put<Account>(`/api/accounts/${id}`, data),
 
     archiveAccount: (id: string) => api.del<void>(`/api/accounts/${id}`),
+
+    setPrimary: (id: string) => api.post<Account>(`/api/accounts/${id}/set-primary`),
+
+    /** Set or clear the per-account sign-convention override. Pass
+     *  `null` to clear and fall back to the default resolution chain.
+     *  Triggers server-side re-normalization of every transaction on
+     *  the account. See ADR-018. */
+    setSignOverride: (id: string, convention: SignConvention | null) =>
+      api.put<SignOverrideResponse>(`/api/accounts/${id}/sign-override`, { convention }),
   };
 }

@@ -3,12 +3,19 @@ import { useParams } from 'react-router-dom';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { FileUpload } from '@/components/upload/FileUpload';
+import { AccountSignCard } from '@/components/accounts/AccountSignCard';
 import { useApi } from '@/hooks/useApi';
 import { createAccountApi } from '@/api/accounts';
 import { createTransactionApi } from '@/api/transactions';
 import { formatCurrency } from '@/utils/format';
 import { useCategories } from '@/hooks/useCategories';
-import type { Account, Transaction, TransactionFilters, PaginatedResponse } from '@/types/models';
+import type {
+  Account,
+  Transaction,
+  TransactionFilters,
+  PaginatedResponse,
+  SignConvention,
+} from '@/types/models';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ICONS } from '@/types/models';
 import {
   LineChart,
@@ -257,6 +264,20 @@ export function AccountDetailPage() {
     }
   };
 
+  const handleSignOverrideChange = useCallback(
+    async (convention: SignConvention | null) => {
+      if (!id) return;
+      const result = await accountApi.setSignOverride(id, convention);
+      // The endpoint returns the refreshed account plus stats on how
+      // many rows were re-normalized. Update local state and refetch
+      // transactions so any direction-flipped rows are reflected.
+      setAccount(result.account);
+      void fetchTransactions();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id],
+  );
+
   const refreshAccountAndTransactions = useCallback(() => {
     if (!id) return;
     // Refresh account tiles (balance, transaction count, last import)
@@ -371,6 +392,10 @@ export function AccountDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Sign-convention card — lets the user flip if imports look reversed.
+          See ADR-018. */}
+      <AccountSignCard account={account} onChange={handleSignOverrideChange} />
 
       {/* Upload section */}
       {showUpload && (

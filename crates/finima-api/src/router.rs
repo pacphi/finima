@@ -298,6 +298,11 @@ pub fn build_router(
             get(accounts::get_account)
                 .put(accounts::update_account)
                 .delete(accounts::delete_account),
+        )
+        .route("/{id}/set-primary", post(accounts::set_primary_income))
+        .route(
+            "/{id}/sign-override",
+            axum::routing::put(accounts::set_sign_override),
         );
 
     // Upload routes (authentication required) — 50 MB body limit for file uploads
@@ -372,7 +377,9 @@ pub fn build_router(
     // Flow routes (authentication required)
     let flow_routes = Router::new()
         .route("/", get(flows::list_flows).post(flows::create_flow))
+        .route("/detect", post(flows::detect_flows_handler))
         .route("/sankey", get(flows::get_sankey))
+        .route("/sankey-full", get(flows::get_full_sankey))
         .route("/outflow-ranking", get(flows::get_outflow_ranking))
         .route("/balance-impact", get(flows::get_balance_impact))
         .route("/{id}", put(flows::update_flow).delete(flows::delete_flow));

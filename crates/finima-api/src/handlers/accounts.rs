@@ -10,8 +10,11 @@ use uuid::Uuid;
 
 use finima_auth::middleware::AuthUser;
 use finima_core::models::Account;
+use finima_core::services::sign_normalizer::{
+    AccountContext, SignConvention, SignNormalizer,
+};
 use finima_core::traits::{AccountRepo, PortfolioRepo};
-use finima_core::types::AccountType;
+use finima_core::types::{AccountType, TransactionDirection};
 use finima_core::AppError;
 
 use crate::state::AppState;
@@ -149,6 +152,7 @@ pub async fn create_account(
         is_archived: false,
         notes: body.notes,
         created_at: chrono::Utc::now(),
+        sign_convention_override: None,
     };
 
     let created = state.account_repo().create(&account).await?;
@@ -240,10 +244,140 @@ pub async fn update_account(
         is_archived: existing.is_archived,
         notes: body.notes.or(existing.notes),
         created_at: existing.created_at,
+        sign_convention_override: existing.sign_convention_override,
     };
 
     let result = state.account_repo().update(&updated_account).await?;
     Ok(Json(result))
+}
+
+/// POST /api/accounts/:id/set-primary
+///
+/// Designate an account as the primary income account. Clears the flag on all
+/// other accounts in the same portfolio, then sets it on the target account.
+pub async fn set_primary_income(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let account = state.account_repo().find_by_id(id).await?;
+
+    state
+        .portfolio_repo()
+        .verify_ownership(account.portfolio_id, user.user_id)
+        .await?;
+
+    // Clear primary flag on all accounts in this portfolio.
+    let siblings = state
+        .account_repo()
+        .list_by_portfolio(account.portfolio_id)
+        .await?;
+    for sibling in &siblings {
+        if sibling.is_primary_income {
+            state
+                .account_repo()
+                .set_primary_income(sibling.id, false)
+                .await?;
+        }
+    }
+
+    // Set primary flag on the target account.
+    state.account_repo().set_primary_income(id, true).await?;
+
+    let updated = state.account_repo().find_by_id(id).await?;
+    Ok(Json(updated))
+}
+
+// ---------------------------------------------------------------------------
+// Sign-convention override (per-account "Flip this account" UI action)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct SetSignOverrideRequest {
+    /// Set to a specific convention to pin this account, or `null`
+    /// to clear the override and fall back to the institution rule
+    /// / autodetection / account-type default.
+    pub convention: Option<SignConvention>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SignOverrideResponse {
+    pub account: Account,
+    /// Number of transactions whose `direction` value flipped as a
+    /// result of the change. Useful for the post-action toast.
+    pub rows_renormalized: u64,
+    pub flipped: u64,
+}
+
+/// PUT /api/accounts/:id/sign-override
+///
+/// Set or clear the per-account sign-convention override. When
+/// changed, every existing transaction on the account is
+/// re-normalized server-side so historical data reflects the new
+/// convention without requiring re-import.
+///
+/// See ADR-018 for the resolution chain.
+pub async fn set_sign_override(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<SetSignOverrideRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let account = state.account_repo().find_by_id(id).await?;
+    state
+        .portfolio_repo()
+        .verify_ownership(account.portfolio_id, user.user_id)
+        .await?;
+
+    // Persist the override.
+    state
+        .account_repo()
+        .set_sign_convention_override(id, req.convention)
+        .await?;
+
+    // Re-normalize this account's existing transactions. Build a
+    // normalizer that includes the (possibly cleared) override so the
+    // resolution chain reflects the post-update state.
+    let mut rules = state.config().sign_conventions.clone().into_service_rules();
+    if let Some(c) = req.convention {
+        rules.by_account_id.insert(id, c);
+    } else {
+        rules.by_account_id.remove(&id);
+    }
+    let normalizer = SignNormalizer::new(rules);
+    let ctx = AccountContext {
+        account_id: id,
+        account_type: account.account_type,
+        institution: account.institution.clone(),
+    };
+
+    let txn_rows: Vec<(Uuid, Decimal, Option<TransactionDirection>)> = sqlx::query_as(
+        "SELECT id, amount, direction FROM transactions WHERE account_id = $1",
+    )
+    .bind(id)
+    .fetch_all(state.pool())
+    .await?;
+
+    let mut flipped: u64 = 0;
+    let total = txn_rows.len() as u64;
+    for (txn_id, amount, prev_direction) in txn_rows {
+        let new_direction = normalizer.direction_for(&ctx, amount);
+        if Some(new_direction) != prev_direction {
+            flipped += 1;
+        }
+        sqlx::query("UPDATE transactions SET direction = $1 WHERE id = $2")
+            .bind(new_direction.to_string())
+            .bind(txn_id)
+            .execute(state.pool())
+            .await?;
+    }
+
+    let updated = state.account_repo().find_by_id(id).await?;
+    Ok(Json(SignOverrideResponse {
+        account: updated,
+        rows_renormalized: total,
+        flipped,
+    }))
 }
 
 /// DELETE /api/accounts/:id

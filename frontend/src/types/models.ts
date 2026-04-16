@@ -52,6 +52,13 @@ export interface Portfolio {
   updated_at: string;
 }
 
+/** How a positive raw `amount` is interpreted on an account.
+ *  Persisted on accounts.sign_convention_override; null means
+ *  "use the default resolution chain"
+ *  (institution rule -> autodetect -> account-type default).
+ *  See ADR-018. */
+export type SignConvention = 'positive_means_inflow' | 'positive_means_outflow';
+
 export interface Account {
   id: string;
   portfolio_id: string;
@@ -68,6 +75,15 @@ export interface Account {
   transaction_count: number;
   created_at: string;
   updated_at: string;
+  /** User-set per-account override, or null to use defaults. */
+  sign_convention_override: SignConvention | null;
+}
+
+/** Response shape from PUT /api/accounts/:id/sign-override. */
+export interface SignOverrideResponse {
+  account: Account;
+  rows_renormalized: number;
+  flipped: number;
 }
 
 export interface Transaction {
@@ -149,25 +165,24 @@ export interface SavingsGoal {
 export interface AccountFlow {
   id: string;
   source_account_id: string;
+  source_account_name: string;
   destination_account_id: string;
+  destination_account_name: string;
   amount: number;
   date: string;
   source_transaction_id: string | null;
+  source_description: string | null;
   destination_transaction_id: string | null;
-  created_at: string;
+  destination_description: string | null;
+  is_auto_detected: boolean;
+  is_confirmed: boolean;
 }
 
 export interface FlowGroup {
   id: string;
-  user_id: string;
-  source_account_id: string;
-  destination_account_id: string;
-  average_amount: number;
-  frequency: Frequency;
-  flow_count: number;
-  last_flow_date: string;
+  portfolio_id: string;
+  name: string;
   created_at: string;
-  updated_at: string;
 }
 
 // ── Helper Types ─────────────────────────────────────────────────────
@@ -325,6 +340,7 @@ export interface SankeyNode {
   id: string;
   name: string;
   type: string;
+  column?: string;
 }
 
 export interface SankeyLink {

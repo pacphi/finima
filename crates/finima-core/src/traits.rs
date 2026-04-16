@@ -38,6 +38,15 @@ pub trait AccountRepo: Send + Sync {
     async fn update(&self, account: &Account) -> Result<Account, AppError>;
     async fn archive(&self, id: Uuid) -> Result<(), AppError>;
     async fn set_primary_income(&self, id: Uuid, is_primary: bool) -> Result<(), AppError>;
+    /// Set or clear the per-account sign-convention override.
+    /// When `convention` is `None`, the override is removed and the
+    /// SignNormalizer falls back to the institution YAML rule, then
+    /// autodetection, then the account-type default. See ADR-018.
+    async fn set_sign_convention_override(
+        &self,
+        id: Uuid,
+        convention: Option<crate::services::sign_normalizer::SignConvention>,
+    ) -> Result<(), AppError>;
     /// Compute current balance: opening_balance + SUM(transactions.amount).
     async fn compute_balance(&self, id: Uuid) -> Result<Decimal, AppError>;
 }
