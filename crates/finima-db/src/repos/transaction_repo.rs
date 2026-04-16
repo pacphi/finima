@@ -19,6 +19,10 @@ pub struct TransactionForAnalysisRow {
     pub category: Option<String>,
     pub subcategory: Option<String>,
     pub account_id: Uuid,
+    /// Canonical direction set by SignNormalizer at import time
+    /// (see ADR-018). NULL means a legacy row not yet normalized;
+    /// downstream Sankey logic excludes such rows.
+    pub direction: Option<finima_core::TransactionDirection>,
 }
 
 /// PostgreSQL implementation of transaction repository operations.
@@ -520,7 +524,8 @@ impl PgTransactionRepo {
         let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
             r#"
             SELECT t.id, t.date, t.amount, t.description,
-                   t.merchant_name, t.category, t.subcategory, t.account_id
+                   t.merchant_name, t.category, t.subcategory, t.account_id,
+                   t.direction
             FROM transactions t
             JOIN accounts a ON a.id = t.account_id
             WHERE a.portfolio_id = $1
@@ -546,7 +551,8 @@ impl PgTransactionRepo {
         let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
             r#"
             SELECT id, date, amount, description,
-                   merchant_name, category, subcategory, account_id
+                   merchant_name, category, subcategory, account_id,
+                   direction
             FROM transactions
             WHERE account_id = $1
             ORDER BY date
