@@ -65,6 +65,78 @@ impl FromStr for AccountType {
     }
 }
 
+/// Canonical direction of a transaction relative to its account.
+///
+/// Computed at import time by the `SignNormalizer` service (see ADR-018).
+/// Downstream consumers (Sankey, reports, queries) should branch on this
+/// field rather than the sign of `amount`, which varies by institution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "text")]
+#[sqlx(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionDirection {
+    /// Money entering the account (deposits, payments received, paycheck credits).
+    Inflow,
+    /// Money leaving the account (purchases, debit card spending, charges, transfers out).
+    Outflow,
+}
+
+impl fmt::Display for TransactionDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Inflow => "inflow",
+            Self::Outflow => "outflow",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for TransactionDirection {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "inflow" => Ok(Self::Inflow),
+            "outflow" => Ok(Self::Outflow),
+            _ => Err(format!("Unknown transaction direction: {}", s)),
+        }
+    }
+}
+
+/// Whether an account represents an asset (positive balance is good)
+/// or a liability (positive balance is debt).
+///
+/// Derived purely from `AccountType`; not stored in the database.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccountRole {
+    /// Checking, savings, cash, investment accounts. Balance up = wealth up.
+    Asset,
+    /// Credit cards, loans. Balance up = debt up.
+    Liability,
+}
+
+impl AccountRole {
+    /// Domain rule: asset vs liability is fully determined by account type.
+    pub fn for_account_type(ty: AccountType) -> Self {
+        match ty {
+            AccountType::Checking
+            | AccountType::Savings
+            | AccountType::Cash
+            | AccountType::Crypto
+            | AccountType::InvestmentBrokerage
+            | AccountType::InvestmentRetirement => Self::Asset,
+            AccountType::CreditCard
+            | AccountType::LoanMortgage
+            | AccountType::LoanAuto
+            | AccountType::LoanStudent
+            | AccountType::LoanPersonal => Self::Liability,
+            // "Other" is ambiguous; default to Asset for additive treatment.
+            // Users with unusual needs can model via custom subtypes later.
+            AccountType::Other => Self::Asset,
+        }
+    }
+}
+
 /// Frequency of a recurring transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text")]
@@ -309,5 +381,58 @@ mod tests {
         assert_eq!(json, "\"biweekly\"");
         let parsed: Frequency = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, f);
+    }
+
+    #[test]
+    fn transaction_direction_roundtrip() {
+        for variant in [TransactionDirection::Inflow, TransactionDirection::Outflow] {
+            let s = variant.to_string();
+            let parsed: TransactionDirection = s.parse().unwrap();
+            assert_eq!(variant, parsed);
+        }
+    }
+
+    #[test]
+    fn transaction_direction_serializes_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&TransactionDirection::Inflow).unwrap(),
+            "\"inflow\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TransactionDirection::Outflow).unwrap(),
+            "\"outflow\""
+        );
+    }
+
+    #[test]
+    fn transaction_direction_invalid_str() {
+        assert!("sideways".parse::<TransactionDirection>().is_err());
+    }
+
+    #[test]
+    fn account_role_for_assets() {
+        for ty in [
+            AccountType::Checking,
+            AccountType::Savings,
+            AccountType::Cash,
+            AccountType::Crypto,
+            AccountType::InvestmentBrokerage,
+            AccountType::InvestmentRetirement,
+        ] {
+            assert_eq!(AccountRole::for_account_type(ty), AccountRole::Asset);
+        }
+    }
+
+    #[test]
+    fn account_role_for_liabilities() {
+        for ty in [
+            AccountType::CreditCard,
+            AccountType::LoanMortgage,
+            AccountType::LoanAuto,
+            AccountType::LoanStudent,
+            AccountType::LoanPersonal,
+        ] {
+            assert_eq!(AccountRole::for_account_type(ty), AccountRole::Liability);
+        }
     }
 }

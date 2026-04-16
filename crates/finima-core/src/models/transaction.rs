@@ -3,6 +3,8 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::types::TransactionDirection;
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Transaction {
     pub id: Uuid,
@@ -22,4 +24,9 @@ pub struct Transaction {
     pub user_overridden: bool,
     pub dedup_hash: String,
     pub created_at: DateTime<Utc>,
+    /// Canonical direction relative to the account (set by SignNormalizer at import time).
+    /// `None` means a legacy row that has not yet been normalized; downstream queries
+    /// (Sankey, reports) should treat NULL as "unknown — exclude" until backfilled.
+    /// See ADR-018.
+    pub direction: Option<TransactionDirection>,
 }
