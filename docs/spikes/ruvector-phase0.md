@@ -122,16 +122,16 @@ adapter.
 
 ## Follow-ups
 
-- [x] Update ADR-017 version pin to `2.1`.
-- [x] Phase 0b: validate `ruvector-sona`. See [Phase 0b addendum](#phase-0b-addendum--ruvector-sona).
-- [x] Phase 0c: persistence round-trip. See [Phase 0c addendum](#phase-0c-addendum--persistence-round-trip).
-- [x] Phase 0d: MicroLoRA training-path verification. See [Phase 0d addendum](#phase-0d-addendum--what-actually-makes-microlora-adapt).
-- [ ] Phase 1: implement `RuVectorEmbeddingStore: SemanticCategorizer` in
++ [x] Update ADR-017 version pin to `2.1`.
++ [x] Phase 0b: validate `ruvector-sona`. See [Phase 0b addendum](#phase-0b-addendum--ruvector-sona).
++ [x] Phase 0c: persistence round-trip. See [Phase 0c addendum](#phase-0c-addendum--persistence-round-trip).
++ [x] Phase 0d: MicroLoRA training-path verification. See [Phase 0d addendum](#phase-0d-addendum--what-actually-makes-microlora-adapt).
++ [ ] Phase 1: implement `RuVectorEmbeddingStore: SemanticCategorizer` in
       `crates/finima-categorize/src/tier2/ruvector_store.rs` behind a `sona`
       feature.
-- [ ] Phase 1: decide embedder (ONNX local vs. small Rust-native model vs.
++ [ ] Phase 1: decide embedder (ONNX local vs. small Rust-native model vs.
       bring-your-own).
-- [ ] Phase 2: implement `RuVectorPatternMatcher: FlowPatternMatcher` backed
++ [ ] Phase 2: implement `RuVectorPatternMatcher: FlowPatternMatcher` backed
       by `ruvector-core::VectorDB` (HNSW) and `ruvector-sona::SonaEngine`
       (feedback loop), and add `flow_patterns` migration.
 
@@ -152,12 +152,14 @@ MIT/Apache-2.0).
 forces learning, measures micro-LoRA latency and pattern recall.
 
 ### Dep footprint
-- Added crates beyond Phase 0: only `parking_lot` / `crossbeam` / `rand` were
+
++ Added crates beyond Phase 0: only `parking_lot` / `crossbeam` / `rand` were
   already present transitively — **net new build graph is effectively zero**.
-- Incremental rebuild after adding `ruvector-sona`: ~8 s (crate is small).
-- No ONNX, no C deps, no workspace coupling.
++ Incremental rebuild after adding `ruvector-sona`: ~8 s (crate is small).
++ No ONNX, no C deps, no workspace coupling.
 
 ### Real API (0.1.9) vs. README
+
 README examples drift from reality in several places. Canonical usage:
 
 ```rust
@@ -192,7 +194,7 @@ let s: CoordinatorStats = engine.stats();
 | `apply_micro_lora` p50 / p95 / p99 (n=1000) | **1.2 / 1.3 / 1.3 µs**   |
 | `force_learn` on 25 trajectories          | synchronous, immediate     |
 | `find_patterns(k=3)` after 25 trajectories | 3 hits returned           |
-| Mean per-dim |Δ| after adaptation         | 0.055 (non-trivial mutation) |
+| Mean per-dim abs-delta after adaptation   | 0.055 (non-trivial mutation) |
 
 All comfortably inside our Tier 2 latency budget (<10 ms). The <1 ms
 adaptation claim in upstream marketing holds up for `hidden_dim=256`.
@@ -331,7 +333,7 @@ Recommendation: **option 1**. It matches ADR-012's `EmbeddingIndex` /
 
 Cold-start design for Phase 1:
 
-```
+```text
 startup
   ├── read flow_patterns / embedding_index rows from Postgres
   ├── build_engine = SonaEngineBuilder::new()...build()
@@ -348,13 +350,13 @@ recording again post-restart.
 
 ### Follow-ups added by this spike
 
-- [x] Phase 0d: verify whether `apply_micro_lora` output actually shifts
++ [x] Phase 0d: verify whether `apply_micro_lora` output actually shifts
       after training. **Answered below — it does, but only under specific
       conditions we had not satisfied.**
-- [ ] Phase 1 schema: `portfolios.sona_state JSONB NULL` column, plus the
++ [ ] Phase 1 schema: `portfolios.sona_state JSONB NULL` column, plus the
       existing `embedding_index` / `flow_patterns` tables from ADR-012 /
       ADR-017.
-- [ ] Phase 1 policy: persist SONA state on N confirmations OR M minutes,
++ [ ] Phase 1 policy: persist SONA state on N confirmations OR M minutes,
       whichever first.
 
 ---
@@ -455,7 +457,7 @@ engine.end_trajectory(tb, user_quality);
 
 ### Phase 0d verdict
 
-- ADR-017's "SONA adapts LoRA weights on each query cycle" is **aspirational
++ ADR-017's "SONA adapts LoRA weights on each query cycle" is **aspirational
   as written.** Real behavior: patterns learn immediately and persist;
   LoRA learns in batches and doesn't persist. Neither is a blocker.
-- No new spikes needed. **Ready to land Phase 0 docs and start Phase 1.**
++ No new spikes needed. **Ready to land Phase 0 docs and start Phase 1.**

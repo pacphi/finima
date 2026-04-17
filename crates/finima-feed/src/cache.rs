@@ -93,7 +93,7 @@ impl CachedFeedService {
             }
         }
         // Sort newest first.
-        articles.sort_by(|a, b| b.published_at.cmp(&a.published_at));
+        articles.sort_by_key(|a| std::cmp::Reverse(a.published_at));
         articles
     }
 }
