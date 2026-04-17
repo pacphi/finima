@@ -21,8 +21,8 @@ use finima_auth::middleware::JwtSecret;
 
 use crate::config::AppConfig;
 use crate::handlers::{
-    accounts, auth, budgets, categories, dashboard, feed, flows, overrides, payee_rules,
-    portfolios, recurring, savings, transactions, uploads, users,
+    accounts, auth, budgets, categories, categorization, dashboard, feed, flows, overrides,
+    payee_rules, portfolios, recurring, savings, transactions, uploads, users,
 };
 use crate::metrics::{HttpDurationLabels, HttpRequestLabels, MetricsRegistry};
 use crate::state::AppState;
@@ -434,6 +434,10 @@ pub fn build_router(
         .nest("/api/savings-goals", savings_routes)
         .nest("/api/flows", flow_routes)
         .nest("/api/flow-groups", flow_group_routes)
+        .route(
+            "/api/categorize/with-vector",
+            post(categorization::categorize_transaction_with_vector),
+        )
         .route(
             "/api/categories",
             get(categories::list_categories).post(categories::create_category),

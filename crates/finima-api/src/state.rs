@@ -6,7 +6,11 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use finima_auth::EmailSender;
-use finima_categorize::MerchantRegistry;
+use finima_categorize::tier2::{EmbeddingStore, SemanticCategorizer};
+use finima_categorize::{CascadeEngine, MerchantRegistry};
+
+#[cfg(feature = "sona")]
+use finima_categorize::tier2::RuVectorEmbeddingStore;
 use finima_db::{
     PgAccountRepo, PgBudgetRepo, PgFlowGroupRepo, PgFlowRepo, PgMagicLinkRepo, PgOverrideRepo,
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
@@ -84,6 +88,18 @@ struct InnerState {
     /// Shared across requests so that LLM-learned merchants persist for the
     /// lifetime of the process.
     pub merchant_registry: Arc<RwLock<MerchantRegistry>>,
+    /// Shared Tier 2 semantic categorizer (Jaccard by default; RuVector
+    /// HNSW when `finima-categorize/sona` is enabled). Built once at
+    /// startup from `categorize.tier2` + `categorize.semantic_min_confidence`.
+    /// Falls back to an empty Jaccard `EmbeddingStore` if construction fails.
+    pub semantic_tier2: Arc<RwLock<dyn SemanticCategorizer>>,
+    /// Concrete RuVector store shared with the vector-aware Tier 2 handler
+    /// (`POST /api/categorize/with-vector`). Populated only when the
+    /// `sona` feature is enabled AND the YAML-resolved backend is RuVector;
+    /// otherwise `None` and the vector handler falls back to the trait-level
+    /// text-only probe.
+    #[cfg(feature = "sona")]
+    pub semantic_tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>>,
     /// Set to `true` when the application is shutting down.
     /// Background tasks should check this and stop work promptly.
     pub shutdown: AtomicBool,
@@ -127,6 +143,50 @@ impl AppState {
         tracing::info!(seed_count, "merchant registry initialized");
         let merchant_registry = Arc::new(RwLock::new(registry));
 
+        // Build the Tier 2 semantic store from config, with a safe fallback
+        // to an empty Jaccard store on error. Construction errors are only
+        // possible for the RuVector backend; the Jaccard backend is
+        // infallible.
+        let categorize_cfg: finima_categorize::CategorizeConfig = config.categorize.clone().into();
+        let semantic_tier2: Arc<RwLock<dyn SemanticCategorizer>> =
+            match CascadeEngine::build_semantic_from_config(
+                &categorize_cfg.tier2,
+                categorize_cfg.semantic_min_confidence,
+            ) {
+                Ok(store) => store,
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "Tier 2 semantic backend construction failed; falling back to empty Jaccard store"
+                    );
+                    Arc::new(RwLock::new(EmbeddingStore::new(
+                        categorize_cfg.semantic_min_confidence,
+                    )))
+                }
+            };
+
+        // Build a typed RuVector handle only when the `sona` feature is
+        // compiled in and the YAML-resolved backend actually asks for it.
+        // This mirrors `semantic_tier2` construction so both views agree.
+        #[cfg(feature = "sona")]
+        let semantic_tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>> = {
+            use finima_categorize::config::Tier2Backend;
+            if categorize_cfg.tier2.resolved_backend() == Tier2Backend::RuVector {
+                match RuVectorEmbeddingStore::new(
+                    categorize_cfg.tier2.clone(),
+                    categorize_cfg.semantic_min_confidence,
+                ) {
+                    Ok(s) => Some(Arc::new(RwLock::new(s))),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "RuVector Tier 2 handle construction failed");
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
         Self {
             inner: Arc::new(InnerState {
                 pool,
@@ -153,6 +213,9 @@ impl AppState {
                 categorization_jobs: RwLock::new(HashMap::new()),
                 upload_categorization_progress: RwLock::new(HashMap::new()),
                 merchant_registry,
+                semantic_tier2,
+                #[cfg(feature = "sona")]
+                semantic_tier2_ruvector,
                 shutdown: AtomicBool::new(false),
             }),
         }
@@ -276,6 +339,18 @@ impl AppState {
     /// Returns the shared merchant registry for Tier 0 categorization.
     pub fn merchant_registry(&self) -> &Arc<RwLock<MerchantRegistry>> {
         &self.inner.merchant_registry
+    }
+
+    /// Returns the shared Tier 2 semantic categorizer (clone of the `Arc`).
+    pub fn semantic_tier2(&self) -> Arc<RwLock<dyn SemanticCategorizer>> {
+        self.inner.semantic_tier2.clone()
+    }
+
+    /// Returns the concrete RuVector Tier 2 handle if the `sona` feature is
+    /// enabled and the resolved backend is RuVector.
+    #[cfg(feature = "sona")]
+    pub fn semantic_tier2_ruvector(&self) -> Option<Arc<RwLock<RuVectorEmbeddingStore>>> {
+        self.inner.semantic_tier2_ruvector.clone()
     }
 
     /// Get the status of an on-demand categorization job.

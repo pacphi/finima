@@ -60,6 +60,9 @@ candle = ["finima-llm/candle"]
 metal = ["candle", "finima-llm/metal"]
 cuda = ["candle", "finima-llm/cuda"]
 ollama = ["finima-llm/ollama"]
+# Enables the RuVector + SONA Tier 2 categorization backend (ADR-012).
+# Off by default in Phase 1; Phase 3 will decide rollout.
+sona = ["finima-categorize/sona"]
 
 [dev-dependencies]
 async-trait = "0.1"
