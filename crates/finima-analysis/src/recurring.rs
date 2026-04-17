@@ -302,7 +302,7 @@ pub fn detect_recurring_with_config(
     }
 
     // Sort by annual cost (absolute value) descending.
-    candidates.sort_by(|a, b| b.annual_cost.abs().cmp(&a.annual_cost.abs()));
+    candidates.sort_by_key(|c| std::cmp::Reverse(c.annual_cost.abs()));
     candidates
 }
 
