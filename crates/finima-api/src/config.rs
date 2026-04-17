@@ -38,6 +38,11 @@ pub struct AppConfig {
     /// classification, minimum occurrence count, etc.).
     #[serde(default)]
     pub recurring: RecurringConfig,
+    /// Tiered categorization engine tuning (ADR-012). Includes the Tier 2
+    /// backend selector + HNSW tuning when the `sona` feature is enabled
+    /// in `finima-categorize`.
+    #[serde(default)]
+    pub categorize: CategorizeYamlConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, serde::Serialize)]
@@ -442,6 +447,137 @@ impl Default for RecurringConfig {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Categorization engine (ADR-012) — YAML-backed tunables
+// ───────────────────────────────────────────────────────────────────
+
+/// YAML mirror of [`finima_categorize::CategorizeConfig`]. Kept separate so
+/// the crate-level struct stays free of serde/config dependencies.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CategorizeYamlConfig {
+    #[serde(default = "default_fuzzy_threshold")]
+    pub fuzzy_threshold: f64,
+    #[serde(default = "default_pattern_min_confidence")]
+    pub pattern_min_confidence: f64,
+    #[serde(default = "default_semantic_min_confidence")]
+    pub semantic_min_confidence: f64,
+    #[serde(default = "default_prefix_length")]
+    pub prefix_length: usize,
+    #[serde(default)]
+    pub tier2: Tier2YamlConfig,
+}
+
+fn default_fuzzy_threshold() -> f64 {
+    0.88
+}
+fn default_pattern_min_confidence() -> f64 {
+    0.70
+}
+fn default_semantic_min_confidence() -> f64 {
+    0.85
+}
+fn default_prefix_length() -> usize {
+    3
+}
+
+impl Default for CategorizeYamlConfig {
+    fn default() -> Self {
+        Self {
+            fuzzy_threshold: default_fuzzy_threshold(),
+            pattern_min_confidence: default_pattern_min_confidence(),
+            semantic_min_confidence: default_semantic_min_confidence(),
+            prefix_length: default_prefix_length(),
+            tier2: Tier2YamlConfig::default(),
+        }
+    }
+}
+
+/// YAML mirror of [`finima_categorize::config::Tier2Config`].
+#[derive(Debug, Clone, Deserialize)]
+pub struct Tier2YamlConfig {
+    #[serde(default = "default_tier2_backend")]
+    pub backend: String,
+    #[serde(default = "default_tier2_dim")]
+    pub dim: usize,
+    #[serde(default = "default_tier2_hnsw_m")]
+    pub hnsw_m: usize,
+    #[serde(default = "default_tier2_hnsw_ef_construction")]
+    pub hnsw_ef_construction: usize,
+    #[serde(default = "default_tier2_hnsw_ef_search")]
+    pub hnsw_ef_search: usize,
+    #[serde(default = "default_tier2_bootstrap_on_start")]
+    pub bootstrap_on_start: bool,
+    #[serde(default)]
+    pub bootstrap_max_examples: usize,
+}
+
+fn default_tier2_backend() -> String {
+    "jaccard".to_string()
+}
+fn default_tier2_dim() -> usize {
+    384
+}
+fn default_tier2_hnsw_m() -> usize {
+    32
+}
+fn default_tier2_hnsw_ef_construction() -> usize {
+    200
+}
+fn default_tier2_hnsw_ef_search() -> usize {
+    100
+}
+fn default_tier2_bootstrap_on_start() -> bool {
+    true
+}
+
+impl Default for Tier2YamlConfig {
+    fn default() -> Self {
+        Self {
+            backend: default_tier2_backend(),
+            dim: default_tier2_dim(),
+            hnsw_m: default_tier2_hnsw_m(),
+            hnsw_ef_construction: default_tier2_hnsw_ef_construction(),
+            hnsw_ef_search: default_tier2_hnsw_ef_search(),
+            bootstrap_on_start: default_tier2_bootstrap_on_start(),
+            bootstrap_max_examples: 0,
+        }
+    }
+}
+
+impl From<CategorizeYamlConfig> for finima_categorize::CategorizeConfig {
+    fn from(c: CategorizeYamlConfig) -> Self {
+        finima_categorize::CategorizeConfig {
+            fuzzy_threshold: c.fuzzy_threshold,
+            pattern_min_confidence: c.pattern_min_confidence,
+            semantic_min_confidence: c.semantic_min_confidence,
+            prefix_length: c.prefix_length,
+            tier2: c.tier2.into(),
+        }
+    }
+}
+
+impl From<Tier2YamlConfig> for finima_categorize::config::Tier2Config {
+    fn from(c: Tier2YamlConfig) -> Self {
+        let backend = finima_categorize::config::Tier2Backend::parse(&c.backend)
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    value = %c.backend,
+                    "categorize.tier2.backend is not a recognized value; falling back to jaccard"
+                );
+                finima_categorize::config::Tier2Backend::Jaccard
+            });
+        finima_categorize::config::Tier2Config {
+            backend,
+            dim: c.dim,
+            hnsw_m: c.hnsw_m,
+            hnsw_ef_construction: c.hnsw_ef_construction,
+            hnsw_ef_search: c.hnsw_ef_search,
+            bootstrap_on_start: c.bootstrap_on_start,
+            bootstrap_max_examples: c.bootstrap_max_examples,
+        }
+    }
+}
+
 impl From<RecurringConfig> for finima_analysis::RecurringDetectorConfig {
     fn from(c: RecurringConfig) -> Self {
         finima_analysis::RecurringDetectorConfig {
@@ -479,6 +615,18 @@ pub fn validate_config(config: &AppConfig) {
             config.auth.jwt_secret.len()
         );
     }
+
+    // Log the resolved Tier 2 backend so operators can verify that the
+    // `sona` feature (or its absence) matches the YAML selection. This
+    // also keeps the `categorize` field reachable at the type level.
+    let crate_cfg: finima_categorize::CategorizeConfig = config.categorize.clone().into();
+    let resolved = crate_cfg.tier2.resolved_backend();
+    tracing::info!(
+        requested = %crate_cfg.tier2.backend.as_str(),
+        resolved = %resolved.as_str(),
+        dim = crate_cfg.tier2.dim,
+        "Tier 2 categorization backend"
+    );
 }
 
 /// Load application configuration from YAML files and environment variables.
@@ -518,6 +666,7 @@ pub fn load_config_from(config_dir: &str) -> Result<AppConfig, config::ConfigErr
         "logging",
         "sankey",
         "recurring",
+        "categorize",
     ];
 
     let mut builder = config::Config::builder();
