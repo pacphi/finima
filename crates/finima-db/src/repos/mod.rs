@@ -1,5 +1,6 @@
 pub mod account_repo;
 pub mod budget_repo;
+pub mod embedding_index_repo;
 pub mod flow_group_repo;
 pub mod flow_repo;
 pub mod magic_link_repo;
@@ -14,6 +15,7 @@ pub mod user_repo;
 
 pub use account_repo::PgAccountRepo;
 pub use budget_repo::PgBudgetRepo;
+pub use embedding_index_repo::{EmbeddingIndexRepo, EmbeddingIndexRow, NewEmbeddingIndex};
 pub use flow_group_repo::PgFlowGroupRepo;
 pub use flow_repo::PgFlowRepo;
 pub use magic_link_repo::PgMagicLinkRepo;
