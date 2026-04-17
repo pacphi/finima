@@ -42,7 +42,8 @@ detect_flows()
       │   (source_account, target_account) metadata
       ├── User dismisses flow → negative signal, reduce similar
       │   pattern confidence via EWC++
-      └── SONA adapts LoRA weights on each query cycle
+      └── SONA adapts learned patterns immediately; MicroLoRA
+          weights update at flush boundaries (phase 2+, see 0d)
 ```
 
 ### Integration Points
@@ -58,6 +59,14 @@ detect_flows()
 3. **`finima-api/src/handlers/flows.rs`**: Update `detect_flows_handler` and `update_flow` (confirm/dismiss) to feed the SONA learning loop.
 
 ### Data Model
+
+**Persistence model (per Phase 0c):**
+
+- Learned retrieval patterns survive restart via `SonaEngine::coordinator().serialize_state()` (JSON) ↔ `.load_state(&json)` (bit-identical `find_patterns` output before vs. after). Store per portfolio in a new `portfolios.sona_state JSONB NULL` column, write on N confirmations or M minutes.
+- LoRA adapter weights do **not** survive restart — `ruvector-sona` 0.1.9 exposes export to safetensors but no import back into an engine. Accept that LoRA re-converges from recorded trajectories after boot.
+- HNSW index is rebuilt in-process at boot by inserting `flow_patterns` rows into a fresh `VectorDB` (memory-only); no second storage backend required.
+
+**Learning-loop reality (per Phase 0d):** `force_learn()` runs the background cycle (ReasoningBank + BaseLoRA + EWC) but does NOT flush MicroLoRA. To exercise MicroLoRA we must (a) record multi-step trajectories with reward variance across steps (REINFORCE advantage must be non-zero), and (b) call `engine.flush()` at pass boundaries or accumulate ≥100 signals to trigger auto-flush. Because LoRA weights also don't persist, **Phase 1 ships ReasoningBank-only**; MicroLoRA is deferred to Phase 2+ once we have intermediate reasoning signals worth recording as trajectory steps.
 
 New table `flow_patterns`:
 
@@ -78,17 +87,28 @@ CREATE TABLE flow_patterns (
 
 ### Dependency
 
-Add `ruvector` to `finima-analysis/Cargo.toml` as an optional feature:
+Add two crates to `finima-analysis/Cargo.toml` behind an optional feature:
 
 ```toml
 [dependencies]
-ruvector = { version = "0.1", optional = true }
+ruvector-core = { version = "2.1", default-features = false, features = ["hnsw", "simd", "memory-only"], optional = true }
+ruvector-sona = { version = "0.1", default-features = false, features = ["serde-support"], optional = true }
 
 [features]
-sona = ["ruvector"]
+sona = ["dep:ruvector-core", "dep:ruvector-sona"]
 ```
 
-This allows the system to work without ruvector installed (fallback to heuristic-only) while enabling SONA when the feature is activated.
+The system still works without either crate installed (heuristic-only fallback); the `sona` feature pulls in both HNSW-backed retrieval and the self-learning layer.
+
+> **Phase 0 spike findings (2026-04-17):**
+>
+> 1. **Crate naming correction.** The Rust crate is `ruvector-core` (not `ruvector`), and the self-learning crate is `ruvector-sona = "0.1.9"` — also on crates.io. The Phase 0 memo's earlier claim that SONA was unpublished was wrong.
+> 2. **Version pin updated** from `0.1` to `2.1` for core; `0.1` for sona.
+> 3. **API names in this ADR are illustrative.** The real surface: `ruvector_core::VectorDB` (not `HnswIndex`), `ruvector_sona::SonaEngine` via `ruvector_sona::engine::SonaEngineBuilder` (not a `SonaAdapter`). `apply_micro_lora` writes into a caller-owned `&mut [f32]` buffer rather than returning a `Vec`.
+> 4. **Performance headroom.** Measured on Apple Silicon release build: trajectory ingest ~3.2 µs each, `apply_micro_lora` p99 ~1.3 µs at `hidden_dim=256`. Well inside the <10 ms flow-detection budget.
+> 5. **Dep footprint is modest.** No ONNX, no reqwest, no C deps at the feature sets above.
+>
+> The wrapper methods (`embed_description`, `search_similar`, `store_pattern`, `adapt`) remain the integration contract; their implementations will sit on top of `VectorDB` (retrieval) and `SonaEngine` (adaptation). See [`docs/spikes/ruvector-phase0.md`](../spikes/ruvector-phase0.md) for full findings and the Phase 0b addendum.
 
 ## Consequences
 
