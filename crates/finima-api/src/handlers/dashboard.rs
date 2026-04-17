@@ -370,7 +370,7 @@ pub async fn get_spending(
         })
         .collect();
 
-    entries.sort_by(|a, b| b.amount.cmp(&a.amount));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.amount));
 
     Ok(Json(entries))
 }
@@ -477,7 +477,7 @@ pub async fn get_subcategory_spending(
         })
         .collect();
 
-    entries.sort_by(|a, b| b.amount.cmp(&a.amount));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.amount));
 
     Ok(Json(entries))
 }
