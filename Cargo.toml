@@ -61,8 +61,26 @@ config = "0.15"
 feed-rs = "2"
 
 # Object storage (S3-compatible)
-aws-sdk-s3 = "1"
-aws-config = "1"
+#
+# NOTE: we opt out of the AWS SDKs' default `rustls` feature because it
+# activates `aws-smithy-http-client/legacy-rustls-ring`, which pulls in
+# rustls 0.21 + rustls-webpki 0.101 (RUSTSEC-2026-0098 / -0099). Using
+# `default-https-client` gives us the modern `rustls-aws-lc` path
+# (rustls 0.23 + rustls-webpki 0.103.12+) with no change in surface API.
+aws-sdk-s3 = { version = "1", default-features = false, features = [
+    "sigv4a",
+    "http-1x",
+    "default-https-client",
+    "rt-tokio",
+    "behavior-version-latest",
+] }
+aws-config = { version = "1", default-features = false, features = [
+    "default-https-client",
+    "rt-tokio",
+    "credentials-process",
+    "sso",
+    "behavior-version-latest",
+] }
 aws-credential-types = "1"
 bytes = "1"
 
