@@ -407,7 +407,7 @@ pub async fn run_categorization_for_account_with_upload(
         .into_iter()
         .map(|(category, count)| CategoryCount { category, count })
         .collect();
-    categories.sort_by(|a, b| b.count.cmp(&a.count));
+    categories.sort_by_key(|c| std::cmp::Reverse(c.count));
 
     // Skip recurring detection during shutdown to exit promptly.
     if llm_cancelled {

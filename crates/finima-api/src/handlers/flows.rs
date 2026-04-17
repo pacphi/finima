@@ -856,7 +856,7 @@ pub async fn get_outflow_ranking(
     }
 
     // Sort by monthly amount, descending.
-    rows.sort_by(|a, b| b.monthly_amount.cmp(&a.monthly_amount));
+    rows.sort_by_key(|r| std::cmp::Reverse(r.monthly_amount));
     let response = rows;
 
     Ok(Json(response))

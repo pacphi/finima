@@ -279,7 +279,7 @@ pub fn build_outflow_ranking(flows: &[FlowRecord], total_income: Decimal) -> Vec
         })
         .collect();
 
-    ranking.sort_by(|a, b| b.monthly_outflow.cmp(&a.monthly_outflow));
+    ranking.sort_by_key(|r| std::cmp::Reverse(r.monthly_outflow));
     ranking
 }
 
