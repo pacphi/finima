@@ -252,7 +252,7 @@ impl PgTransactionRepo {
                        t.original_description, t.category, t.subcategory,
                        t.merchant_name, t.tags, t.notes, t.is_recurring,
                        t.recurring_group_id, t.llm_confidence, t.user_overridden,
-                       t.dedup_hash, t.created_at
+                       t.dedup_hash, t.created_at, t.direction
                 FROM transactions t
                 LEFT JOIN accounts a ON a.id = t.account_id
                 WHERE ($1::uuid IS NULL OR t.account_id = $1)
@@ -316,7 +316,8 @@ impl PgTransactionRepo {
             r#"
             SELECT id, account_id, date, amount, description, original_description,
                    category, subcategory, merchant_name, tags, notes, is_recurring,
-                   recurring_group_id, llm_confidence, user_overridden, dedup_hash, created_at
+                   recurring_group_id, llm_confidence, user_overridden, dedup_hash, created_at,
+                   direction
             FROM transactions
             WHERE id = $1
             "#,
@@ -464,7 +465,8 @@ impl PgTransactionRepo {
             r#"
             SELECT id, account_id, date, amount, description, original_description,
                    category, subcategory, merchant_name, tags, notes, is_recurring,
-                   recurring_group_id, llm_confidence, user_overridden, dedup_hash, created_at
+                   recurring_group_id, llm_confidence, user_overridden, dedup_hash, created_at,
+                   direction
             FROM transactions
             WHERE account_id = $1
               AND (category IS NULL OR category = '')
@@ -493,7 +495,7 @@ impl PgTransactionRepo {
                    t.original_description, t.category, t.subcategory,
                    t.merchant_name, t.tags, t.notes, t.is_recurring,
                    t.recurring_group_id, t.llm_confidence, t.user_overridden,
-                   t.dedup_hash, t.created_at
+                   t.dedup_hash, t.created_at, t.direction
             FROM transactions t
             JOIN accounts a ON a.id = t.account_id
             WHERE a.portfolio_id = $1
@@ -513,13 +515,19 @@ impl PgTransactionRepo {
 
     /// Fetch transactions for analysis across all accounts in a portfolio.
     ///
-    /// Optionally filter by date range. Returns lightweight rows suitable
-    /// for passing to `finima-analysis` functions.
+    /// The date filter uses **half-open `[start, end_exclusive)`** semantics:
+    /// callers pass the first day of the window as `start` and the first day
+    /// of the day *after* the window as `end_exclusive`. For a monthly window
+    /// that means the first of the *next* month. Use
+    /// [`finima_core::month_range`] to construct the pair without drift.
+    ///
+    /// Returns lightweight rows suitable for passing to `finima-analysis`
+    /// functions.
     pub async fn list_for_analysis(
         &self,
         portfolio_id: Uuid,
-        start_date: Option<NaiveDate>,
-        end_date: Option<NaiveDate>,
+        start: Option<NaiveDate>,
+        end_exclusive: Option<NaiveDate>,
     ) -> Result<Vec<TransactionForAnalysisRow>, AppError> {
         let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
             r#"
@@ -530,13 +538,13 @@ impl PgTransactionRepo {
             JOIN accounts a ON a.id = t.account_id
             WHERE a.portfolio_id = $1
               AND ($2::date IS NULL OR t.date >= $2)
-              AND ($3::date IS NULL OR t.date <= $3)
+              AND ($3::date IS NULL OR t.date < $3)
             ORDER BY t.date
             "#,
         )
         .bind(portfolio_id)
-        .bind(start_date)
-        .bind(end_date)
+        .bind(start)
+        .bind(end_exclusive)
         .fetch_all(&self.pool)
         .await?;
 
@@ -559,6 +567,31 @@ impl PgTransactionRepo {
             "#,
         )
         .bind(account_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    /// Fetch transactions belonging to a given recurring group, oldest first.
+    ///
+    /// Used by the Recurring surface to attribute each observed posting to
+    /// its billing cycle month (ADR-020).
+    pub async fn list_by_recurring_group(
+        &self,
+        group_id: Uuid,
+    ) -> Result<Vec<TransactionForAnalysisRow>, AppError> {
+        let rows = sqlx::query_as::<_, TransactionForAnalysisRow>(
+            r#"
+            SELECT id, date, amount, description,
+                   merchant_name, category, subcategory, account_id,
+                   direction
+            FROM transactions
+            WHERE recurring_group_id = $1
+            ORDER BY date
+            "#,
+        )
+        .bind(group_id)
         .fetch_all(&self.pool)
         .await?;
 

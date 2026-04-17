@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { FileUpload } from '@/components/upload/FileUpload';
@@ -131,9 +131,15 @@ function buildChartPoints(
 
 export function AccountDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const api = useApi();
   const accountApi = createAccountApi(api);
   const txApi = createTransactionApi(api);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { categories, categoryMap } = useCategories();
   const [account, setAccount] = useState<Account | null>(null);
@@ -264,15 +270,55 @@ export function AccountDetailPage() {
     }
   };
 
+  const [signFlashMessage, setSignFlashMessage] = useState<{
+    text: string;
+    tone: 'success' | 'error';
+  } | null>(null);
+
   const handleSignOverrideChange = useCallback(
     async (convention: SignConvention | null) => {
       if (!id) return;
-      const result = await accountApi.setSignOverride(id, convention);
-      // The endpoint returns the refreshed account plus stats on how
-      // many rows were re-normalized. Update local state and refetch
-      // transactions so any direction-flipped rows are reflected.
-      setAccount(result.account);
-      void fetchTransactions();
+      setSignFlashMessage(null);
+      try {
+        const result = await accountApi.setSignOverride(id, convention);
+        // The endpoint returns the refreshed account plus stats on
+        // how many rows were re-normalized. Merge defensively into
+        // existing state so any field the server omitted (older
+        // deployments) is preserved. Then refetch transactions so
+        // any direction-/amount-flipped rows are reflected.
+        setAccount((prev) => (prev ? { ...prev, ...result.account } : result.account));
+        // Refresh chart data too since amounts may have flipped.
+        void txApi
+          .listTransactions(
+            { account_id: id },
+            { page: 1, per_page: 5000 },
+            { sort_by: 'date', sort_dir: 'asc' },
+          )
+          .then((res) => {
+            const response = res as PaginatedResponse<Transaction>;
+            setChartTransactions(response.data);
+          })
+          .catch(console.error);
+        void fetchTransactions();
+        setSignFlashMessage({
+          text:
+            result.flipped > 0
+              ? `Flipped ${result.flipped} of ${result.rows_renormalized} transactions.`
+              : result.rows_renormalized > 0
+                ? 'Convention already canonical — no transactions changed.'
+                : 'Convention updated.',
+          tone: 'success',
+        });
+      } catch (err) {
+        console.error('Failed to set sign-convention override:', err);
+        setSignFlashMessage({
+          text:
+            err instanceof Error
+              ? `Failed to flip account: ${err.message}`
+              : 'Failed to flip account. Please try again.',
+          tone: 'error',
+        });
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [id],
@@ -297,6 +343,20 @@ export function AccountDetailPage() {
       })
       .catch(console.error);
   }, [id, fetchTransactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteAccount = async () => {
+    if (!id || !account) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await accountApi.deleteAccount(id);
+      navigate('/accounts', { replace: true });
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account');
+      setDeleting(false);
+    }
+  };
 
   const handleExportCsv = () => {
     const headers = ['Date', 'Description', 'Category', 'Amount'];
@@ -396,6 +456,19 @@ export function AccountDetailPage() {
       {/* Sign-convention card — lets the user flip if imports look reversed.
           See ADR-018. */}
       <AccountSignCard account={account} onChange={handleSignOverrideChange} />
+      {signFlashMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`rounded-lg border px-4 py-2 text-sm ${
+            signFlashMessage.tone === 'success'
+              ? 'border-[var(--color-primary-muted)] bg-[var(--color-primary-subtle)] text-[var(--color-text)]'
+              : 'border-red-500/40 bg-red-500/10 text-red-400'
+          }`}
+        >
+          {signFlashMessage.text}
+        </div>
+      )}
 
       {/* Upload section */}
       {showUpload && (
@@ -508,6 +581,82 @@ export function AccountDetailPage() {
           onExportCsv={handleExportCsv}
         />
       </div>
+
+      {/* Danger Zone — permanent account deletion */}
+      <div className="bg-[var(--color-card)] backdrop-blur-sm rounded-2xl border border-red-500/40 p-6 shadow-[var(--card-shadow)]">
+        <h2 className="text-lg font-semibold text-red-400 mb-1">Danger Zone</h2>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+          Permanently delete this account along with all of its transactions, uploads, and stored
+          files. This action cannot be undone.
+        </p>
+        <button
+          onClick={() => {
+            setDeleteConfirmText('');
+            setDeleteError(null);
+            setShowDeleteModal(true);
+          }}
+          className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 id="delete-modal-title" className="text-lg font-semibold text-red-400 mb-2">
+              Delete “{account.name}”?
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+              This will permanently delete the account and{' '}
+              <strong className="text-[var(--color-text)]">
+                {account.transaction_count.toLocaleString()}
+              </strong>{' '}
+              transaction{account.transaction_count === 1 ? '' : 's'}, along with every upload and
+              associated stored file. This cannot be undone.
+            </p>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-1">
+              Type <span className="font-mono text-[var(--color-text)]">{account.name}</span> to
+              confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              disabled={deleting}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              autoFocus
+            />
+            {deleteError && (
+              <p className="mt-2 text-sm text-red-400" role="alert">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text)] text-sm hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== account.name}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting…' : 'Permanently delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

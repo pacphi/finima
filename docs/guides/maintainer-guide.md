@@ -215,65 +215,22 @@ The `finima-api` crate re-exports these as pass-through features. When you run
 | Model management | `make models LLM=ollama`    | `make models LLM=candle`     |
 | Production use   | Needs sidecar container     | Single binary, no sidecar    |
 
-### Merchant Audit Tool
+### Maintainer Utilities (CLIs)
 
-The `merchant-audit` CLI binary helps maintainers identify uncategorized
-merchants and find candidates for adding to the seed data. It connects to the
-database, loads the current seed merchant registry, and prints a report
-covering:
+Finima ships a small set of maintainer-only command-line binaries in
+`crates/finima-api/src/bin/` for backfills, recalculations, and data
+audits that fall outside the normal ingest pipeline:
 
-- Total, categorized, and uncategorized transaction counts
-- Tier distribution (merchant_lookup, pattern_engine, llm, etc.)
-- Top uncategorized descriptions with occurrence counts
-- Suggested new seed merchants -- LLM-categorized merchants not yet in
-  `seed_merchants.json`, printed as JSON snippets ready to paste
+- `merchant-audit` — surface uncategorized merchants and suggest
+  additions to the Tier 0 seed registry.
+- `finima-normalize-directions` — backfill `transactions.direction`
+  and canonicalize `transactions.amount` (ADR-018).
+- `finima-redetect-recurring` — re-run the recurring-transaction
+  detector across portfolios after a classifier or threshold change
+  (ADR-019).
 
-**How to run:**
-
-```sh
-cargo run --bin merchant-audit
-```
-
-The tool uses the same configuration loading as the main API server (YAML files
-in `config/`, environment variables with `APP__` prefix, `.env` file). It is
-non-interactive and prints the report to stdout.
-
-**Example output:**
-
-```text
-Merchant Audit Report
-=====================
-
-Transactions: 816 total, 519 categorized (64%), 297 uncategorized
-
-Tier Distribution:
-  merchant_lookup       267 (51%)
-  pattern_engine        116 (22%)
-  llm                   136 (26%)
-
-Top Uncategorized Descriptions:
-    68x  External Withdrawal - CHASE CREDIT CRD  - EPAY
-    33x  External Withdrawal - AMEX EPAYMENT ER AM - ACH PMT
-    27x  External Withdrawal - BK OF AMER VISA  - ONLINE PMT
-    ...
-
-Suggested Seed Merchants (from LLM results, not in current seed data):
-  {"name": "Optum", "aliases": ["OPTUM"], "category": "healthcare", "subcategory": "health_insurance"},
-  {"name": "Cornerstone Bank", "aliases": ["CORNERSTONE BANK"], "category": "transfer", "subcategory": "ach_transfer"},
-  ...
-
-To add these, append them to:
-  crates/finima-categorize/data/seed_merchants.json
-```
-
-**Using the output to improve seed data:**
-
-1. Run the audit after a batch of LLM categorizations.
-2. Review the suggested merchants for accuracy.
-3. Copy the JSON lines into `crates/finima-categorize/data/seed_merchants.json`
-   (inside the top-level array).
-4. Rebuild and restart -- those merchants will now be categorized instantly by
-   Tier 0 on subsequent imports, avoiding LLM calls.
+See the **[Maintainer Utilities Guide](maintainer-utilities.md)** for
+purpose, usage, flag tables, and idempotency guarantees for each tool.
 
 ## Project Structure
 

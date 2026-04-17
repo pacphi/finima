@@ -37,6 +37,38 @@ pub struct CreateCategoryRequest {
 #[derive(Debug, Deserialize)]
 pub struct UpdateCategoryRequest {
     pub label: String,
+    /// Optional: reparent a custom subcategory under a different parent. Pass
+    /// `""` or `null` to leave unchanged; pass a valid category key to move.
+    #[serde(default)]
+    pub parent_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ImportYamlRequest {
+    pub yaml: String,
+    /// When true, any custom category or subcategory whose key is not present
+    /// in the imported YAML will be deleted. Defaults to false (additive merge).
+    #[serde(default)]
+    pub replace: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct YamlSub {
+    key: String,
+    label: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct YamlCategory {
+    key: String,
+    label: String,
+    #[serde(default)]
+    subcategories: Vec<YamlSub>,
+}
+
+#[derive(Debug, Deserialize)]
+struct YamlImport {
+    categories: Vec<YamlCategory>,
 }
 
 /// GET /api/categories
@@ -199,21 +231,72 @@ pub async fn update_category(
         return Err(AppError::BadRequest("Label is required".to_string()));
     }
 
-    let id = Uuid::new_v4();
-    sqlx::query(
-        r#"
-        INSERT INTO custom_categories (id, user_id, key, label)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label
-        "#,
-    )
-    .bind(id)
-    .bind(user.user_id)
-    .bind(&key)
-    .bind(&label)
-    .execute(state.pool())
-    .await
-    .map_err(|e| AppError::InternalError(format!("Failed to update category: {}", e)))?;
+    // If a parent_key is provided (non-empty), treat this as a reparent for a
+    // custom subcategory. We require the row to already exist as a custom row;
+    // system subs cannot be reparented (their hierarchy is owned by the YAML).
+    let reparent = body
+        .parent_key
+        .as_ref()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty());
+
+    if let Some(ref new_parent) = reparent {
+        // Validate parent exists (system or user custom top-level).
+        let parent_exists_system = state
+            .config()
+            .categories
+            .iter()
+            .any(|c| c.key == *new_parent);
+        let parent_exists_custom = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM custom_categories WHERE user_id = $1 AND key = $2 AND parent_key IS NULL",
+        )
+        .bind(user.user_id)
+        .bind(new_parent)
+        .fetch_one(state.pool())
+        .await
+        .unwrap_or(0)
+            > 0;
+
+        if !parent_exists_system && !parent_exists_custom {
+            return Err(AppError::BadRequest(format!(
+                "Parent category '{}' does not exist",
+                new_parent
+            )));
+        }
+
+        let id = Uuid::new_v4();
+        sqlx::query(
+            r#"
+            INSERT INTO custom_categories (id, user_id, key, label, parent_key)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label, parent_key = EXCLUDED.parent_key
+            "#,
+        )
+        .bind(id)
+        .bind(user.user_id)
+        .bind(&key)
+        .bind(&label)
+        .bind(new_parent)
+        .execute(state.pool())
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to update category: {}", e)))?;
+    } else {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            r#"
+            INSERT INTO custom_categories (id, user_id, key, label)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label
+            "#,
+        )
+        .bind(id)
+        .bind(user.user_id)
+        .bind(&key)
+        .bind(&label)
+        .execute(state.pool())
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to update category: {}", e)))?;
+    }
 
     Ok(Json(CategoryResponse {
         key,
@@ -221,6 +304,262 @@ pub async fn update_category(
         is_system: false,
         subcategories: Vec::new(),
     }))
+}
+
+/// GET /api/categories/export
+///
+/// Return the effective (system + user override) category tree as YAML, in the
+/// same format as `config/categories.yaml`. Useful for backup / bulk editing.
+pub async fn export_categories(
+    user: AuthUser,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
+    // Reuse list_categories logic: start from system, merge user rows.
+    let mut categories: Vec<CategoryResponse> = state
+        .config()
+        .categories
+        .iter()
+        .map(|c| CategoryResponse {
+            key: c.key.clone(),
+            label: c.label.clone(),
+            is_system: true,
+            subcategories: c
+                .subcategories
+                .iter()
+                .map(|s| SubcategoryResponse {
+                    key: s.key.clone(),
+                    label: s.label.clone(),
+                    is_system: true,
+                })
+                .collect(),
+        })
+        .collect();
+
+    if let Ok(custom) = sqlx::query_as::<_, (String, String, Option<String>)>(
+        "SELECT key, label, parent_key FROM custom_categories WHERE user_id = $1 ORDER BY key",
+    )
+    .bind(user.user_id)
+    .fetch_all(state.pool())
+    .await
+    {
+        for (key, label, parent_key) in custom {
+            if let Some(parent) = parent_key {
+                if let Some(cat) = categories.iter_mut().find(|c| c.key == parent) {
+                    if let Some(existing) = cat.subcategories.iter_mut().find(|s| s.key == key) {
+                        existing.label = label;
+                    } else {
+                        cat.subcategories.push(SubcategoryResponse {
+                            key,
+                            label,
+                            is_system: false,
+                        });
+                    }
+                }
+            } else if let Some(existing) = categories.iter_mut().find(|c| c.key == key) {
+                existing.label = label;
+            } else {
+                categories.push(CategoryResponse {
+                    key,
+                    label,
+                    is_system: false,
+                    subcategories: Vec::new(),
+                });
+            }
+        }
+    }
+
+    // Serialize to YAML in the shape expected by categories.yaml.
+    #[derive(Serialize)]
+    struct ExportSub {
+        key: String,
+        label: String,
+    }
+    #[derive(Serialize)]
+    struct ExportCategory {
+        key: String,
+        label: String,
+        subcategories: Vec<ExportSub>,
+    }
+    #[derive(Serialize)]
+    struct ExportRoot {
+        categories: Vec<ExportCategory>,
+    }
+
+    let root = ExportRoot {
+        categories: categories
+            .into_iter()
+            .map(|c| ExportCategory {
+                key: c.key,
+                label: c.label,
+                subcategories: c
+                    .subcategories
+                    .into_iter()
+                    .map(|s| ExportSub {
+                        key: s.key,
+                        label: s.label,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+
+    let yaml = serde_yaml::to_string(&root)
+        .map_err(|e| AppError::InternalError(format!("YAML serialize failed: {}", e)))?;
+
+    Ok(Json(serde_json::json!({ "yaml": yaml })))
+}
+
+/// POST /api/categories/import
+///
+/// Accept YAML matching the `categories.yaml` shape and upsert custom
+/// categories/subcategories. System rows are never modified; only the user's
+/// overrides/custom entries are touched.
+pub async fn import_categories(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Json(body): Json<ImportYamlRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let parsed: YamlImport = serde_yaml::from_str(&body.yaml)
+        .map_err(|e| AppError::BadRequest(format!("Invalid YAML: {}", e)))?;
+
+    let valid_key = |k: &str| {
+        !k.is_empty()
+            && k.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    };
+
+    let mut created = 0usize;
+    let mut updated = 0usize;
+
+    // Track keys present in the import so `replace` mode can prune the rest.
+    let mut seen_top: Vec<String> = Vec::new();
+    let mut seen_sub: Vec<(String, String)> = Vec::new(); // (parent, child)
+
+    for cat in &parsed.categories {
+        let key = cat.key.trim().to_lowercase();
+        let label = cat.label.trim().to_string();
+        if !valid_key(&key) || label.is_empty() {
+            return Err(AppError::BadRequest(format!(
+                "Invalid category entry: key='{}', label='{}'",
+                cat.key, cat.label
+            )));
+        }
+        seen_top.push(key.clone());
+
+        // Only upsert if it differs from the system default (skip no-op rows).
+        let system_match = state
+            .config()
+            .categories
+            .iter()
+            .find(|c| c.key == key)
+            .map(|c| c.label == label)
+            .unwrap_or(false);
+
+        if !system_match {
+            let id = Uuid::new_v4();
+            let res = sqlx::query(
+                r#"
+                INSERT INTO custom_categories (id, user_id, key, label)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label, parent_key = NULL
+                "#,
+            )
+            .bind(id)
+            .bind(user.user_id)
+            .bind(&key)
+            .bind(&label)
+            .execute(state.pool())
+            .await
+            .map_err(|e| AppError::InternalError(format!("Import failed: {}", e)))?;
+            if res.rows_affected() > 0 {
+                if res.rows_affected() == 1 {
+                    created += 1;
+                } else {
+                    updated += 1;
+                }
+            }
+        }
+
+        for sub in &cat.subcategories {
+            let sk = sub.key.trim().to_lowercase();
+            let sl = sub.label.trim().to_string();
+            if !valid_key(&sk) || sl.is_empty() {
+                return Err(AppError::BadRequest(format!(
+                    "Invalid subcategory entry: key='{}', label='{}'",
+                    sub.key, sub.label
+                )));
+            }
+            seen_sub.push((key.clone(), sk.clone()));
+
+            let system_sub_match = state
+                .config()
+                .categories
+                .iter()
+                .find(|c| c.key == key)
+                .and_then(|c| c.subcategories.iter().find(|s| s.key == sk))
+                .map(|s| s.label == sl)
+                .unwrap_or(false);
+
+            if system_sub_match {
+                continue;
+            }
+
+            let id = Uuid::new_v4();
+            sqlx::query(
+                r#"
+                INSERT INTO custom_categories (id, user_id, key, label, parent_key)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (user_id, key) DO UPDATE SET label = EXCLUDED.label, parent_key = EXCLUDED.parent_key
+                "#,
+            )
+            .bind(id)
+            .bind(user.user_id)
+            .bind(&sk)
+            .bind(&sl)
+            .bind(&key)
+            .execute(state.pool())
+            .await
+            .map_err(|e| AppError::InternalError(format!("Import failed: {}", e)))?;
+            updated += 1;
+        }
+    }
+
+    let mut removed = 0usize;
+    if body.replace {
+        // Delete any custom row whose key is not in the imported set. System
+        // categories are untouched because they are not stored in DB.
+        let all_custom: Vec<(String, Option<String>)> =
+            sqlx::query_as("SELECT key, parent_key FROM custom_categories WHERE user_id = $1")
+                .bind(user.user_id)
+                .fetch_all(state.pool())
+                .await
+                .unwrap_or_default();
+
+        for (k, pk) in all_custom {
+            let keep = match &pk {
+                Some(p) => seen_sub.iter().any(|(pp, cc)| pp == p && cc == &k),
+                None => seen_top.contains(&k),
+            };
+            if !keep {
+                let res =
+                    sqlx::query("DELETE FROM custom_categories WHERE user_id = $1 AND key = $2")
+                        .bind(user.user_id)
+                        .bind(&k)
+                        .execute(state.pool())
+                        .await
+                        .map_err(|e| {
+                            AppError::InternalError(format!("Import prune failed: {}", e))
+                        })?;
+                removed += res.rows_affected() as usize;
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "created": created,
+        "updated": updated,
+        "removed": removed,
+    })))
 }
 
 /// DELETE /api/categories/:key

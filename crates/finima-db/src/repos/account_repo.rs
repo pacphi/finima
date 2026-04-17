@@ -119,6 +119,15 @@ impl AccountRepo for PgAccountRepo {
         Ok(())
     }
 
+    async fn delete(&self, id: Uuid) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM accounts WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
     async fn set_primary_income(&self, id: Uuid, is_primary: bool) -> Result<(), AppError> {
         sqlx::query("UPDATE accounts SET is_primary_income = $2 WHERE id = $1")
             .bind(id)

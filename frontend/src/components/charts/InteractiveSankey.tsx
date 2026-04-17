@@ -94,9 +94,25 @@ export function InteractiveSankey({ data, onLoadSubcategories }: InteractiveSank
           style={{ width: '40%', animation: 'fadeSlideIn 0.3s ease-out' }}
         >
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-              {toTitleCase(donutCategory)} Breakdown
-            </h4>
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                {toTitleCase(donutCategory)} Breakdown
+              </h4>
+              {subcategoryData && subcategoryData.length > 0 && (
+                <p className="mt-0.5 text-sm font-medium text-[var(--color-text)]">
+                  $
+                  {subcategoryData
+                    .reduce((sum, s) => sum + s.amount, 0)
+                    .toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  <span className="ml-1 text-xs font-normal text-[var(--color-text-secondary)]">
+                    total across all accounts
+                  </span>
+                </p>
+              )}
+            </div>
             <button
               onClick={dismissDonut}
               className="rounded px-2 py-0.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text)] transition-colors"

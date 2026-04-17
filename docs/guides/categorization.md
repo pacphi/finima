@@ -71,10 +71,12 @@ lifetime of the process.
 
 **Implementation:** `finima-categorize/src/tier0/merchant_db.rs`
 
-**Maintaining seed data:** Run `cargo run --bin merchant-audit` to identify
-LLM-categorized merchants that are not yet in the seed data. The tool prints
-JSON snippets that can be appended directly to `seed_merchants.json`. See the
-[Maintainer Guide](maintainer-guide.md#merchant-audit-tool) for details.
+**Maintaining seed data:** Run `cargo run -p finima-api --bin merchant-audit`
+to identify LLM-categorized merchants that are not yet in the seed data.
+The tool prints JSON snippets that can be appended directly to
+`seed_merchants.json`. See the
+[Maintainer Utilities Guide](maintainer-utilities.md#merchant-audit) for
+details.
 
 ---
 

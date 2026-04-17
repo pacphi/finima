@@ -1,11 +1,12 @@
 //! Net worth time series computation.
 
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use finima_core::types::AccountType;
+use finima_core::types::{AccountRole, AccountType};
+use finima_core::{next_month_start, start_of_month};
 
 use crate::recurring::TransactionForAnalysis;
 
@@ -35,19 +36,6 @@ pub struct NetWorthPoint {
 // Functions
 // ---------------------------------------------------------------------------
 
-/// Returns true if the account type represents a liability (balance counts
-/// negatively toward net worth).
-fn is_liability(at: AccountType) -> bool {
-    matches!(
-        at,
-        AccountType::CreditCard
-            | AccountType::LoanMortgage
-            | AccountType::LoanAuto
-            | AccountType::LoanStudent
-            | AccountType::LoanPersonal
-    )
-}
-
 /// Compute a net worth time series from `start` to `end` (first-of-month
 /// for efficiency).
 ///
@@ -63,15 +51,10 @@ pub fn compute_net_worth_series(
 ) -> Vec<NetWorthPoint> {
     // Build list of first-of-month dates in range.
     let mut dates = Vec::new();
-    let mut current = NaiveDate::from_ymd_opt(start.year(), start.month(), 1).unwrap();
+    let mut current = start_of_month(start);
     while current <= end {
         dates.push(current);
-        // Advance to next month.
-        if current.month() == 12 {
-            current = NaiveDate::from_ymd_opt(current.year() + 1, 1, 1).unwrap();
-        } else {
-            current = NaiveDate::from_ymd_opt(current.year(), current.month() + 1, 1).unwrap();
-        }
+        current = next_month_start(current);
     }
 
     // Pre-sort transactions per account.
@@ -106,11 +89,12 @@ pub fn compute_net_worth_series(
 
                 let balance = acct.opening_balance + txn_sum;
 
-                if is_liability(acct.account_type) {
-                    liabilities += balance.abs();
-                } else {
-                    assets += balance;
-                }
+                // Canonical amounts (ADR-018): split the signed
+                // balance into (asset, liability) contributions in
+                // one place. See AccountRole::classify_balance.
+                let (a, l) = AccountRole::classify_balance(acct.account_type, balance);
+                assets += a;
+                liabilities += l;
             }
 
             NetWorthPoint {
@@ -177,10 +161,13 @@ mod tests {
     }
 
     #[test]
-    fn credit_card_is_liability() {
+    fn credit_card_debt_counts_as_liability() {
+        // Canonical balances (ADR-018): a credit card with outstanding
+        // debt has a *negative* balance. A -2000 balance represents
+        // $2000 owed to the card issuer.
         let accounts = vec![
             acct(1, dec!(5000), AccountType::Checking),
-            acct(2, dec!(2000), AccountType::CreditCard),
+            acct(2, dec!(-2000), AccountType::CreditCard),
         ];
         let result = compute_net_worth_series(
             &accounts,
@@ -192,6 +179,27 @@ mod tests {
         assert_eq!(result[0].assets, dec!(5000));
         assert_eq!(result[0].liabilities, dec!(2000));
         assert_eq!(result[0].total, dec!(3000));
+    }
+
+    #[test]
+    fn credit_card_positive_balance_counts_as_asset() {
+        // A positive liability balance = user overpaid the card and
+        // has a credit sitting on it — treat as usable cash, not
+        // debt. No value should end up in `liabilities`.
+        let accounts = vec![
+            acct(1, dec!(1000), AccountType::Checking),
+            acct(2, dec!(250), AccountType::CreditCard),
+        ];
+        let result = compute_net_worth_series(
+            &accounts,
+            &[],
+            NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(),
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].assets, dec!(1250));
+        assert_eq!(result[0].liabilities, dec!(0));
+        assert_eq!(result[0].total, dec!(1250));
     }
 
     #[test]

@@ -8,6 +8,11 @@
 
 # ─── Sign Conventions ────────────────────────────────────────────────
 #
+# The stored `transactions.amount` is ALWAYS canonical
+# (positive_means_inflow) after import. The convention resolved here
+# determines how the raw file's amount sign is interpreted while being
+# normalized — it is NOT the convention used at query time.
+#
 # Resolution order at import time:
 #   1. accounts.sign_convention_override (UI-set; highest precedence)
 #   2. by_institution rule below (case-insensitive match)
@@ -18,7 +23,7 @@
 #
 # Add a row to `by_institution` only when:
 #   - The institution exports the OPPOSITE polarity from the
-#     account-type default (e.g. Chase exports credit-card charges
+#     account-type default (e.g. Chase/BofA export credit-card charges
 #     as negative, payments as positive — the inverse of Amex/Discover).
 #   - You want to ship that knowledge as a default for ALL users
 #     of that institution, instead of relying on autodetection.
@@ -30,6 +35,10 @@ sign_conventions:
     # Amazon Prime Visa) export charges as negative amounts and
     # payments as positive — the inverse of Amex/Discover.
     chase: positive_means_inflow
+    # Bank of America consumer cards (Cash Rewards, Travel Rewards,
+    # Customized Cash, Atmos Visa) follow the same convention as
+    # Chase — charges negative, payments positive.
+    bank of america: positive_means_inflow
   # Per-account pins are normally set via the UI; this section is
   # reserved for one-off migrations or test scenarios.
   by_account_id: {}

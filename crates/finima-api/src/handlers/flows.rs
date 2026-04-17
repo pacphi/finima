@@ -11,7 +11,7 @@ use uuid::Uuid;
 use finima_analysis::{build_sankey_data, build_waterfall, detect_flows, FlowRecord};
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
-use finima_core::AppError;
+use finima_core::{next_month_start, AppError};
 use finima_db::NewAccountFlow;
 
 use crate::state::AppState;
@@ -396,12 +396,8 @@ pub async fn get_full_sankey(
         .map(|a| a.id)
         .collect();
 
-    // Load transactions for the month.
-    let end_of_month = if month.month() == 12 {
-        chrono::NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
-    } else {
-        chrono::NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
-    };
+    // Load transactions for the month (half-open `[month, next_month_start)`).
+    let end_of_month = next_month_start(month);
     let txn_rows = state
         .transaction_repo()
         .list_for_analysis(portfolio_id, Some(month), Some(end_of_month))
@@ -745,11 +741,7 @@ pub async fn get_outflow_ranking(
         .collect();
 
     // Load transactions for the month (used for income total + direct spending).
-    let end_of_month = if month.month() == 12 {
-        chrono::NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
-    } else {
-        chrono::NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
-    };
+    let end_of_month = next_month_start(month);
     let txn_rows = state
         .transaction_repo()
         .list_for_analysis(portfolio_id, Some(month), Some(end_of_month))
@@ -773,8 +765,7 @@ pub async fn get_outflow_ranking(
     let mut rows: Vec<OutflowRankResponse> = Vec::new();
     let mut transfer_totals: HashMap<Uuid, Decimal> = HashMap::new();
     for f in &db_flows {
-        if primary_ids.contains(&f.source_account_id)
-            && !primary_ids.contains(&f.target_account_id)
+        if primary_ids.contains(&f.source_account_id) && !primary_ids.contains(&f.target_account_id)
         {
             *transfer_totals.entry(f.target_account_id).or_default() += f.amount;
         }
@@ -786,7 +777,11 @@ pub async fn get_outflow_ranking(
             None => ("Unknown".to_string(), "unknown".to_string()),
         };
         let pct_income = if total_income > Decimal::ZERO {
-            (amount / total_income).to_string().parse::<f64>().unwrap_or(0.0) * 100.0
+            (amount / total_income)
+                .to_string()
+                .parse::<f64>()
+                .unwrap_or(0.0)
+                * 100.0
         } else {
             0.0
         };
@@ -803,7 +798,11 @@ pub async fn get_outflow_ranking(
     // ─── Direct category rows: primary → category (debit, autopay) ──
     let transfer_txn_ids: std::collections::HashSet<Uuid> = db_flows
         .iter()
-        .flat_map(|f| f.source_transaction_id.into_iter().chain(f.target_transaction_id))
+        .flat_map(|f| {
+            f.source_transaction_id
+                .into_iter()
+                .chain(f.target_transaction_id)
+        })
         .collect();
     let transfer_categories: std::collections::HashSet<&str> = state
         .config()
@@ -838,7 +837,11 @@ pub async fn get_outflow_ranking(
     }
     for (category_label, amount) in category_totals {
         let pct_income = if total_income > Decimal::ZERO {
-            (amount / total_income).to_string().parse::<f64>().unwrap_or(0.0) * 100.0
+            (amount / total_income)
+                .to_string()
+                .parse::<f64>()
+                .unwrap_or(0.0)
+                * 100.0
         } else {
             0.0
         };
@@ -954,14 +957,11 @@ pub async fn detect_flows_handler(
         ));
     }
 
-    // Fetch transactions for the month with a 2-day buffer for matching.
+    // Fetch transactions for the month with a 2-day buffer on each side
+    // for matching transfer pairs across the boundary. `end` is exclusive,
+    // so `next_month_start + 2` keeps 2 days of the next month in scope.
     let start = month - chrono::Duration::days(2);
-    let end_of_month = if month.month() == 12 {
-        chrono::NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
-    } else {
-        chrono::NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
-    };
-    let end = end_of_month + chrono::Duration::days(2);
+    let end = next_month_start(month) + chrono::Duration::days(2);
 
     let txn_rows = state
         .transaction_repo()

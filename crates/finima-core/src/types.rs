@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// All supported account types in Finima.
@@ -103,15 +104,19 @@ impl FromStr for TransactionDirection {
     }
 }
 
-/// Whether an account represents an asset (positive balance is good)
-/// or a liability (positive balance is debt).
+/// Whether an account represents an asset (positive balance = wealth)
+/// or a liability (negative balance = debt under the canonical-amount
+/// convention; see ADR-018).
 ///
 /// Derived purely from `AccountType`; not stored in the database.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountRole {
     /// Checking, savings, cash, investment accounts. Balance up = wealth up.
     Asset,
-    /// Credit cards, loans. Balance up = debt up.
+    /// Credit cards, loans. Under canonical amounts, balance down = debt up:
+    /// a negative balance on a credit card represents $X owed to the issuer,
+    /// a positive balance represents a credit (overpayment) sitting on the
+    /// card that behaves like cash.
     Liability,
 }
 
@@ -133,6 +138,40 @@ impl AccountRole {
             // "Other" is ambiguous; default to Asset for additive treatment.
             // Users with unusual needs can model via custom subtypes later.
             AccountType::Other => Self::Asset,
+        }
+    }
+
+    /// Convenience predicate for call sites that only care whether an
+    /// account is a liability (credit card, loan).
+    pub fn is_liability_type(ty: AccountType) -> bool {
+        matches!(Self::for_account_type(ty), Self::Liability)
+    }
+
+    /// Split a canonical-amount signed balance into its contributions
+    /// to `(assets, liabilities)` for net-worth reporting. Encodes the
+    /// ADR-018 domain rule in one place so dashboard / net-worth /
+    /// per-portfolio summary handlers cannot drift:
+    ///
+    /// - **Asset account**: the entire balance counts toward assets,
+    ///   including negative balances (overdrafts show up as reduced
+    ///   assets, never as liabilities).
+    /// - **Liability with negative balance**: real debt; the absolute
+    ///   value contributes to liabilities.
+    /// - **Liability with positive balance**: a credit on the card
+    ///   (you've overpaid or received a refund) — cash-like, counts
+    ///   toward assets, never liabilities.
+    ///
+    /// Returns `(asset_contribution, liability_contribution)`.
+    pub fn classify_balance(account_type: AccountType, balance: Decimal) -> (Decimal, Decimal) {
+        match Self::for_account_type(account_type) {
+            Self::Asset => (balance, Decimal::ZERO),
+            Self::Liability => {
+                if balance.is_sign_negative() {
+                    (Decimal::ZERO, -balance)
+                } else {
+                    (balance, Decimal::ZERO)
+                }
+            }
         }
     }
 }
@@ -434,5 +473,57 @@ mod tests {
         ] {
             assert_eq!(AccountRole::for_account_type(ty), AccountRole::Liability);
         }
+    }
+
+    #[test]
+    fn classify_balance_asset_account() {
+        // Asset account: entire balance flows to the asset column.
+        // Negative balances (overdrafts) count as reduced assets, not
+        // as liabilities.
+        let (a, l) = AccountRole::classify_balance(AccountType::Checking, Decimal::new(1500, 0));
+        assert_eq!(a, Decimal::new(1500, 0));
+        assert_eq!(l, Decimal::ZERO);
+
+        let (a, l) = AccountRole::classify_balance(AccountType::Savings, Decimal::new(-50, 0));
+        assert_eq!(a, Decimal::new(-50, 0));
+        assert_eq!(l, Decimal::ZERO);
+    }
+
+    #[test]
+    fn classify_balance_liability_with_debt() {
+        // Credit card with $250 owed (negative canonical balance).
+        let (a, l) = AccountRole::classify_balance(AccountType::CreditCard, Decimal::new(-250, 0));
+        assert_eq!(a, Decimal::ZERO);
+        assert_eq!(l, Decimal::new(250, 0));
+    }
+
+    #[test]
+    fn classify_balance_liability_with_credit() {
+        // Credit card with $80 credit balance (overpaid). Cash-like;
+        // should flow to assets, not liabilities.
+        let (a, l) = AccountRole::classify_balance(AccountType::CreditCard, Decimal::new(80, 0));
+        assert_eq!(a, Decimal::new(80, 0));
+        assert_eq!(l, Decimal::ZERO);
+    }
+
+    #[test]
+    fn classify_balance_zero_is_zero_everywhere() {
+        for ty in [
+            AccountType::Checking,
+            AccountType::CreditCard,
+            AccountType::LoanStudent,
+        ] {
+            let (a, l) = AccountRole::classify_balance(ty, Decimal::ZERO);
+            assert_eq!(a, Decimal::ZERO);
+            assert_eq!(l, Decimal::ZERO);
+        }
+    }
+
+    #[test]
+    fn is_liability_type_predicate() {
+        assert!(AccountRole::is_liability_type(AccountType::CreditCard));
+        assert!(AccountRole::is_liability_type(AccountType::LoanMortgage));
+        assert!(!AccountRole::is_liability_type(AccountType::Checking));
+        assert!(!AccountRole::is_liability_type(AccountType::Other));
     }
 }

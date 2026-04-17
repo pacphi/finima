@@ -1,7 +1,7 @@
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
-use chrono::{Datelike, Months, NaiveDate, Utc};
+use chrono::{Months, NaiveDate, Utc};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,8 @@ use finima_analysis::{
 };
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::AccountRepo;
-use finima_core::AppError;
+use finima_core::types::{AccountRole, AccountType};
+use finima_core::{next_month_start, AppError};
 
 use crate::state::AppState;
 
@@ -106,7 +107,10 @@ pub async fn get_summary(
         .await?;
     let txns = to_analysis(&txn_rows);
 
-    // Compute net worth from today's actual account balances (not a start-of-month snapshot).
+    // Compute net worth from today's actual account balances. The
+    // canonical-amount split lives in AccountRole::classify_balance
+    // (ADR-018) so every handler, CLI, and analysis helper agrees on
+    // what "debt" means.
     let mut total_assets = Decimal::ZERO;
     let mut total_liabilities = Decimal::ZERO;
     let mut liquid_savings = Decimal::ZERO;
@@ -115,23 +119,12 @@ pub async fn get_summary(
             continue;
         }
         let balance = state.account_repo().compute_balance(acct.id).await?;
+        let (a, l) = AccountRole::classify_balance(acct.account_type, balance);
+        total_assets += a;
+        total_liabilities += l;
         if matches!(
             acct.account_type,
-            finima_core::types::AccountType::CreditCard
-                | finima_core::types::AccountType::LoanMortgage
-                | finima_core::types::AccountType::LoanAuto
-                | finima_core::types::AccountType::LoanStudent
-                | finima_core::types::AccountType::LoanPersonal
-        ) {
-            total_liabilities += balance.abs();
-        } else {
-            total_assets += balance;
-        }
-        if matches!(
-            acct.account_type,
-            finima_core::types::AccountType::Checking
-                | finima_core::types::AccountType::Savings
-                | finima_core::types::AccountType::Cash
+            AccountType::Checking | AccountType::Savings | AccountType::Cash
         ) {
             liquid_savings += balance;
         }
@@ -272,7 +265,8 @@ pub async fn get_health_score(
         .await?;
     let txns = to_analysis(&txn_rows);
 
-    // Compute assets/liabilities from today's actual balances.
+    // Compute assets/liabilities from today's actual balances via
+    // the shared canonical-amount split (ADR-018).
     let mut total_assets = Decimal::ZERO;
     let mut total_liabilities = Decimal::ZERO;
     let mut liquid_savings = Decimal::ZERO;
@@ -281,23 +275,12 @@ pub async fn get_health_score(
             continue;
         }
         let balance = state.account_repo().compute_balance(acct.id).await?;
+        let (a, l) = AccountRole::classify_balance(acct.account_type, balance);
+        total_assets += a;
+        total_liabilities += l;
         if matches!(
             acct.account_type,
-            finima_core::types::AccountType::CreditCard
-                | finima_core::types::AccountType::LoanMortgage
-                | finima_core::types::AccountType::LoanAuto
-                | finima_core::types::AccountType::LoanStudent
-                | finima_core::types::AccountType::LoanPersonal
-        ) {
-            total_liabilities += balance.abs();
-        } else {
-            total_assets += balance;
-        }
-        if matches!(
-            acct.account_type,
-            finima_core::types::AccountType::Checking
-                | finima_core::types::AccountType::Savings
-                | finima_core::types::AccountType::Cash
+            AccountType::Checking | AccountType::Savings | AccountType::Cash
         ) {
             liquid_savings += balance;
         }
@@ -341,11 +324,7 @@ pub async fn get_spending(
 
     let txn_rows = if let Some(ref month_str) = params.month {
         let month = parse_month(&Some(month_str.clone()))?;
-        let end = if month.month() == 12 {
-            NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
-        } else {
-            NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
-        };
+        let end = next_month_start(month);
         state
             .transaction_repo()
             .list_for_analysis(portfolio_id, Some(month), Some(end))
@@ -407,11 +386,7 @@ pub async fn get_subcategory_spending(
 
     let txn_rows = if let Some(ref month_str) = params.month {
         let month = parse_month(&Some(month_str.clone()))?;
-        let end = if month.month() == 12 {
-            NaiveDate::from_ymd_opt(month.year() + 1, 1, 1).unwrap()
-        } else {
-            NaiveDate::from_ymd_opt(month.year(), month.month() + 1, 1).unwrap()
-        };
+        let end = next_month_start(month);
         state
             .transaction_repo()
             .list_for_analysis(portfolio_id, Some(month), Some(end))
@@ -423,24 +398,66 @@ pub async fn get_subcategory_spending(
             .await?
     };
 
-    // Aggregate expenses by subcategory within the requested parent category.
+    // Aggregate expenses by subcategory within the requested parent
+    // category. Matches the Sankey's spending-link semantics (ADR-018):
+    // direction = outflow, excluding rows already represented as
+    // inter-account transfers and categories on the transfer-exclusion
+    // list.
+    use finima_core::TransactionDirection;
+    let db_flows = state
+        .flow_repo()
+        .list_by_portfolio_month(
+            portfolio_id,
+            params
+                .month
+                .as_deref()
+                .map(|m| parse_month(&Some(m.to_string())))
+                .transpose()?
+                .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()),
+        )
+        .await
+        .unwrap_or_default();
+    let transfer_txn_ids: std::collections::HashSet<uuid::Uuid> = db_flows
+        .iter()
+        .flat_map(|f| {
+            f.source_transaction_id
+                .into_iter()
+                .chain(f.target_transaction_id)
+        })
+        .collect();
+    let transfer_categories: std::collections::HashSet<&str> = state
+        .config()
+        .sankey
+        .transfer_categories
+        .iter()
+        .map(String::as_str)
+        .collect();
+
     let mut by_subcategory: std::collections::HashMap<String, Decimal> =
         std::collections::HashMap::new();
     let mut total_in_category = Decimal::ZERO;
 
     for row in &txn_rows {
-        if row.amount < Decimal::ZERO {
-            let cat = row.category.as_deref().unwrap_or("");
-            if cat == params.category {
-                let sub = row
-                    .subcategory
-                    .clone()
-                    .unwrap_or_else(|| "other".to_string());
-                let abs = row.amount.abs();
-                *by_subcategory.entry(sub).or_default() += abs;
-                total_in_category += abs;
-            }
+        if transfer_txn_ids.contains(&row.id) {
+            continue;
         }
+        if row.direction != Some(TransactionDirection::Outflow) {
+            continue;
+        }
+        let cat = row.category.as_deref().unwrap_or("");
+        if cat != params.category {
+            continue;
+        }
+        if transfer_categories.contains(cat) {
+            continue;
+        }
+        let sub = row
+            .subcategory
+            .clone()
+            .unwrap_or_else(|| "other".to_string());
+        let abs = row.amount.abs();
+        *by_subcategory.entry(sub).or_default() += abs;
+        total_in_category += abs;
     }
 
     let total_f = total_in_category.to_f64().unwrap_or(1.0);

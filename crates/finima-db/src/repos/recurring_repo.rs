@@ -102,6 +102,13 @@ impl PgRecurringRepo {
     }
 
     /// List all non-dismissed recurring groups for a portfolio.
+    ///
+    /// Hides groups whose `next_expected_date` is stale (older than the
+    /// start of the current calendar year). A stale expected date means
+    /// the last observed occurrence was far enough in the past that the
+    /// nominal cadence has already lapsed — the "recurrence" is
+    /// effectively over. Variable-cadence rows (NULL `next_expected_date`)
+    /// are unaffected and always surface.
     pub async fn list_by_portfolio(
         &self,
         portfolio_id: Uuid,
@@ -113,6 +120,10 @@ impl PgRecurringRepo {
             FROM recurring_groups
             WHERE portfolio_id = $1
               AND (metadata->>'dismissed')::boolean IS NOT TRUE
+              AND (
+                    next_expected_date IS NULL
+                 OR next_expected_date >= date_trunc('year', CURRENT_DATE)::date
+              )
             ORDER BY ABS(avg_amount) DESC
             "#,
         )

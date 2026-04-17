@@ -6,10 +6,16 @@
 # most recent transaction). Anything below the threshold is treated as
 # noise and dropped from the recurring list.
 #
-# These knobs do NOT affect fixed cadences (daily/weekly/biweekly/monthly/
-# quarterly/semiannual/annual) — those are gated by interval-classification
-# tolerances inside the detector itself.
+# `min_occurrences_for_fixed` applies to sub-annual fixed cadences
+# (weekly / biweekly / monthly / quarterly): per ADR-019, at least 3
+# matching transactions are required before a candidate is promoted,
+# matching Plaid's "matured stream" floor. Semiannual and annual cadences
+# are exempt because a 3-sample floor would require >= 2 years of history.
+# Note: the `daily` cadence has been removed from the classifier (ADR-019);
+# genuinely daily consumer-finance patterns are vanishingly rare and the
+# band produced false positives on same-day merchant bursts.
 
 recurring:
   min_occurrences_for_variable: 3
   variable_window_months: 6
+  min_occurrences_for_fixed: 3

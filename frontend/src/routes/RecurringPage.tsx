@@ -57,9 +57,7 @@ export function RecurringPage() {
   };
 
   const filtered = useMemo(() => {
-    return groups.filter((g) =>
-      typeFilter === 'income' ? g.avg_amount > 0 : g.avg_amount <= 0,
-    );
+    return groups.filter((g) => (typeFilter === 'income' ? g.avg_amount > 0 : g.avg_amount <= 0));
   }, [groups, typeFilter]);
 
   const sorted = useMemo(() => {
@@ -90,7 +88,9 @@ export function RecurringPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center p-6">
-        <span className="text-[var(--color-text-secondary)]">Loading recurring transactions...</span>
+        <span className="text-[var(--color-text-secondary)]">
+          Loading recurring transactions...
+        </span>
       </div>
     );
   }

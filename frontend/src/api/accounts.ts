@@ -65,13 +65,43 @@ export function createAccountApi(api: {
 
     archiveAccount: (id: string) => api.del<void>(`/api/accounts/${id}`),
 
+    /** **Dangerous.** Permanently delete the account and every associated
+     *  transaction, upload, and stored file. Cannot be undone. */
+    deleteAccount: (id: string) => api.del<void>(`/api/accounts/${id}/purge`),
+
     setPrimary: (id: string) => api.post<Account>(`/api/accounts/${id}/set-primary`),
 
     /** Set or clear the per-account sign-convention override. Pass
      *  `null` to clear and fall back to the default resolution chain.
      *  Triggers server-side re-normalization of every transaction on
-     *  the account. See ADR-018. */
-    setSignOverride: (id: string, convention: SignConvention | null) =>
-      api.put<SignOverrideResponse>(`/api/accounts/${id}/sign-override`, { convention }),
+     *  the account — both `direction` and the canonical `amount`
+     *  sign. See ADR-018.
+     *
+     *  The server returns the refreshed AccountDetailResponse (the
+     *  plain account row plus `computed_balance`,
+     *  `transaction_count`, `last_import_at`); we map it the same
+     *  way `getAccount` does so the caller can drop the account
+     *  straight into component state. */
+    setSignOverride: async (
+      id: string,
+      convention: SignConvention | null,
+    ): Promise<SignOverrideResponse> => {
+      const raw = await api.put<
+        Omit<SignOverrideResponse, 'account'> & {
+          account: Account & { computed_balance?: number };
+        }
+      >(`/api/accounts/${id}/sign-override`, { convention });
+      const a = raw.account;
+      return {
+        ...raw,
+        account: {
+          ...a,
+          current_balance: a.computed_balance ?? a.current_balance ?? a.opening_balance ?? 0,
+          transaction_count: a.transaction_count ?? 0,
+          last_import_at: a.last_import_at ?? null,
+          updated_at: a.updated_at ?? a.created_at,
+        },
+      };
+    },
   };
 }

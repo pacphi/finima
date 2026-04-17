@@ -1,7 +1,7 @@
 # ADR-018: Import-Time Sign Normalization for Institution-Variant Exports
 
 **Status:** Accepted
-**Date:** 2026-04-16
+**Date:** 2026-04-16 (initial) · 2026-04-17 (canonical-amount amendment)
 **Related:** ADR-005 (Multi-Format File Import), ADR-008 (Inter-Account Flow Detection), ADR-009 (YAML Configuration)
 
 ## Context
@@ -35,10 +35,36 @@ inspection of the row's surrounding context (e.g. category
 
 ## Decision
 
-Every transaction row stores a canonical `direction` value (`inflow`
-or `outflow`) computed once at import time by the `SignNormalizer`
-service (`finima_core::services::sign_normalizer`). All downstream
-consumers query `direction` — none inspect the sign of `amount`.
+Every transaction row stores **both** a canonical `direction` value
+(`inflow` | `outflow`) **and** a canonical `amount` sign
+(`positive_means_inflow`) — computed once at import time by the
+`SignNormalizer` service
+(`finima_core::services::sign_normalizer`).
+
+The stored `amount` invariant for non-zero rows is:
+
+```text
+direction = 'inflow'   <=>   amount > 0
+direction = 'outflow'  <=>   amount < 0
+```
+
+Downstream consumers — Sankey, reports, cash-flow analysis, balance
+computation (`accounts.current_balance = opening_balance + SUM(amount)`),
+queries — can trust `SUM(amount)` to have a single, institution-
+agnostic meaning (net cash position) and can trust `direction` for
+fast index-friendly filtering. None need to know how the source
+institution signed a given row.
+
+### The two canonical stores
+
+| Column                   | Meaning (post-import)                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `transactions.amount`    | Signed canonical amount. Positive == inflow, negative == outflow.                      |
+| `transactions.direction` | Redundant but indexed: `'inflow'` or `'outflow'`. Always agrees with sign of `amount`. |
+
+`direction` is kept for the `(account_id, direction, date)` composite
+index (see migration 023), which lets Sankey / spending queries scan
+only outflow rows without evaluating `amount > 0` per row.
 
 ### Domain types
 
@@ -112,22 +138,53 @@ sign_conventions:
 - **Migration 024** (`024_accounts_sign_override.sql`) — adds nullable
   `accounts.sign_convention_override TEXT CHECK (...)` for per-account
   user pins.
-- **Re-import** populates `direction` for fresh rows.
-- **`finima-normalize-directions` CLI** (maintainer-only) backfills
-  existing rows using the configured `SignNormalizer` rules. Idempotent:
-  selects only `direction IS NULL` rows.
+- **Re-import** populates `direction` and canonical `amount` for
+  fresh rows.
+- **`finima-normalize-directions` CLI** (maintainer-only) has two
+  passes, both idempotent:
+  - Default mode: backfills `direction` for legacy rows where it is
+    `NULL`, using the configured `SignNormalizer` rules.
+  - `--canonicalize-amounts`: one-time pass that negates `amount` on
+    every row of every account whose effective convention resolves to
+    `PositiveMeansOutflow` (Amex/Discover-style), so the stored sign
+    matches the canonical invariant. Detects and skips already-
+    canonicalized accounts by checking whether any row on the account
+    violates the `direction`/`amount` sign invariant.
 - A future migration MAY add `NOT NULL` to `transactions.direction`
   once all live data is normalized.
 
+### "Flip this account" (per-account UI override)
+
+Setting or clearing `accounts.sign_convention_override` runs a
+re-normalization pass server-side (`PUT /api/accounts/:id/sign-override`,
+see `crates/finima-api/src/handlers/accounts.rs::set_sign_override`).
+Because stored amounts are already canonical, the pass is a single
+bulk SQL update:
+
+```sql
+UPDATE transactions
+SET amount    = -amount,
+    direction = CASE direction WHEN 'inflow' THEN 'outflow'
+                               WHEN 'outflow' THEN 'inflow'
+                               ELSE direction END
+WHERE account_id = $1;
+```
+
+…gated by a resolution-chain comparison: if the new effective
+convention equals the old one (e.g. the user pinned what was already
+the default) no row-level work runs. The whole request is wrapped in
+a DB transaction so a partial failure cannot leave rows in a mixed
+state.
+
 ### Layered roles
 
-| Layer                                           | Audience        | Mechanism                                                                                              | Purpose                                                                                                             |
-| ----------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `accounts.sign_convention_override`             | End user        | "Flip this account" button on the Account detail page (writes via PUT /api/accounts/:id/sign-override) | One-click correction when an import looks reversed. Never requires YAML or CLI.                                     |
-| `sankey.yaml` `sign_conventions.by_institution` | Maintainer      | Git-tracked YAML, PR-reviewed, shipped with releases                                                   | Ship sensible institution defaults so 95% of users never see a misclassification. Tax-bracket-table-style registry. |
-| `SignAutodetector`                              | Nobody — silent | Runs during import when no institution rule matches                                                    | Inspects payment / deposit signals in the file itself. Falls back to account-type default if inconclusive.          |
-| `with_builtin_defaults`                         | Maintainer      | Code (`sign_normalizer.rs`)                                                                            | Last-resort sensible default by account_type.                                                                       |
-| `finima-normalize-directions`                   | Maintainer/op   | Shell command: `cargo run --bin finima-normalize-directions -- [--dry-run]`                            | Backfill / re-normalize after a YAML rule change. Never user-facing.                                                |
+| Layer                                           | Audience        | Mechanism                                                                                                                                                                                   | Purpose                                                                                                             |
+| ----------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `accounts.sign_convention_override`             | End user        | "Flip this account" button on the Account detail page (writes via PUT /api/accounts/:id/sign-override)                                                                                      | One-click correction when an import looks reversed. Never requires YAML or CLI.                                     |
+| `sankey.yaml` `sign_conventions.by_institution` | Maintainer      | Git-tracked YAML, PR-reviewed, shipped with releases                                                                                                                                        | Ship sensible institution defaults so 95% of users never see a misclassification. Tax-bracket-table-style registry. |
+| `SignAutodetector`                              | Nobody — silent | Runs during import when no institution rule matches                                                                                                                                         | Inspects payment / deposit signals in the file itself. Falls back to account-type default if inconclusive.          |
+| `with_builtin_defaults`                         | Maintainer      | Code (`sign_normalizer.rs`)                                                                                                                                                                 | Last-resort sensible default by account_type.                                                                       |
+| `finima-normalize-directions`                   | Maintainer/op   | Shell command: `cargo run -p finima-api --bin finima-normalize-directions -- [--dry-run]` (see [Maintainer Utilities Guide](../guides/maintainer-utilities.md#finima-normalize-directions)) | Backfill / re-normalize after a YAML rule change. Never user-facing.                                                |
 
 ## Consequences
 
@@ -136,23 +193,33 @@ sign_conventions:
 - Handlers are free of institution-specific or account-type sign
   conditionals. The `flows.rs` spending-link aggregation collapsed to
   a one-line predicate (`direction == Outflow`).
+- `SUM(transactions.amount)` has a single meaning (net cash
+  position) regardless of the source institution, so balance,
+  net-worth, and cashflow calculations work without per-row
+  convention awareness.
 - New institutions are onboarded by adding one YAML line. Wrong
   classifications become a configuration bug (visible, correctable)
   rather than a code bug.
 - End users never see "sign convention" jargon. The Flip button
-  Just Works.
+  Just Works and its server-side re-normalization keeps historical
+  rows consistent — no re-import required after a Flip.
 - Autodetection covers the long tail without requiring exhaustive YAML
   curation.
-- Re-normalization on override change keeps historical rows consistent
-  — no re-import required after a Flip.
 
 **Negative**
 
-- Adds a `direction` column and a backfill step. Existing dev/prod
-  data needs one round of `finima-normalize-directions` (or re-import).
+- Adds a `direction` column and two backfill steps (direction +
+  amount canonicalization). Existing dev/prod data needs one run of
+  `finima-normalize-directions` followed by one run of
+  `finima-normalize-directions --canonicalize-amounts` (or a
+  re-import).
 - Users must correctly identify an account's institution for the YAML
   rule to apply. The per-account override and autodetection cover the
   cases where they don't.
+- Opening balances are user-entered and must be in the canonical
+  convention too — for a credit card, enter debt as a negative
+  opening balance, not a positive one. Defaults to 0 so most users
+  never think about it.
 
 ## Alternatives considered
 

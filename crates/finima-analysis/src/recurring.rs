@@ -59,15 +59,23 @@ pub struct RecurringGroupCandidate {
 /// inside a `variable_window_months`-month sliding window (anchored on the
 /// candidate's `last_date`) to be kept. Below that threshold it's treated as
 /// noise and dropped.
+///
+/// `min_occurrences_for_fixed` applies to sub-annual fixed cadences
+/// (Weekly / Biweekly / Monthly / Quarterly). Matches Plaid's "matured
+/// stream" floor of 3 observations — see ADR-019. Semiannual and Annual
+/// are exempt because a 3-sample minimum would require >= 2 years of
+/// contiguous history.
 #[derive(Debug, Clone, Copy)]
 pub struct RecurringDetectorConfig {
     pub min_occurrences_for_variable: usize,
     pub variable_window_months: u32,
+    pub min_occurrences_for_fixed: usize,
 }
 
 impl RecurringDetectorConfig {
     pub const DEFAULT_MIN_OCCURRENCES_FOR_VARIABLE: usize = 3;
     pub const DEFAULT_VARIABLE_WINDOW_MONTHS: u32 = 6;
+    pub const DEFAULT_MIN_OCCURRENCES_FOR_FIXED: usize = 3;
 }
 
 impl Default for RecurringDetectorConfig {
@@ -75,6 +83,7 @@ impl Default for RecurringDetectorConfig {
         Self {
             min_occurrences_for_variable: Self::DEFAULT_MIN_OCCURRENCES_FOR_VARIABLE,
             variable_window_months: Self::DEFAULT_VARIABLE_WINDOW_MONTHS,
+            min_occurrences_for_fixed: Self::DEFAULT_MIN_OCCURRENCES_FOR_FIXED,
         }
     }
 }
@@ -120,16 +129,17 @@ fn normalize_merchant(name: &str) -> String {
 /// Uses the **median** rather than the mean so a few outliers — same-day NSF
 /// retries, an end-of-life payoff, etc. — don't pull a clearly periodic
 /// pattern into Variable.
+///
+/// Per ADR-019, Daily is intentionally omitted: merchants whose median
+/// interval is ~1 day (typically Amazon-style same-day bursts, not true
+/// daily subscriptions) fall through to Variable and are gated by the
+/// sliding-window rule.
 fn classify_frequency(intervals: &[i64]) -> Frequency {
     let typical = match median(intervals) {
         Some(m) => m,
         None => return Frequency::Variable,
     };
 
-    // Check each pattern with its tolerance.
-    if (typical - 1.0).abs() <= 0.5 {
-        return Frequency::Daily;
-    }
     if (typical - 7.0).abs() <= 1.0 {
         return Frequency::Weekly;
     }
@@ -237,6 +247,18 @@ pub fn detect_recurring_with_config(
 
         // 4. Classify frequency.
         let frequency = classify_frequency(&intervals);
+
+        // 4b. Per ADR-019: require >= `min_occurrences_for_fixed` observations
+        // before promoting to a sub-annual fixed cadence. Two-point cadence
+        // guesses are statistically fragile; hold them back until a third
+        // sample confirms the pattern.
+        if matches!(
+            frequency,
+            Frequency::Weekly | Frequency::Biweekly | Frequency::Monthly | Frequency::Quarterly
+        ) && txns.len() < config.min_occurrences_for_fixed
+        {
+            continue;
+        }
 
         // 5. Compute statistics.
         let sum: Decimal = txns.iter().map(|t| t.amount).sum();
@@ -374,15 +396,28 @@ mod tests {
     }
 
     #[test]
-    fn two_transactions_monthly_gap() {
+    fn two_transactions_monthly_gap_held_back() {
+        // ADR-019: two-point Monthly promotions are statistically fragile;
+        // hold them back until a third sample confirms the cadence.
         let txns = vec![
             txn(1, "2025-01-15", dec!(-15.00), "Spotify"),
             txn(2, "2025-02-14", dec!(-15.00), "Spotify"),
         ];
         let result = detect_recurring(&txns);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn three_transactions_monthly_promoted() {
+        let txns = vec![
+            txn(1, "2025-01-15", dec!(-15.00), "Spotify"),
+            txn(2, "2025-02-14", dec!(-15.00), "Spotify"),
+            txn(3, "2025-03-15", dec!(-15.00), "Spotify"),
+        ];
+        let result = detect_recurring(&txns);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].frequency, Frequency::Monthly);
-        assert_eq!(result[0].transaction_count, 2);
+        assert_eq!(result[0].transaction_count, 3);
     }
 
     #[test]
@@ -390,12 +425,36 @@ mod tests {
         let txns = vec![
             txn(1, "2025-01-01", dec!(-5.00), "CheapSub"),
             txn(2, "2025-02-01", dec!(-5.00), "CheapSub"),
-            txn(3, "2025-01-01", dec!(-100.00), "ExpensiveSub"),
-            txn(4, "2025-02-01", dec!(-100.00), "ExpensiveSub"),
+            txn(3, "2025-03-01", dec!(-5.00), "CheapSub"),
+            txn(4, "2025-01-01", dec!(-100.00), "ExpensiveSub"),
+            txn(5, "2025-02-01", dec!(-100.00), "ExpensiveSub"),
+            txn(6, "2025-03-01", dec!(-100.00), "ExpensiveSub"),
         ];
         let result = detect_recurring(&txns);
         assert_eq!(result.len(), 2);
         assert!(result[0].annual_cost.abs() > result[1].annual_cost.abs());
+    }
+
+    #[test]
+    fn same_day_burst_not_classified_daily() {
+        // ADR-019 regression: Amazon-style same-day / next-day bursts pulled
+        // the median interval to ~1 day and triggered the old Daily band.
+        // Daily is gone; the pattern must fall through to Variable (and be
+        // gated by the recent-occurrence rule) rather than surfacing as a
+        // Daily recurring charge.
+        let txns = vec![
+            txn(1, "2025-06-01", dec!(-49.64), "Amazon"),
+            txn(2, "2025-06-01", dec!(-19.99), "Amazon"),
+            txn(3, "2025-06-02", dec!(-75.00), "Amazon"),
+        ];
+        let result = detect_recurring(&txns);
+        for candidate in &result {
+            assert_ne!(
+                candidate.frequency,
+                Frequency::Daily,
+                "Daily cadence was removed in ADR-019"
+            );
+        }
     }
 
     #[test]
@@ -455,6 +514,8 @@ mod tests {
             RecurringDetectorConfig {
                 min_occurrences_for_variable: 4,
                 variable_window_months: 6,
+                min_occurrences_for_fixed:
+                    RecurringDetectorConfig::DEFAULT_MIN_OCCURRENCES_FOR_FIXED,
             },
         );
         assert!(strict.is_empty());

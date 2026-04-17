@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use finima_categorize::{
-    CategoryAssignment as CascadeAssignment, MerchantEntry, MerchantSource, PatternEngine,
+    cascade_tiers_0_1, CategoryAssignment as CascadeAssignment, MerchantEntry, MerchantSource,
+    PatternEngine,
 };
 use finima_core::traits::AccountRepo;
 use finima_core::AppError;
@@ -89,21 +90,16 @@ pub async fn run_categorization_for_account_with_upload(
         let pattern_engine = PatternEngine::with_defaults();
 
         for t in &uncategorized {
-            // Tier 0: Merchant lookup
-            if let Some(mut assignment) = registry.lookup(&t.description, None) {
-                assignment.transaction_id = t.id;
-                cascade_assignments.push(assignment);
-                continue;
+            // Single entry point for outcome-prefix → Tier 0 → Tier 1. This is
+            // the same helper `CascadeEngine::categorize` calls, so fixes land
+            // in one place.
+            match cascade_tiers_0_1(&registry, &pattern_engine, &t.description, t.amount, None) {
+                Some(mut assignment) => {
+                    assignment.transaction_id = t.id;
+                    cascade_assignments.push(assignment);
+                }
+                None => remaining_txn_ids.push(t.id),
             }
-
-            // Tier 1: Pattern engine
-            if let Some(mut assignment) = pattern_engine.match_pattern(&t.description, t.amount) {
-                assignment.transaction_id = t.id;
-                cascade_assignments.push(assignment);
-                continue;
-            }
-
-            remaining_txn_ids.push(t.id);
         }
     }
 

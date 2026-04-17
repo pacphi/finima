@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Account, SignConvention } from '@/types/models';
+import { isLiabilityAccountType } from '@/types/models';
 
 interface AccountSignCardProps {
   account: Account;
@@ -26,26 +27,20 @@ export function AccountSignCard({ account, onChange }: AccountSignCardProps) {
   const handleFlip = async () => {
     setBusy(true);
     try {
-      // If the user has never set an override, the only safe assumption
-      // is to flip from whatever the system inferred — pin to the
-      // *opposite* of the current effective convention. We don't know
-      // the effective convention here without server input, so we pin
-      // to PositiveMeansInflow as a sensible first toggle when the
-      // user reports the import looks wrong.
-      let next: SignConvention;
-      if (current === null) {
-        // No override set — assume the user is reporting that the
-        // current default is wrong. For credit-card accounts the
-        // default is positive_means_outflow, so flip to inflow.
-        // For asset accounts the default is positive_means_inflow,
-        // so flip to outflow. Use account_type to choose.
-        const isLiability =
-          account.account_type === 'credit_card' || account.account_type.startsWith('loan_');
-        next = isLiability ? 'positive_means_inflow' : 'positive_means_outflow';
-      } else {
-        next =
-          current === 'positive_means_inflow' ? 'positive_means_outflow' : 'positive_means_inflow';
-      }
+      // Flip relative to the *effective* convention, not just the
+      // per-account override. When the server hasn't told us the
+      // effective convention (older response shape), fall back to
+      // the account-type default (credit cards -> outflow, assets
+      // -> inflow). Either way we pin to the opposite so the click
+      // produces a visible change.
+      const effective: SignConvention =
+        current ??
+        account.effective_sign_convention ??
+        (isLiabilityAccountType(account.account_type)
+          ? 'positive_means_outflow'
+          : 'positive_means_inflow');
+      const next: SignConvention =
+        effective === 'positive_means_inflow' ? 'positive_means_outflow' : 'positive_means_inflow';
       await onChange(next);
     } finally {
       setBusy(false);

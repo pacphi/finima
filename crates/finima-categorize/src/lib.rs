@@ -18,7 +18,7 @@ pub mod tier2;
 pub mod types;
 
 pub use config::CategorizeConfig;
-pub use engine::CascadeEngine;
+pub use engine::{cascade_tiers_0_1, match_outcome_prefix, CascadeEngine};
 pub use tier0::MerchantRegistry;
 pub use tier1::PatternEngine;
 pub use tier2::{EmbeddingStore, SemanticCategorizer};

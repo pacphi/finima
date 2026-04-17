@@ -11,16 +11,17 @@ Handles the complete lifecycle of importing financial data from external files i
 
 ## 2. Ubiquitous Language
 
-| Term                      | Definition                                                                                                                                                                                                                   |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ | --- | ----------------------------------------------------------------------------------------- |
-| **Upload**                | A file submitted by the user for transaction import. Tracked through states: `pending` -> `processing` -> `complete` or `error`.                                                                                             |
-| **File Format**           | The detected type of an uploaded file: OFX, QFX, QBO, QIF, CSV, TSV, XLS, XLSX.                                                                                                                                              |
-| **Column Mapping**        | User-defined assignment of CSV/XLS columns to transaction fields (date, amount, description). Required for unstructured formats.                                                                                             |
-| **Preview**               | The first 20 rows of a parsed file, shown to the user before final import. Includes inferred column assignments.                                                                                                             |
-| **Dedup Hash**            | `SHA-256(date                                                                                                                                                                                                                |     | amount |     | description)` scoped to an account. Used to detect duplicate transactions across imports. |
-| **Raw Transaction**       | A parsed row from a file before it becomes a persisted Transaction entity.                                                                                                                                                   |
-| **Transaction Direction** | Canonical `inflow` or `outflow` relative to the account. Set at import time by `SignNormalizer` (see ADR-018). Consumed by all downstream analytics instead of inspecting the sign of `amount`, which varies by institution. |
-| **Sign Convention**       | Whether a positive `amount` on a given account represents an inflow or an outflow. Resolved at import via the chain: per-account override -> per-institution YAML rule -> autodetection -> account-type default.             |
+| Term                      | Definition                                                                                                                                                                                                                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ | --- | ----------------------------------------------------------------------------------------- |
+| **Upload**                | A file submitted by the user for transaction import. Tracked through states: `pending` -> `processing` -> `complete` or `error`.                                                                                                                                                                                                   |
+| **File Format**           | The detected type of an uploaded file: OFX, QFX, QBO, QIF, CSV, TSV, XLS, XLSX.                                                                                                                                                                                                                                                    |
+| **Column Mapping**        | User-defined assignment of CSV/XLS columns to transaction fields (date, amount, description). Required for unstructured formats.                                                                                                                                                                                                   |
+| **Preview**               | The first 20 rows of a parsed file, shown to the user before final import. Includes inferred column assignments.                                                                                                                                                                                                                   |
+| **Dedup Hash**            | `SHA-256(date                                                                                                                                                                                                                                                                                                                      |     | amount |     | description)` scoped to an account. Used to detect duplicate transactions across imports. |
+| **Raw Transaction**       | A parsed row from a file before it becomes a persisted Transaction entity.                                                                                                                                                                                                                                                         |
+| **Transaction Direction** | Canonical `inflow` or `outflow` relative to the account. Set at import time by `SignNormalizer` (see ADR-018). Consumed by all downstream analytics together with the canonical `amount` sign.                                                                                                                                     |
+| **Sign Convention**       | Whether a positive _raw_ `amount` (as it appeared in the source file) on a given account represents an inflow or an outflow. Resolved at import via the chain: per-account override -> per-institution YAML rule -> autodetection -> account-type default. After resolution, both `direction` and `amount` sign are canonicalized. |
+| **Canonical Amount**      | The stored `transactions.amount` sign after normalization: positive = inflow, negative = outflow, regardless of source-file convention. `SUM(amount)` thus has a single, institution-agnostic meaning (net cash position). Invariant: sign of `amount` always agrees with `direction`.                                             |
 
 ## 3. Aggregates
 
@@ -64,7 +65,10 @@ RawTransaction
 **Invariants:**
 
 - `date` must be parseable from the source format.
-- `amount` must be a valid decimal. Sign convention: negative = outflow, positive = inflow.
+- `amount` is the raw decimal as it appeared in the source file; its sign
+  follows the _source institution's_ convention, not a canonical one. The
+  import pipeline canonicalizes it via `SignNormalizer::to_canonical_amount`
+  before persistence (see ADR-018).
 - `description` must be non-empty.
 
 ## 4. Domain Services
@@ -86,12 +90,17 @@ Implementations: `OfxParser`, `QifParser`, `CsvParser`, `XlsxParser`.
 
 ### SignNormalizer
 
-Institution-aware direction resolver applied once per import batch. See ADR-018.
+Institution-aware direction + canonical-amount resolver applied once per import batch. See ADR-018.
 
 - `direction_for(ctx: AccountContext, amount: Decimal) -> TransactionDirection`
   — maps a raw `amount` to canonical `Inflow` or `Outflow` based on the configured `SignConvention` for the account.
 - `direction_for_with_detection(..., detected: Option<SignConvention>) -> TransactionDirection`
   — variant that slots the `SignAutodetector` verdict into the resolution chain when neither the per-account override nor the per-institution YAML rule applies.
+- `normalize(ctx, raw_amount) -> (TransactionDirection, Decimal)` /
+  `normalize_with_detection(ctx, raw_amount, detected) -> (TransactionDirection, Decimal)`
+  — returns both the direction and the canonical-convention amount (positive = inflow regardless of source). The import pipeline persists the canonical amount as `transactions.amount`.
+- `to_canonical_amount(convention, raw_amount) -> Decimal` — low-level helper:
+  passes `raw_amount` through when the source convention is already `PositiveMeansInflow`, negates it when the source is `PositiveMeansOutflow`.
 - Resolution order (strongest to weakest): per-account override stored on `accounts.sign_convention_override` → `config.sign_conventions.by_institution[name]` (case-insensitive) → autodetected convention → account-type default.
 - Pure function; no I/O. Built from `AppConfig.sign_conventions` at request time so per-account overrides can be merged into `by_account_id` before use.
 
@@ -117,7 +126,7 @@ Coordinates the full import pipeline:
 1. Receive file -> detect format -> create Upload record (`pending`).
 2. Parse preview -> return to frontend (`previewing`).
 3. Receive column mapping confirmation -> store mapping (`confirmed`).
-4. Parse all rows -> **normalize direction via `SignNormalizer`** (with `SignAutodetector` fallback for unknown institutions) -> dedup -> bulk insert transactions with `direction` populated -> update Upload status (`processing` -> `complete`).
+4. Parse all rows -> **normalize via `SignNormalizer`** — resolves the account's effective `SignConvention`, flips each raw `amount` into the canonical (positive = inflow) convention, and emits the matching `direction` — with `SignAutodetector` fallback for unknown institutions -> dedup on the _raw_ amount hash so re-uploads still dedupe -> bulk insert transactions with both `direction` and canonical `amount` populated -> update Upload status (`processing` -> `complete`).
 5. Queue LLM categorization for new transactions (handoff to Intelligence context).
 6. Push WebSocket progress events throughout.
 

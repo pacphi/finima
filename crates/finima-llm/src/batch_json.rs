@@ -7,7 +7,9 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::client::{CategorizationBatch, CategorizationResult, OverridePattern, TransactionInput};
+#[cfg(feature = "ollama")]
+use crate::client::CategorizationBatch;
+use crate::client::{CategorizationResult, OverridePattern, TransactionInput};
 use crate::error::LlmError;
 
 /// A single entry in the JSON array returned by the LLM.

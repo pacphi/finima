@@ -51,6 +51,10 @@ path = "src/bin/merchant_audit.rs"
 name = "finima-normalize-directions"
 path = "src/bin/normalize_directions.rs"
 
+[[bin]]
+name = "finima-redetect-recurring"
+path = "src/bin/redetect_recurring.rs"
+
 [features]
 candle = ["finima-llm/candle"]
 metal = ["candle", "finima-llm/metal"]

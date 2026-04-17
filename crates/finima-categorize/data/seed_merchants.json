@@ -451,7 +451,7 @@
   {"name": "U-Haul", "aliases": ["U-HAUL", "UHAUL"], "category": "travel", "subcategory": "car_rental"},
   {"name": "Uber", "aliases": ["UBER", "UBER TRIP", "UBER BV"], "category": "transportation", "subcategory": "rideshare_taxi"},
   {"name": "Uber Eats", "aliases": ["UBER EATS", "UBEREATS"], "category": "food_dining", "subcategory": "food_delivery"},
-  {"name": "UI Benefit", "aliases": ["UI BENEFIT", "UNEMPLOYMENT BENEFIT", "UNEMPLOYMENT INS", "WA ST EMPLOY SEC"], "category": "income", "subcategory": "government_benefits", "confidence": 0.4},
+  {"name": "UI Benefit", "aliases": ["UI BENEFIT", "UNEMPLOYMENT BENEFIT", "UNEMPLOYMENT INS", "WA ST EMPLOY SEC"], "category": "income", "subcategory": "government_benefits"},
   {"name": "Ulta Beauty", "aliases": ["ULTA", "ULTA BEAUTY"], "category": "personal_care", "subcategory": "cosmetics"},
   {"name": "Under Armour", "aliases": ["UNDER ARMOUR", "UA"], "category": "shopping", "subcategory": "clothing"},
   {"name": "Union 76", "aliases": ["UNION 76", "UNION76"], "category": "transportation", "subcategory": "gas_fuel"},

@@ -474,16 +474,23 @@ pub async fn confirm_upload(
         );
     }
 
-    // Compute dedup hashes and build NewTransaction records
+    // Compute dedup hashes and build NewTransaction records.
+    //
+    // Note on the dedup hash: it is computed from the *raw* amount
+    // (as it appeared in the source file) so re-uploading the same
+    // file under a different institution rule still deduplicates
+    // against previously imported rows. The *canonical* amount is
+    // what we persist to `transactions.amount`. See ADR-018.
     let new_transactions: Vec<NewTransaction> = raw_transactions
         .iter()
         .zip(normalization.directions.iter())
-        .map(|(raw, &direction)| {
+        .zip(normalization.amounts.iter())
+        .map(|((raw, &direction), &canonical_amount)| {
             let hash = compute_dedup_hash(&raw.date, &raw.amount, &raw.original_description);
             NewTransaction {
                 account_id: upload.account_id,
                 date: raw.date,
-                amount: raw.amount,
+                amount: canonical_amount,
                 description: raw.description.clone(),
                 original_description: raw.original_description.clone(),
                 category: raw.category.clone(),

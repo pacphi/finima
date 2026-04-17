@@ -11,6 +11,7 @@
 use finima_core::services::sign_autodetector::{AutodetectResult, RawRow, SignAutodetector};
 use finima_core::services::sign_normalizer::{AccountContext, SignNormalizer};
 use finima_core::types::{AccountType, TransactionDirection};
+use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use crate::RawTransaction;
@@ -20,6 +21,14 @@ use crate::RawTransaction;
 pub struct NormalizationResult {
     /// Direction for each input row, aligned by index.
     pub directions: Vec<TransactionDirection>,
+    /// Canonical (positive_means_inflow) amount for each input row,
+    /// aligned by index. This is what the import pipeline persists
+    /// to `transactions.amount`.
+    ///
+    /// Post-normalization invariant (for non-zero rows):
+    /// `direction == Inflow  <=> amounts[i] > 0`
+    /// `direction == Outflow <=> amounts[i] < 0`
+    pub amounts: Vec<Decimal>,
     /// Autodetection result, when run. `None` when the normalizer
     /// resolved a convention from per-account override or
     /// per-institution rule (no detection needed).
@@ -76,13 +85,18 @@ pub fn normalize_batch(
         institution: institution.map(str::to_owned),
     };
 
-    let directions: Vec<TransactionDirection> = raw
-        .iter()
-        .map(|t| normalizer.direction_for_with_detection(&ctx, t.amount, detected_convention))
-        .collect();
+    let mut directions: Vec<TransactionDirection> = Vec::with_capacity(raw.len());
+    let mut amounts: Vec<Decimal> = Vec::with_capacity(raw.len());
+    for t in raw {
+        let (dir, canonical) =
+            normalizer.normalize_with_detection(&ctx, t.amount, detected_convention);
+        directions.push(dir);
+        amounts.push(canonical);
+    }
 
     NormalizationResult {
         directions,
+        amounts,
         autodetection,
     }
 }
@@ -130,6 +144,10 @@ mod tests {
         // Chase: positive = inflow, negative = outflow.
         assert_eq!(result.directions[0], TransactionDirection::Inflow);
         assert_eq!(result.directions[1], TransactionDirection::Outflow);
+        // Chase is already in the canonical convention, so amounts pass
+        // through unchanged.
+        assert_eq!(result.amounts[0], Decimal::new(1500, 0));
+        assert_eq!(result.amounts[1], Decimal::new(-85, 0));
     }
 
     #[test]
@@ -178,6 +196,10 @@ mod tests {
         );
         // Positive -> outflow under detected (Amex) convention.
         assert_eq!(result.directions[1], TransactionDirection::Outflow);
+        // Amex-signature amounts flip to canonical (positive_means_inflow):
+        // raw -240 payment becomes +240 (inflow), raw +28 charge becomes -28.
+        assert_eq!(result.amounts[0], Decimal::new(240, 0));
+        assert_eq!(result.amounts[1], Decimal::new(-28, 0));
     }
 
     #[test]

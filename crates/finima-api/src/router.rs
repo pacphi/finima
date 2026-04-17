@@ -303,6 +303,10 @@ pub fn build_router(
         .route(
             "/{id}/sign-override",
             axum::routing::put(accounts::set_sign_override),
+        )
+        .route(
+            "/{id}/purge",
+            axum::routing::delete(accounts::purge_account),
         );
 
     // Upload routes (authentication required) — 50 MB body limit for file uploads
@@ -325,7 +329,11 @@ pub fn build_router(
     // Recurring routes (authentication required)
     let recurring_routes = Router::new()
         .route("/", get(recurring::list_recurring))
-        .route("/{id}", put(recurring::update_recurring));
+        .route("/{id}", put(recurring::update_recurring))
+        .route(
+            "/{id}/occurrences",
+            get(recurring::list_recurring_occurrences),
+        );
 
     // User override routes (authentication required)
     let override_routes = Router::new().route(
@@ -429,6 +437,11 @@ pub fn build_router(
         .route(
             "/api/categories",
             get(categories::list_categories).post(categories::create_category),
+        )
+        .route("/api/categories/export", get(categories::export_categories))
+        .route(
+            "/api/categories/import",
+            post(categories::import_categories),
         )
         .route(
             "/api/categories/{key}",

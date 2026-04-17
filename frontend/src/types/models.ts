@@ -10,6 +10,32 @@ export type AccountType =
   | 'cash'
   | 'other';
 
+/** Single source of truth for "is this account type a liability?"
+ *  on the frontend. Credit cards and every loan variant count.
+ *  Mirrors the backend `AccountRole::for_account_type` rule in
+ *  `finima-core::types`. */
+export function isLiabilityAccountType(t: AccountType): boolean {
+  return t === 'credit_card' || t === 'loan' || t.startsWith('loan_');
+}
+
+/** Canonical-amount balance splitter used by the Dashboard and the
+ *  Accounts summary row. Encodes ADR-018:
+ *  - Asset account: entire balance goes to assets.
+ *  - Liability with negative balance: real debt, goes to liabilities.
+ *  - Liability with positive balance: credit on the card, cash-like,
+ *    goes to assets.
+ *  Keeping this in one place prevents the Dashboard and Accounts
+ *  page from drifting apart as they did before the ADR-018 amendment.
+ */
+export function classifyBalance(
+  t: AccountType,
+  balance: number,
+): { asset: number; liability: number } {
+  if (!isLiabilityAccountType(t)) return { asset: balance, liability: 0 };
+  if (balance < 0) return { asset: 0, liability: -balance };
+  return { asset: balance, liability: 0 };
+}
+
 export type FileFormat = 'csv' | 'tsv' | 'ofx' | 'qfx' | 'qbo' | 'qif' | 'xls' | 'xlsx';
 
 export type UploadStatus =
@@ -77,6 +103,12 @@ export interface Account {
   updated_at: string;
   /** User-set per-account override, or null to use defaults. */
   sign_convention_override: SignConvention | null;
+  /** Sign convention that would be used for a fresh import right
+   *  now, after the full resolution chain (override -> institution
+   *  rule -> account-type default). Computed server-side. Used by
+   *  the AccountSignCard to decide what a Flip click means when no
+   *  per-account override is set. See ADR-018. */
+  effective_sign_convention?: SignConvention;
 }
 
 /** Response shape from PUT /api/accounts/:id/sign-override. */

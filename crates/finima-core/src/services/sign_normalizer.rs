@@ -11,9 +11,13 @@
 //! knowing the source institution's convention.
 //!
 //! `SignNormalizer` centralizes this knowledge. It is consulted at
-//! import time, not query time, so every persisted transaction carries
-//! a normalized [`TransactionDirection`] that downstream consumers
-//! (Sankey, reports, queries) can trust.
+//! import time, not query time. Every persisted transaction carries
+//! both a normalized [`TransactionDirection`] **and** a canonical
+//! `amount` (positive_means_inflow) so that downstream consumers
+//! (Sankey, reports, queries, balance computation) can trust the
+//! sign of `amount` regardless of which institution exported the
+//! row. See [`SignNormalizer::to_canonical_amount`] for the flip
+//! rule and [`ADR-018`] for the design rationale.
 //!
 //! ## Resolution order
 //!
@@ -194,6 +198,81 @@ impl SignNormalizer {
     ) -> TransactionDirection {
         let convention = self.resolve_with_detection(ctx, detected);
         Self::apply(convention, amount)
+    }
+
+    /// Compute both the direction and the canonical-convention amount
+    /// for a single row. The canonical convention is
+    /// `PositiveMeansInflow`: positive amounts are always money in,
+    /// negative amounts are always money out, regardless of what the
+    /// source institution's file convention was.
+    ///
+    /// The returned `amount` is what the import pipeline persists to
+    /// `transactions.amount`.
+    pub fn normalize(
+        &self,
+        ctx: &AccountContext,
+        raw_amount: Decimal,
+    ) -> (TransactionDirection, Decimal) {
+        self.normalize_with_detection(ctx, raw_amount, None)
+    }
+
+    /// Variant of [`Self::normalize`] that accepts an autodetected
+    /// convention for use when no per-account or per-institution rule
+    /// matches. See [`Self::direction_for_with_detection`] for the
+    /// resolution chain.
+    pub fn normalize_with_detection(
+        &self,
+        ctx: &AccountContext,
+        raw_amount: Decimal,
+        detected: Option<SignConvention>,
+    ) -> (TransactionDirection, Decimal) {
+        let convention = self.resolve_with_detection(ctx, detected);
+        let direction = Self::apply(convention, raw_amount);
+        let canonical = Self::to_canonical_amount(convention, raw_amount);
+        (direction, canonical)
+    }
+
+    /// Flip `raw_amount` into the canonical (`PositiveMeansInflow`)
+    /// convention given the source convention.
+    ///
+    /// The canonical sign rule is:
+    /// - inflow rows have `amount >= 0`
+    /// - outflow rows have `amount <= 0`
+    ///
+    /// This is invoked at import time so persisted rows have a single
+    /// interpretation of `amount` sign regardless of the institution
+    /// that produced them. See ADR-018.
+    pub fn to_canonical_amount(convention: SignConvention, raw_amount: Decimal) -> Decimal {
+        match convention {
+            // Already canonical.
+            SignConvention::PositiveMeansInflow => raw_amount,
+            // Source convention is flipped relative to canonical —
+            // negate so positive == inflow post-normalization.
+            SignConvention::PositiveMeansOutflow => -raw_amount,
+        }
+    }
+
+    /// Resolve the effective [`SignConvention`] for an account, using
+    /// the full rule chain (per-account override → per-institution
+    /// rule → account-type default). Does not consult autodetection.
+    ///
+    /// This is the canonical way for callers to ask "what convention
+    /// is currently in effect on this account?" — prefer it over
+    /// probing via [`Self::direction_for`] with a fixed sign, which
+    /// is more fragile and obscures intent.
+    pub fn resolve_convention(&self, ctx: &AccountContext) -> SignConvention {
+        self.resolve_with_detection(ctx, None)
+    }
+
+    /// Resolve the effective [`SignConvention`] including the
+    /// autodetection slot. Identical ordering to
+    /// [`Self::direction_for_with_detection`].
+    pub fn resolve_convention_with_detection(
+        &self,
+        ctx: &AccountContext,
+        detected: Option<SignConvention>,
+    ) -> SignConvention {
+        self.resolve_with_detection(ctx, detected)
     }
 
     fn resolve(&self, ctx: &AccountContext) -> SignConvention {
@@ -433,5 +512,120 @@ mod tests {
             TransactionDirection::Outflow,
             "no institution => use account-type default (PositiveMeansOutflow)"
         );
+    }
+
+    // ── Canonical amount normalization ──────────────────────────────
+
+    #[test]
+    fn canonical_amount_passthrough_for_inflow_convention() {
+        // Chase-like source: positive_means_inflow. Raw amount is
+        // already canonical, so no sign flip.
+        let c = SignConvention::PositiveMeansInflow;
+        assert_eq!(
+            SignNormalizer::to_canonical_amount(c, dec(725)),
+            dec(725),
+            "positive inflow stays positive"
+        );
+        assert_eq!(
+            SignNormalizer::to_canonical_amount(c, dec(-115)),
+            dec(-115),
+            "negative outflow stays negative"
+        );
+    }
+
+    #[test]
+    fn canonical_amount_flips_for_outflow_convention() {
+        // Amex-like source: positive_means_outflow. Every amount is
+        // flipped so positive becomes money-out becomes negative.
+        let c = SignConvention::PositiveMeansOutflow;
+        assert_eq!(
+            SignNormalizer::to_canonical_amount(c, dec(28)),
+            dec(-28),
+            "Amex charge (raw +28) flips to canonical -28"
+        );
+        assert_eq!(
+            SignNormalizer::to_canonical_amount(c, dec(-240)),
+            dec(240),
+            "Amex payment (raw -240) flips to canonical +240"
+        );
+    }
+
+    #[test]
+    fn normalize_returns_direction_and_canonical_amount_together() {
+        let mut rules = SignConventions::default();
+        rules.set_institution("chase", SignConvention::PositiveMeansInflow);
+        let n = SignNormalizer::new(rules);
+
+        // Chase card, raw payment +725.
+        let (dir, amt) = n.normalize(&ctx(AccountType::CreditCard, Some("chase")), dec(725));
+        assert_eq!(dir, TransactionDirection::Inflow);
+        assert_eq!(amt, dec(725), "Chase payment canonical amount = +725");
+
+        // Amex card (default convention), raw charge +28.
+        let (dir, amt) = n.normalize(&ctx(AccountType::CreditCard, Some("amex")), dec(28));
+        assert_eq!(dir, TransactionDirection::Outflow);
+        assert_eq!(amt, dec(-28), "Amex charge canonical amount = -28");
+    }
+
+    #[test]
+    fn normalize_invariant_sign_matches_direction() {
+        // After canonicalization, non-zero amounts satisfy:
+        //   inflow  <=> amount > 0
+        //   outflow <=> amount < 0
+        // Check across both source conventions and both account roles.
+        let cases: &[(SignConvention, AccountType, &str, i64)] = &[
+            (
+                SignConvention::PositiveMeansOutflow,
+                AccountType::CreditCard,
+                "amex",
+                28,
+            ),
+            (
+                SignConvention::PositiveMeansOutflow,
+                AccountType::CreditCard,
+                "amex",
+                -240,
+            ),
+            (
+                SignConvention::PositiveMeansInflow,
+                AccountType::CreditCard,
+                "chase",
+                725,
+            ),
+            (
+                SignConvention::PositiveMeansInflow,
+                AccountType::CreditCard,
+                "chase",
+                -115,
+            ),
+            (
+                SignConvention::PositiveMeansInflow,
+                AccountType::Checking,
+                "any",
+                5000,
+            ),
+            (
+                SignConvention::PositiveMeansInflow,
+                AccountType::Checking,
+                "any",
+                -85,
+            ),
+        ];
+        for (conv, ty, inst, raw_units) in cases.iter().copied() {
+            let mut rules = SignConventions::default();
+            rules.set_institution(inst, conv);
+            let n = SignNormalizer::new(rules);
+            let (dir, amt) = n.normalize(&ctx(ty, Some(inst)), dec(raw_units));
+            match dir {
+                TransactionDirection::Inflow => assert!(
+                    amt >= Decimal::ZERO,
+                    "inflow should have non-negative canonical amount, got {amt} for {inst} {raw_units}"
+                ),
+                TransactionDirection::Outflow => assert!(
+                    amt <= Decimal::ZERO,
+                    "outflow should have non-positive canonical amount, got {amt} for {inst} {raw_units}"
+                ),
+            }
+        }
     }
 }

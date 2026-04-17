@@ -37,6 +37,11 @@ pub trait AccountRepo: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Account, AppError>;
     async fn update(&self, account: &Account) -> Result<Account, AppError>;
     async fn archive(&self, id: Uuid) -> Result<(), AppError>;
+    /// Hard-delete an account and all dependent rows via ON DELETE CASCADE
+    /// (transactions, uploads, account_flows, flow_patterns). Dangerous —
+    /// cannot be undone. Caller is responsible for removing any related
+    /// object-storage artifacts (e.g. S3 upload files) before invoking.
+    async fn delete(&self, id: Uuid) -> Result<(), AppError>;
     async fn set_primary_income(&self, id: Uuid, is_primary: bool) -> Result<(), AppError>;
     /// Set or clear the per-account sign-convention override.
     /// When `convention` is `None`, the override is removed and the
