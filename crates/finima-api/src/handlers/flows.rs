@@ -288,14 +288,45 @@ pub async fn update_flow(
             state.flow_repo().confirm(id).await?;
 
             if let Some(desc) = source_desc.as_ref() {
+                // Best-effort embedding for the pattern row. When the
+                // embedder is noop or fails, fall through with no vector
+                // — the Jaccard / Stub paths work fine without it.
+                let embedder = state.embedder();
+                let (embedding_bytes, embedding_dim, embedding_vec): (
+                    Option<Vec<u8>>,
+                    Option<i32>,
+                    Option<Vec<f32>>,
+                ) = if embedder.backend() != "noop" {
+                    match embedder.embed(desc).await {
+                        Ok(v) => {
+                            let bytes = v
+                                .iter()
+                                .flat_map(|f| f.to_le_bytes())
+                                .collect::<Vec<u8>>();
+                            let dim = v.len() as i32;
+                            (Some(bytes), Some(dim), Some(v))
+                        }
+                        Err(e) => {
+                            tracing::debug!(
+                                error = %e,
+                                flow_id = %id,
+                                "embedder.embed failed on confirm; persisting pattern without vector"
+                            );
+                            (None, None, None)
+                        }
+                    }
+                } else {
+                    (None, None, None)
+                };
+
                 let new_pattern = NewFlowPattern {
                     portfolio_id: flow.portfolio_id,
                     description_text: desc.clone(),
                     source_account_id: flow.source_account_id,
                     target_account_id: flow.target_account_id,
                     confidence: 1.0,
-                    embedding: None,
-                    embedding_dim: None,
+                    embedding: embedding_bytes,
+                    embedding_dim,
                 };
                 if let Err(e) = state.flow_pattern_repo().upsert_confirmed(new_pattern).await {
                     tracing::warn!(
@@ -303,18 +334,54 @@ pub async fn update_flow(
                         flow_id = %id,
                         "flow_patterns upsert_confirmed failed; continuing"
                     );
+                } else if let Some(m) = state.metrics() {
+                    m.metrics().flow_patterns_confirmed_total.inc();
                 }
 
-                // In-memory matcher update (trait-level no-op on the
-                // RuVector backend; meaningful on Stub).
-                if let Ok(mut matcher) = state.flow_matcher().write() {
-                    matcher.store_pattern(FlowPattern {
-                        description: desc.clone(),
-                        source_account_id: flow.source_account_id,
-                        target_account_id: flow.target_account_id,
-                        confidence: 1.0,
-                        match_count: 1,
-                    });
+                // In-memory matcher update. When we have both a concrete
+                // RuVector matcher AND a vector, prefer the vector path
+                // so the HNSW index learns the pattern. Otherwise fall
+                // through to the trait-level `store_pattern` (no-op on
+                // RuVector, meaningful on Stub).
+                #[cfg(feature = "sona")]
+                {
+                    if let (Some(vec), Some(rv)) =
+                        (embedding_vec.as_ref(), state.flow_matcher_ruvector())
+                    {
+                        if let Ok(mut matcher) = rv.write() {
+                            matcher.store_pattern_with_vector(
+                                FlowPattern {
+                                    description: desc.clone(),
+                                    source_account_id: flow.source_account_id,
+                                    target_account_id: flow.target_account_id,
+                                    confidence: 1.0,
+                                    match_count: 1,
+                                },
+                                vec,
+                            );
+                        }
+                    } else if let Ok(mut matcher) = state.flow_matcher().write() {
+                        matcher.store_pattern(FlowPattern {
+                            description: desc.clone(),
+                            source_account_id: flow.source_account_id,
+                            target_account_id: flow.target_account_id,
+                            confidence: 1.0,
+                            match_count: 1,
+                        });
+                    }
+                }
+                #[cfg(not(feature = "sona"))]
+                {
+                    let _ = embedding_vec; // feature-gated consumer
+                    if let Ok(mut matcher) = state.flow_matcher().write() {
+                        matcher.store_pattern(FlowPattern {
+                            description: desc.clone(),
+                            source_account_id: flow.source_account_id,
+                            target_account_id: flow.target_account_id,
+                            confidence: 1.0,
+                            match_count: 1,
+                        });
+                    }
                 }
             }
 
@@ -334,6 +401,8 @@ pub async fn update_flow(
                         flow_id = %id,
                         "flow_patterns record_dismissal failed; continuing"
                     );
+                } else if let Some(m) = state.metrics() {
+                    m.metrics().flow_patterns_dismissed_total.inc();
                 }
 
                 if let Ok(mut matcher) = state.flow_matcher().write() {

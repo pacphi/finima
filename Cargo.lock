@@ -2785,6 +2785,7 @@ dependencies = [
  "finima-categorize",
  "finima-core",
  "finima-db",
+ "finima-embed",
  "finima-feed",
  "finima-ingest",
  "finima-llm",

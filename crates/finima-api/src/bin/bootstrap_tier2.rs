@@ -31,8 +31,46 @@ use finima_categorize::config::Tier2Backend;
 use finima_categorize::tier2::{bootstrap_semantic, EmbeddingStore, LabeledExample};
 use finima_categorize::CategorizeConfig;
 use finima_db::PgPortfolioRepo;
+use finima_embed::{EmbeddingProvider, NoopEmbedder};
 
 use config::load_config;
+
+/// Construct the embedding provider exactly the way `AppState::new` does,
+/// minus the `tracing::info` breadcrumbs. Duplicated here so the bin can
+/// run without pulling in the full AppState wiring.
+fn build_embedder_for_bin(
+    cfg: &config::EmbedderYamlConfig,
+) -> std::sync::Arc<dyn EmbeddingProvider> {
+    match cfg.backend.as_str() {
+        "ollama" => {
+            #[cfg(feature = "embedder-ollama")]
+            {
+                std::sync::Arc::new(
+                    finima_embed::OllamaEmbedder::new(
+                        cfg.ollama.url.clone(),
+                        cfg.ollama.model.clone(),
+                        cfg.dim,
+                    )
+                    .with_timeout_ms(cfg.ollama.timeout_millis),
+                ) as std::sync::Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-ollama"))]
+            std::sync::Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        "candle" => {
+            #[cfg(feature = "embedder-candle")]
+            {
+                std::sync::Arc::new(finima_embed::CandleEmbedder::new(
+                    cfg.candle.model_id.clone(),
+                    cfg.dim,
+                )) as std::sync::Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-candle"))]
+            std::sync::Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        _ => std::sync::Arc::new(NoopEmbedder::new(cfg.dim)),
+    }
+}
 
 #[derive(Debug, Default)]
 struct Args {
@@ -87,6 +125,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_cfg: CategorizeConfig = app_config.categorize.clone().into();
     let min_conf = cat_cfg.semantic_min_confidence;
     let backend = cat_cfg.tier2.resolved_backend();
+    let embedder = build_embedder_for_bin(&app_config.embedder);
+    let embed_active = embedder.backend() != "noop";
+
+    tracing::info!(
+        embedder_backend = %embedder.backend(),
+        embedder_dim = embedder.dim(),
+        "Tier 2 bootstrap embedder resolved"
+    );
     let max_examples = args
         .limit_override
         .unwrap_or(cat_cfg.tier2.bootstrap_max_examples);
@@ -143,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        let examples: Vec<LabeledExample> = rows
+        let mut examples: Vec<LabeledExample> = rows
             .iter()
             .map(|row| LabeledExample {
                 description: row.get::<String, _>("description"),
@@ -157,6 +203,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 vector: None,
             })
             .collect();
+
+        // Best-effort embedding pass. Failures are logged at debug and
+        // leave `vector = None`; the Jaccard backend ingests fine, the
+        // RuVector backend will reject rows without a vector.
+        if embed_active {
+            let embed_start = std::time::Instant::now();
+            let mut embedded = 0usize;
+            let mut embed_errors = 0usize;
+            for ex in examples.iter_mut() {
+                match embedder.embed(&ex.description).await {
+                    Ok(v) => {
+                        ex.vector = Some(v);
+                        embedded += 1;
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            error = %e,
+                            description = %ex.description,
+                            "embedder.embed failed; proceeding without vector"
+                        );
+                        embed_errors += 1;
+                    }
+                }
+            }
+            tracing::info!(
+                portfolio_id = %portfolio_id,
+                embedded,
+                errors = embed_errors,
+                elapsed_ms = embed_start.elapsed().as_millis() as u64,
+                "embedding pass complete"
+            );
+        }
 
         // Build a fresh Tier 2 store for this portfolio. The bootstrap
         // driver requires `SemanticVectorIngest`, so we match the backend

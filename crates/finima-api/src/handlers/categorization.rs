@@ -547,14 +547,44 @@ pub async fn categorize_transaction_with_vector(
 ) -> Result<impl IntoResponse, AppError> {
     let txn = UncategorizedTransaction {
         id: body.transaction_id,
-        description: body.description,
+        description: body.description.clone(),
         amount: body.amount,
         date: body.date,
         mcc: body.mcc,
     };
 
+    // If the caller didn't supply a vector AND an embedder is configured,
+    // embed the description server-side so the RuVector backend can be
+    // used transparently.
+    let server_computed: Option<Vec<f32>> = if body.precomputed_vector.is_none() {
+        let embedder = state.embedder();
+        if embedder.backend() != "noop" {
+            match embedder.embed(&body.description).await {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::debug!(
+                        error = %e,
+                        "server-side embedder.embed failed; falling back to text-only Tier 2"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     #[allow(unused_variables)]
-    let vector = body.precomputed_vector.as_deref();
+    let vector: Option<&[f32]> = body
+        .precomputed_vector
+        .as_deref()
+        .or(server_computed.as_deref());
+
+    // Time the Tier 2 search for the latency histogram. Backend label is
+    // resolved post-hoc from the store type.
+    let t2_start = std::time::Instant::now();
 
     // Feature-gated vector path. When `sona` is compiled in, the YAML
     // backend resolves to RuVector, AND the caller supplied a vector, we
@@ -583,6 +613,41 @@ pub async fn categorize_transaction_with_vector(
             guard.categorize(&txn)
         }
     };
+
+    // Resolve backend label for metrics. When sona is compiled in and a
+    // concrete RuVector store exists, report "ruvector"; otherwise
+    // "jaccard".
+    #[cfg(feature = "sona")]
+    let backend_label = if state.semantic_tier2_ruvector().is_some() {
+        "ruvector"
+    } else {
+        "jaccard"
+    };
+    #[cfg(not(feature = "sona"))]
+    let backend_label = "jaccard";
+
+    let outcome = if assignment.is_some() {
+        "matched"
+    } else {
+        "rejected"
+    };
+
+    if let Some(m) = state.metrics() {
+        let metrics = m.metrics();
+        metrics
+            .tier2_queries_total
+            .get_or_create(&crate::metrics::Tier2QueryLabels {
+                backend: backend_label.to_string(),
+                outcome: outcome.to_string(),
+            })
+            .inc();
+        metrics
+            .tier2_search_latency_seconds
+            .get_or_create(&crate::metrics::Tier2BackendLabel {
+                backend: backend_label.to_string(),
+            })
+            .observe(t2_start.elapsed().as_secs_f64());
+    }
 
     let response = match assignment {
         Some(a) => CategorizeWithVectorResponse {

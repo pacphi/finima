@@ -12,6 +12,7 @@ finima-llm = { path = "../finima-llm", default-features = false }
 finima-categorize = { path = "../finima-categorize" }
 finima-analysis = { path = "../finima-analysis" }
 finima-feed = { path = "../finima-feed" }
+finima-embed = { path = "../finima-embed" }
 axum = { workspace = true }
 axum-extra = { workspace = true }
 tokio = { workspace = true }
@@ -67,6 +68,14 @@ ollama = ["finima-llm/ollama"]
 # Enables the RuVector + SONA Tier 2 categorization backend (ADR-012).
 # Off by default in Phase 1; Phase 3 will decide rollout.
 sona = ["finima-categorize/sona", "finima-analysis/sona"]
+# Embedder feature group — forwards to finima-embed. NoopEmbedder is
+# always available (no feature gate); these features enable the heavy
+# backends. Matching YAML `embedder.backend` to a feature that is not
+# enabled at compile time falls back to Noop with a startup warning.
+embedder-ollama = ["finima-embed/ollama"]
+embedder-candle = ["finima-embed/candle"]
+embedder-candle-metal = ["finima-embed/candle-metal"]
+embedder-candle-cuda = ["finima-embed/candle-cuda"]
 
 [dev-dependencies]
 async-trait = "0.1"

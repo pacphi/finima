@@ -80,6 +80,45 @@ else
   CARGO_LLM_FEATURES :=
 endif
 
+# ── Embedder backend selection ────────────────────────────────
+# Set EMBEDDER= to control which local embedding backend is compiled
+# and used for Tier 2 / flow-pattern vectors.  Valid values mirror
+# LLM= — no external / paid providers.
+#   candle        – in-process inference (CPU)
+#   candle-metal  – in-process inference (Apple Metal GPU)
+#   candle-cuda   – in-process inference (NVIDIA CUDA GPU)
+#   ollama        – HTTP inference via Ollama container
+#   none          – no embedder; Tier 2 uses Jaccard / BYO vectors
+#
+# Default: inherits from LLM so `make start LLM=ollama` also gives
+# you the Ollama embedder without extra flags.  Override with
+# `make start LLM=ollama EMBEDDER=none` to opt out.
+EMBEDDER ?= $(LLM)
+
+# Auto-promote bare "candle" the same way LLM does.
+ifeq ($(EMBEDDER),candle)
+  ifeq ($(HAS_NVIDIA),1)
+    override EMBEDDER := candle-cuda
+  else ifeq ($(HAS_METAL),1)
+    override EMBEDDER := candle-metal
+  endif
+endif
+
+# Derive Cargo feature flags from EMBEDDER choice. The feature lives
+# on `finima-embed`, but is forwarded through `finima-api` via the
+# `embedder-*` feature group (see crates/finima-api/Cargo.toml).
+ifeq ($(EMBEDDER),ollama)
+  CARGO_EMBED_FEATURES := --features embedder-ollama
+else ifeq ($(EMBEDDER),candle-metal)
+  CARGO_EMBED_FEATURES := --features embedder-candle-metal
+else ifeq ($(EMBEDDER),candle-cuda)
+  CARGO_EMBED_FEATURES := --features embedder-candle-cuda
+else ifeq ($(EMBEDDER),candle)
+  CARGO_EMBED_FEATURES := --features embedder-candle
+else
+  CARGO_EMBED_FEATURES :=
+endif
+
 # ── Ollama detection ──────────────────────────────────────────
 # When LLM=ollama, detect whether a local Ollama is already serving
 # on port 11434 so we can skip the Docker container.
@@ -249,7 +288,7 @@ build: ## Build all (backend debug + frontend)
 	$(MAKE) -C $(FRONTEND_DIR) build
 
 build-release: ## Build backend in release mode
-	cargo build --release -p finima-api $(CARGO_LLM_FEATURES)
+	cargo build --release -p finima-api $(CARGO_LLM_FEATURES) $(CARGO_EMBED_FEATURES)
 
 start: docker-infra ## Start everything (infra + backend + frontend)
 	@echo "$(GREEN)Waiting for infrastructure to be healthy...$(RESET)"
@@ -261,19 +300,19 @@ start: docker-infra ## Start everything (infra + backend + frontend)
 
 dev: ## Start backend + frontend (assumes infra is running)
 	@echo "$(GREEN)Backend: http://localhost:3000  Frontend: http://localhost:5173$(RESET)"
-	@echo "$(CYAN)LLM backend: $(LLM)$(if $(filter ollama,$(LLM)), ($(OLLAMA_SOURCE)),)$(RESET)"
+	@echo "$(CYAN)LLM backend: $(LLM)$(if $(filter ollama,$(LLM)), ($(OLLAMA_SOURCE)),)   Embedder: $(EMBEDDER)$(RESET)"
 	@trap 'kill 0' INT TERM EXIT; \
-		APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES) & \
+		APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES) $(CARGO_EMBED_FEATURES) & \
 		$(MAKE) -C $(FRONTEND_DIR) dev & \
 		wait
 
 dev-backend: ## Start backend API server only
 	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
-	APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES)
+	APP_ENV=development cargo run --bin finima-api $(CARGO_LLM_FEATURES) $(CARGO_EMBED_FEATURES)
 
 dev-watch: ## Start backend with auto-reload (requires cargo-watch)
 	@echo "$(CYAN)LLM backend: $(LLM)$(RESET)"
-	APP_ENV=development cargo watch -x 'run --bin finima-api $(CARGO_LLM_FEATURES)'
+	APP_ENV=development cargo watch -x 'run --bin finima-api $(CARGO_LLM_FEATURES) $(CARGO_EMBED_FEATURES)'
 
 # ═══════════════════════════════════════════════════════════════
 #  Testing

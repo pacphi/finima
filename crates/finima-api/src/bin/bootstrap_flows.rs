@@ -24,8 +24,44 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use finima_db::repos::{FlowPatternRepo, NewFlowPattern};
+use finima_embed::{EmbeddingProvider, NoopEmbedder};
 
 use config::load_config;
+
+/// Mirror of `AppState::new` embedder construction for bin-level use.
+fn build_embedder_for_bin(
+    cfg: &config::EmbedderYamlConfig,
+) -> std::sync::Arc<dyn EmbeddingProvider> {
+    match cfg.backend.as_str() {
+        "ollama" => {
+            #[cfg(feature = "embedder-ollama")]
+            {
+                std::sync::Arc::new(
+                    finima_embed::OllamaEmbedder::new(
+                        cfg.ollama.url.clone(),
+                        cfg.ollama.model.clone(),
+                        cfg.dim,
+                    )
+                    .with_timeout_ms(cfg.ollama.timeout_millis),
+                ) as std::sync::Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-ollama"))]
+            std::sync::Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        "candle" => {
+            #[cfg(feature = "embedder-candle")]
+            {
+                std::sync::Arc::new(finima_embed::CandleEmbedder::new(
+                    cfg.candle.model_id.clone(),
+                    cfg.dim,
+                )) as std::sync::Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-candle"))]
+            std::sync::Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        _ => std::sync::Arc::new(NoopEmbedder::new(cfg.dim)),
+    }
+}
 
 #[derive(Debug, Default)]
 struct Args {
@@ -86,10 +122,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let flow_pattern_repo = FlowPatternRepo::new(pool.clone());
+    let embedder = build_embedder_for_bin(&app_config.embedder);
+    let embed_active = embedder.backend() != "noop";
 
     tracing::info!(
         dry_run = args.dry_run,
         limit = ?args.limit_override,
+        embedder_backend = %embedder.backend(),
+        embedder_dim = embedder.dim(),
         "flow-pattern bootstrap starting"
     );
 
@@ -176,14 +216,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            // Best-effort embedding. Errors leave the pattern vector-less.
+            let (embedding_bytes, embedding_dim) = if embed_active {
+                match embedder.embed(&description_text).await {
+                    Ok(v) => {
+                        let bytes = v
+                            .iter()
+                            .flat_map(|f| f.to_le_bytes())
+                            .collect::<Vec<u8>>();
+                        let dim = v.len() as i32;
+                        (Some(bytes), Some(dim))
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            error = %e,
+                            txn_id = %source_txn_id,
+                            "embedder.embed failed; persisting pattern without vector"
+                        );
+                        (None, None)
+                    }
+                }
+            } else {
+                (None, None)
+            };
+
             let payload = NewFlowPattern {
                 portfolio_id: *portfolio_id,
                 description_text,
                 source_account_id,
                 target_account_id,
                 confidence: 1.0,
-                embedding: None,
-                embedding_dim: None,
+                embedding: embedding_bytes,
+                embedding_dim,
             };
 
             match flow_pattern_repo.upsert_confirmed(payload).await {

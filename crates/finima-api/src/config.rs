@@ -43,6 +43,11 @@ pub struct AppConfig {
     /// in `finima-categorize`.
     #[serde(default)]
     pub categorize: CategorizeYamlConfig,
+    /// Embedding provider selection (ADR-017 Phase 3.C). Used to populate
+    /// vectors for Tier 2 and the flow-pattern matcher when the matching
+    /// `embedder-*` Cargo feature is compiled in.
+    #[serde(default)]
+    pub embedder: EmbedderYamlConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, serde::Serialize)]
@@ -588,6 +593,100 @@ impl From<RecurringConfig> for finima_analysis::RecurringDetectorConfig {
     }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Embedder (ADR-017 Phase 3.C)
+// ───────────────────────────────────────────────────────────────────
+
+/// YAML mirror of the embedding-provider configuration. `backend` selects
+/// which provider is instantiated at startup; if the matching Cargo feature
+/// is not compiled in, `AppState::new` falls back to `NoopEmbedder` with a
+/// warning.
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmbedderYamlConfig {
+    #[serde(default = "default_embedder_backend")]
+    pub backend: String,
+    #[serde(default = "default_embedder_dim")]
+    pub dim: usize,
+    /// Ollama sub-config; read only when `embedder-ollama` is enabled.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub ollama: EmbedderOllamaConfig,
+    /// Candle sub-config; read only when `embedder-candle` is enabled.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub candle: EmbedderCandleConfig,
+}
+
+fn default_embedder_backend() -> String {
+    "none".to_string()
+}
+fn default_embedder_dim() -> usize {
+    384
+}
+
+impl Default for EmbedderYamlConfig {
+    fn default() -> Self {
+        Self {
+            backend: default_embedder_backend(),
+            dim: default_embedder_dim(),
+            ollama: EmbedderOllamaConfig::default(),
+            candle: EmbedderCandleConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmbedderOllamaConfig {
+    #[serde(default = "default_embedder_ollama_url")]
+    #[allow(dead_code)]
+    pub url: String,
+    #[serde(default = "default_embedder_ollama_model")]
+    #[allow(dead_code)]
+    pub model: String,
+    #[serde(default = "default_embedder_ollama_timeout_millis")]
+    #[allow(dead_code)]
+    pub timeout_millis: u64,
+}
+
+fn default_embedder_ollama_url() -> String {
+    "http://localhost:11434".to_string()
+}
+fn default_embedder_ollama_model() -> String {
+    "nomic-embed-text".to_string()
+}
+fn default_embedder_ollama_timeout_millis() -> u64 {
+    30_000
+}
+
+impl Default for EmbedderOllamaConfig {
+    fn default() -> Self {
+        Self {
+            url: default_embedder_ollama_url(),
+            model: default_embedder_ollama_model(),
+            timeout_millis: default_embedder_ollama_timeout_millis(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmbedderCandleConfig {
+    #[serde(default = "default_embedder_candle_model_id")]
+    #[allow(dead_code)]
+    pub model_id: String,
+}
+
+fn default_embedder_candle_model_id() -> String {
+    "sentence-transformers/all-MiniLM-L6-v2".to_string()
+}
+
+impl Default for EmbedderCandleConfig {
+    fn default() -> Self {
+        Self {
+            model_id: default_embedder_candle_model_id(),
+        }
+    }
+}
+
 #[allow(dead_code)] // referenced via AccountType import only when wired into ingest
 fn _account_type_marker(_t: AccountType) {}
 
@@ -626,6 +725,16 @@ pub fn validate_config(config: &AppConfig) {
         resolved = %resolved.as_str(),
         dim = crate_cfg.tier2.dim,
         "Tier 2 categorization backend"
+    );
+
+    // Log the resolved embedder backend + dim so operators can verify
+    // the EMBEDDER= Cargo feature matches the YAML selection. Actual
+    // construction happens in `AppState::new`, which may downgrade to
+    // `noop` if the requested backend's feature is disabled.
+    tracing::info!(
+        backend = %config.embedder.backend,
+        dim = config.embedder.dim,
+        "Embedder backend (YAML)"
     );
 }
 
@@ -667,6 +776,7 @@ pub fn load_config_from(config_dir: &str) -> Result<AppConfig, config::ConfigErr
         "sankey",
         "recurring",
         "categorize",
+        "embedder",
     ];
 
     let mut builder = config::Config::builder();

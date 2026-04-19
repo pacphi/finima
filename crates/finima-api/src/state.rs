@@ -24,8 +24,11 @@ use finima_feed::CachedFeedService;
 use finima_llm::LlmClient;
 
 use crate::config::AppConfig;
+use crate::metrics::MetricsRegistry;
 use crate::storage::ObjectStorage;
 use crate::ws::WsConnectionManager;
+
+use finima_embed::{EmbeddingProvider, NoopEmbedder};
 
 /// Status of an on-demand categorization job.
 #[derive(Clone, serde::Serialize)]
@@ -113,6 +116,13 @@ struct InnerState {
     /// text-only probe.
     #[cfg(feature = "sona")]
     pub semantic_tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>>,
+    /// Shared embedding provider (ADR-017 Phase 3.C). Always present —
+    /// falls back to `NoopEmbedder` when the configured backend is
+    /// `none` or when the matching Cargo feature is disabled.
+    pub embedder: Arc<dyn EmbeddingProvider>,
+    /// Optional metrics registry. Set via `set_metrics` after construction
+    /// so handlers can record Tier 2 / flow-pattern / bootstrap counters.
+    pub metrics: RwLock<Option<MetricsRegistry>>,
     /// Set to `true` when the application is shutting down.
     /// Background tasks should check this and stop work promptly.
     pub shutdown: AtomicBool,
@@ -241,6 +251,11 @@ impl AppState {
         let flow_matcher: Arc<RwLock<dyn FlowPatternMatcher>> =
             Arc::new(RwLock::new(StubPatternMatcher));
 
+        // Build the embedding provider from config. NoopEmbedder is the
+        // safe fallback; heavy backends are gated behind Cargo features
+        // so the default build stays lean.
+        let embedder: Arc<dyn EmbeddingProvider> = build_embedder(&config);
+
         Self {
             inner: Arc::new(InnerState {
                 pool,
@@ -274,6 +289,8 @@ impl AppState {
                 semantic_tier2,
                 #[cfg(feature = "sona")]
                 semantic_tier2_ruvector,
+                embedder,
+                metrics: RwLock::new(None),
                 shutdown: AtomicBool::new(false),
             }),
         }
@@ -507,5 +524,96 @@ impl AppState {
             .write()
             .expect("categorization_jobs lock poisoned")
             .remove(&(user_id, account_id));
+    }
+
+    /// Returns the shared embedding provider. Always populated; the
+    /// noop implementation errors cleanly for callers that check
+    /// `backend() != "noop"` before invoking.
+    pub fn embedder(&self) -> Arc<dyn EmbeddingProvider> {
+        self.inner.embedder.clone()
+    }
+
+    /// Install a metrics registry for handler-level instrumentation.
+    /// Called once from `main` after the registry is constructed.
+    pub fn set_metrics(&self, registry: MetricsRegistry) {
+        *self.inner.metrics.write().expect("metrics lock poisoned") = Some(registry);
+    }
+
+    /// Clone of the installed metrics registry, if any.
+    pub fn metrics(&self) -> Option<MetricsRegistry> {
+        self.inner
+            .metrics
+            .read()
+            .expect("metrics lock poisoned")
+            .clone()
+    }
+}
+
+/// Construct the embedding provider based on YAML config and the
+/// compile-time `embedder-*` feature flags. Falls back to
+/// `NoopEmbedder` (logging a warning) when the requested backend's
+/// feature is not enabled.
+fn build_embedder(config: &AppConfig) -> Arc<dyn EmbeddingProvider> {
+    let cfg = &config.embedder;
+    match cfg.backend.as_str() {
+        "none" | "" => {
+            tracing::info!(dim = cfg.dim, "Embedder: NoopEmbedder (backend=none)");
+            Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        "ollama" => {
+            #[cfg(feature = "embedder-ollama")]
+            {
+                tracing::info!(
+                    url = %cfg.ollama.url,
+                    model = %cfg.ollama.model,
+                    dim = cfg.dim,
+                    "Embedder: OllamaEmbedder"
+                );
+                let e = finima_embed::OllamaEmbedder::new(
+                    cfg.ollama.url.clone(),
+                    cfg.ollama.model.clone(),
+                    cfg.dim,
+                )
+                .with_timeout_ms(cfg.ollama.timeout_millis);
+                Arc::new(e) as Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-ollama"))]
+            {
+                tracing::warn!(
+                    requested = "ollama",
+                    "Embedder feature `embedder-ollama` not enabled at compile time; using NoopEmbedder"
+                );
+                Arc::new(NoopEmbedder::new(cfg.dim))
+            }
+        }
+        "candle" => {
+            #[cfg(feature = "embedder-candle")]
+            {
+                tracing::info!(
+                    model_id = %cfg.candle.model_id,
+                    dim = cfg.dim,
+                    "Embedder: CandleEmbedder (stub)"
+                );
+                Arc::new(finima_embed::CandleEmbedder::new(
+                    cfg.candle.model_id.clone(),
+                    cfg.dim,
+                )) as Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-candle"))]
+            {
+                tracing::warn!(
+                    requested = "candle",
+                    "Embedder feature `embedder-candle` not enabled at compile time; using NoopEmbedder"
+                );
+                Arc::new(NoopEmbedder::new(cfg.dim))
+            }
+        }
+        other => {
+            tracing::warn!(
+                requested = %other,
+                "Unknown embedder.backend value; using NoopEmbedder"
+            );
+            Arc::new(NoopEmbedder::new(cfg.dim))
+        }
     }
 }
