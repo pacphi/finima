@@ -2,11 +2,43 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
 2026-04-15
+
+## Implementation Status
+
+Accepted and implemented on branch `feat/tier2-ruvector` (merged via
+PR #TBD). Delivery breakdown:
+
+- **Heuristic flow detection** — unchanged; primary path.
+- **Pattern matcher** — `FlowPatternMatcher` trait with
+  `StubPatternMatcher` (always) and `RuVectorPatternMatcher` (feature
+  `sona`). The RuVector matcher uses HNSW keyed on the source
+  account — patterns learned for account A never leak to account B.
+- **Confirm / dismiss feedback** — `handlers/flows.rs::update_flow`
+  upserts confirmed patterns (match-count +=1, higher confidence
+  wins, preserves existing embedding) and decays confidence on
+  dismissal (half-life in `FlowPatternRepo::record_dismissal`).
+- **Persistence** — `flow_patterns` table (migration 021) extended
+  with `description_embedding BYTEA` + `embedding_dim INTEGER`
+  (migration 027). ReasoningBank state stored in
+  `portfolios.sona_state` alongside Tier 2.
+- **Embedder** — shares the Phase 3 `finima-embed` abstraction with
+  Tier 2. Ollama and Candle both supported.
+- **Operator tooling** — `bootstrap_flows` bin to seed from the
+  historical confirmed flows. Metrics under `flow_pattern_*`.
+- **LoRA adaptation** — deferred. Phase 0d spike showed MicroLoRA
+  only mutates under multi-step trajectories with reward variance
+  and explicit `engine.flush()`; the ReasoningBank retrieval signal
+  is what the user stories actually depend on, so we shipped
+  ReasoningBank-only. MicroLoRA adaptation is a future enhancement
+  tracked in the spike memo.
+
+See [`docs/guides/embedder.md`](../guides/embedder.md) for the
+shared embedder configuration.
 
 ## Context
 

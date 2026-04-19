@@ -299,10 +299,7 @@ pub async fn update_flow(
                 ) = if embedder.backend() != "noop" {
                     match embedder.embed(desc).await {
                         Ok(v) => {
-                            let bytes = v
-                                .iter()
-                                .flat_map(|f| f.to_le_bytes())
-                                .collect::<Vec<u8>>();
+                            let bytes = v.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
                             let dim = v.len() as i32;
                             (Some(bytes), Some(dim), Some(v))
                         }
@@ -328,7 +325,11 @@ pub async fn update_flow(
                     embedding: embedding_bytes,
                     embedding_dim,
                 };
-                if let Err(e) = state.flow_pattern_repo().upsert_confirmed(new_pattern).await {
+                if let Err(e) = state
+                    .flow_pattern_repo()
+                    .upsert_confirmed(new_pattern)
+                    .await
+                {
                     tracing::warn!(
                         error = %e,
                         flow_id = %id,

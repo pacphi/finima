@@ -222,9 +222,7 @@ pub fn resolve_one_sided_flows<M: FlowPatternMatcher + ?Sized>(
         if cand.target_account_id.is_some() {
             continue;
         }
-        if let Some(inferred) =
-            matcher.infer_target(desc, cand.source_account_id, min_confidence)
-        {
+        if let Some(inferred) = matcher.infer_target(desc, cand.source_account_id, min_confidence) {
             cand.target_account_id = Some(inferred.target_account_id);
         }
     }

@@ -220,10 +220,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (embedding_bytes, embedding_dim) = if embed_active {
                 match embedder.embed(&description_text).await {
                     Ok(v) => {
-                        let bytes = v
-                            .iter()
-                            .flat_map(|f| f.to_le_bytes())
-                            .collect::<Vec<u8>>();
+                        let bytes = v.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
                         let dim = v.len() as i32;
                         (Some(bytes), Some(dim))
                     }

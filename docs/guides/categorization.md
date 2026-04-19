@@ -31,7 +31,7 @@ the long tail of ambiguous descriptions.
 | ---- | --------------- | ------- | ---------------- | ---------- |
 | 0    | Merchant Lookup | < 1 ms  | 50-60%           | 0.80-0.95  |
 | 1    | Pattern Engine  | < 1 ms  | 15-20%           | 0.65-0.95  |
-| 2    | Semantic Search | < 10 ms | 10-15% (planned) | 0.85+      |
+| 2    | Semantic Search | < 10 ms | 10-15%           | 0.85+      |
 | 3    | LLM Inference   | 1-5 s   | 3-8%             | 0.50-0.99  |
 
 Tiers 0 and 1 handle **65-80% of transactions instantly** (sub-millisecond),
@@ -98,18 +98,25 @@ services, rideshare, payroll, and ATM withdrawals.
 
 ---
 
-## Tier 2: Semantic Search (Planned)
+## Tier 2: Semantic Search (Available)
 
-RuVector-based HNSW semantic search will handle another 10-15% of
-transactions by finding similar previously-categorized descriptions.
+Tier 2 is a pluggable `SemanticCategorizer` with two shipped
+backends: a default character n-gram Jaccard store (no extra deps)
+and an optional RuVector HNSW + SONA ReasoningBank backend behind
+the `sona` Cargo feature. Both consume vectors from the shared
+`finima-embed` abstraction (`none` / `ollama` / `candle`), so the
+same embedder configuration drives both Tier 2 and the ADR-017
+flow-pattern matcher. Enable it with `make start LLM=ollama` (the
+Ollama embedder tags along by default) or `make start EMBEDDER=candle`
+for a local in-process embedder, and run `cargo run --bin
+bootstrap_tier2` to seed the index from previously-categorized
+transactions.
 
-- Embed transaction descriptions using an ONNX model (< 10 ms).
-- Query the HNSW index for the 5 nearest neighbors.
-- Weighted majority vote with confidence threshold >= 0.85.
-- SONA self-learning adapts weights based on prediction accuracy.
+See [`embedder.md`](embedder.md) for backend selection, dimension
+matching, metrics, and prerequisites.
 
-**Status:** Interface defined in `finima-categorize/src/tier2/mod.rs`.
-Implementation in a future phase.
+**Implementation:** `finima-categorize/src/tier2/` (trait +
+`jaccard_store`, `ruvector_store`).
 
 ---
 

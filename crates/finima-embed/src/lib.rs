@@ -4,17 +4,17 @@
 
 use async_trait::async_trait;
 
-#[cfg(feature = "ollama")]
-pub mod ollama;
 #[cfg(feature = "candle")]
 pub mod candle;
 pub mod noop;
-
 #[cfg(feature = "ollama")]
-pub use ollama::OllamaEmbedder;
+pub mod ollama;
+
 #[cfg(feature = "candle")]
 pub use candle::CandleEmbedder;
 pub use noop::NoopEmbedder;
+#[cfg(feature = "ollama")]
+pub use ollama::OllamaEmbedder;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EmbedError {

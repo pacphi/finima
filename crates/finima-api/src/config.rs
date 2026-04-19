@@ -563,8 +563,8 @@ impl From<CategorizeYamlConfig> for finima_categorize::CategorizeConfig {
 
 impl From<Tier2YamlConfig> for finima_categorize::config::Tier2Config {
     fn from(c: Tier2YamlConfig) -> Self {
-        let backend = finima_categorize::config::Tier2Backend::parse(&c.backend)
-            .unwrap_or_else(|| {
+        let backend =
+            finima_categorize::config::Tier2Backend::parse(&c.backend).unwrap_or_else(|| {
                 tracing::warn!(
                     value = %c.backend,
                     "categorize.tier2.backend is not a recognized value; falling back to jaccard"

@@ -146,7 +146,10 @@ mod tests {
     fn tier2_backend_parse() {
         assert_eq!(Tier2Backend::parse("jaccard"), Some(Tier2Backend::Jaccard));
         assert_eq!(Tier2Backend::parse("JACCARD"), Some(Tier2Backend::Jaccard));
-        assert_eq!(Tier2Backend::parse("ruvector"), Some(Tier2Backend::RuVector));
+        assert_eq!(
+            Tier2Backend::parse("ruvector"),
+            Some(Tier2Backend::RuVector)
+        );
         assert_eq!(Tier2Backend::parse("HNSW"), Some(Tier2Backend::RuVector));
         assert_eq!(Tier2Backend::parse("nope"), None);
     }

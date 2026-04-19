@@ -92,8 +92,10 @@ fn parse_args() -> Args {
             "--dry-run" => args.dry_run = true,
             "--limit" => {
                 let raw = iter.next().expect("--limit requires a number");
-                args.limit_override =
-                    Some(raw.parse::<usize>().expect("--limit must be a non-negative integer"));
+                args.limit_override = Some(
+                    raw.parse::<usize>()
+                        .expect("--limit must be a non-negative integer"),
+                );
             }
             "--help" | "-h" => {
                 println!(
@@ -305,7 +307,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "timestamp": chrono::Utc::now().to_rfc3339(),
         });
 
-        if let Err(e) = portfolio_repo.save_sona_state(*portfolio_id, &snapshot).await {
+        if let Err(e) = portfolio_repo
+            .save_sona_state(*portfolio_id, &snapshot)
+            .await
+        {
             tracing::error!(
                 portfolio_id = %portfolio_id,
                 error = %e,

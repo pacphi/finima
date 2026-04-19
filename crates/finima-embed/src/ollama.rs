@@ -47,7 +47,10 @@ impl OllamaEmbedder {
 impl EmbeddingProvider for OllamaEmbedder {
     async fn embed(&self, text: &str) -> Result<Vec<f32>, EmbedError> {
         let url = format!("{}/api/embeddings", self.base_url);
-        let body = OllamaRequest { model: &self.model, prompt: text };
+        let body = OllamaRequest {
+            model: &self.model,
+            prompt: text,
+        };
         let resp = self
             .client
             .post(&url)
@@ -57,7 +60,9 @@ impl EmbeddingProvider for OllamaEmbedder {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    EmbedError::Timeout { millis: self.timeout_millis }
+                    EmbedError::Timeout {
+                        millis: self.timeout_millis,
+                    }
                 } else {
                     EmbedError::Http(e.to_string())
                 }
@@ -84,13 +89,19 @@ impl EmbeddingProvider for OllamaEmbedder {
         Ok(v)
     }
 
-    fn dim(&self) -> usize { self.dim }
-    fn backend(&self) -> &'static str { "ollama" }
+    fn dim(&self) -> usize {
+        self.dim
+    }
+    fn backend(&self) -> &'static str {
+        "ollama"
+    }
 }
 
 fn l2_normalize(v: &mut [f32]) {
     let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt().max(1e-9);
-    for x in v.iter_mut() { *x /= norm; }
+    for x in v.iter_mut() {
+        *x /= norm;
+    }
 }
 
 #[cfg(test)]

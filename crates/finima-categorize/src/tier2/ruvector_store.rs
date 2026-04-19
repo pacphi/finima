@@ -138,10 +138,7 @@ fn cosine_similarity_from_score(score: f32) -> f64 {
     s.clamp(0.0, 1.0)
 }
 
-fn meta_str<'a>(
-    md: &'a Option<HashMap<String, serde_json::Value>>,
-    key: &str,
-) -> Option<&'a str> {
+fn meta_str<'a>(md: &'a Option<HashMap<String, serde_json::Value>>, key: &str) -> Option<&'a str> {
     md.as_ref()?.get(key)?.as_str()
 }
 
@@ -197,13 +194,19 @@ impl SemanticVectorIngest for RuVectorEmbeddingStore {
         }
 
         let mut md = HashMap::new();
-        md.insert("desc".into(), serde_json::Value::String(description.to_string()));
-        md.insert("category".into(), serde_json::Value::String(category.to_string()));
-        md.insert("subcategory".into(), serde_json::Value::String(subcategory.to_string()));
         md.insert(
-            "confidence".into(),
-            serde_json::json!(confidence),
+            "desc".into(),
+            serde_json::Value::String(description.to_string()),
         );
+        md.insert(
+            "category".into(),
+            serde_json::Value::String(category.to_string()),
+        );
+        md.insert(
+            "subcategory".into(),
+            serde_json::Value::String(subcategory.to_string()),
+        );
+        md.insert("confidence".into(), serde_json::json!(confidence));
 
         let entry = VectorEntry {
             id: None,
@@ -289,7 +292,8 @@ mod tests {
         assert_eq!(store.index_size(), 0);
 
         let v = unit_vec(1, 64);
-        let ok = store.learn_with_vector("STARBUCKS", "food_dining", "coffee_shops", 0.95, Some(&v));
+        let ok =
+            store.learn_with_vector("STARBUCKS", "food_dining", "coffee_shops", 0.95, Some(&v));
         assert!(ok);
         assert_eq!(store.index_size(), 1);
     }
@@ -309,7 +313,13 @@ mod tests {
         let mut store = RuVectorEmbeddingStore::new(cfg_dim(dim), 0.0).expect("build");
         let v0 = unit_vec(10, dim);
         let v1 = unit_vec(11, dim);
-        store.learn_with_vector("STARBUCKS COFFEE", "food_dining", "coffee_shops", 0.95, Some(&v0));
+        store.learn_with_vector(
+            "STARBUCKS COFFEE",
+            "food_dining",
+            "coffee_shops",
+            0.95,
+            Some(&v0),
+        );
         store.learn_with_vector("SHELL GAS", "transportation", "gas_fuel", 0.90, Some(&v1));
 
         let txn = UncategorizedTransaction {

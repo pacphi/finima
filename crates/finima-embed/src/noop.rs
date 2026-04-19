@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{EmbedError, EmbeddingProvider};
+use async_trait::async_trait;
 
 /// No-op embedder used when `EMBEDDER=none`. Every `embed` call returns
 /// `EmbedError::BackendUnavailable` so callers can skip the vector path
@@ -9,7 +9,9 @@ pub struct NoopEmbedder {
 }
 
 impl NoopEmbedder {
-    pub fn new(dim: usize) -> Self { Self { dim } }
+    pub fn new(dim: usize) -> Self {
+        Self { dim }
+    }
 }
 
 #[async_trait]
@@ -17,8 +19,12 @@ impl EmbeddingProvider for NoopEmbedder {
     async fn embed(&self, _text: &str) -> Result<Vec<f32>, EmbedError> {
         Err(EmbedError::BackendUnavailable("none"))
     }
-    fn dim(&self) -> usize { self.dim }
-    fn backend(&self) -> &'static str { "noop" }
+    fn dim(&self) -> usize {
+        self.dim
+    }
+    fn backend(&self) -> &'static str {
+        "noop"
+    }
 }
 
 #[cfg(test)]

@@ -158,9 +158,7 @@ mod ruvector_backend {
     }
 
     impl RuVectorPatternMatcher {
-        pub fn new(
-            cfg: RuVectorPatternMatcherConfig,
-        ) -> Result<Self, RuVectorPatternMatcherError> {
+        pub fn new(cfg: RuVectorPatternMatcherConfig) -> Result<Self, RuVectorPatternMatcherError> {
             let hnsw = HnswConfig {
                 m: cfg.hnsw_m,
                 ef_construction: cfg.hnsw_ef_construction,
@@ -174,8 +172,8 @@ mod ruvector_backend {
                 hnsw_config: Some(hnsw),
                 quantization: None,
             };
-            let db =
-                VectorDB::new(opts).map_err(|e| RuVectorPatternMatcherError::VectorDb(e.to_string()))?;
+            let db = VectorDB::new(opts)
+                .map_err(|e| RuVectorPatternMatcherError::VectorDb(e.to_string()))?;
             let engine: SonaEngine = SonaEngineBuilder::new().hidden_dim(cfg.dim).build();
             Ok(Self {
                 db,
@@ -188,11 +186,7 @@ mod ruvector_backend {
         /// Primary ingest path: store a confirmed flow pattern together
         /// with a caller-supplied embedding. Rejects dim-mismatched
         /// vectors (returned as `false`).
-        pub fn store_pattern_with_vector(
-            &mut self,
-            pattern: FlowPattern,
-            vector: &[f32],
-        ) -> bool {
+        pub fn store_pattern_with_vector(&mut self, pattern: FlowPattern, vector: &[f32]) -> bool {
             if vector.len() != self.cfg.dim {
                 tracing::debug!(
                     got = vector.len(),
@@ -322,9 +316,7 @@ mod ruvector_backend {
         }
 
         fn store_pattern(&mut self, _pattern: FlowPattern) {
-            tracing::debug!(
-                "RuVectorPatternMatcher::store_pattern called without vector; ignored"
-            );
+            tracing::debug!("RuVectorPatternMatcher::store_pattern called without vector; ignored");
         }
 
         fn record_dismissal(&mut self, _description: &str, _source_account_id: Uuid) {}
@@ -391,10 +383,7 @@ mod ruvector_backend {
         fn wrong_dim_store_rejected() {
             let mut m = RuVectorPatternMatcher::new(cfg_dim(64)).expect("build");
             let v = unit_vec(1, 32);
-            let ok = m.store_pattern_with_vector(
-                pattern("X", Uuid::nil(), Uuid::nil()),
-                &v,
-            );
+            let ok = m.store_pattern_with_vector(pattern("X", Uuid::nil(), Uuid::nil()), &v);
             assert!(!ok);
             assert_eq!(m.pattern_count(), 0);
         }

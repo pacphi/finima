@@ -587,8 +587,7 @@ mod tests {
             backend: Tier2Backend::Jaccard,
             ..Tier2Config::default()
         };
-        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65)
-            .expect("jaccard build");
+        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65).expect("jaccard build");
         {
             let guard = store.read().expect("lock");
             assert_eq!(guard.index_size(), 0);
@@ -631,8 +630,7 @@ mod tests {
             dim: 64,
             ..Tier2Config::default()
         };
-        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65)
-            .expect("ruvector build");
+        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65).expect("ruvector build");
         let guard = store.read().expect("lock");
         assert_eq!(guard.index_size(), 0);
     }

@@ -45,8 +45,8 @@ categorize:
 # EMBEDDER=... Cargo feature is compiled in; mismatched backend +
 # feature falls back to `none` with a warning logged at startup.
 embedder:
-  backend: none           # none | ollama | candle
-  dim: 384                # must match categorize.tier2.dim for RuVector
+  backend: none # none | ollama | candle
+  dim: 384 # must match categorize.tier2.dim for RuVector
   ollama:
     url: http://localhost:11434
     model: nomic-embed-text

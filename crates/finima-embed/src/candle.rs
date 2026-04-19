@@ -57,8 +57,8 @@ impl CandleEmbedder {
         device: CandleDevice,
     ) -> Result<Self, EmbedError> {
         let model_id = model_id.into();
-        let device = resolve_device(device)
-            .map_err(|e| EmbedError::Other(format!("device init: {e}")))?;
+        let device =
+            resolve_device(device).map_err(|e| EmbedError::Other(format!("device init: {e}")))?;
 
         let api = Api::new().map_err(|e| EmbedError::Other(format!("hf-hub api: {e}")))?;
         let repo = api.model(model_id.clone());
@@ -78,10 +78,8 @@ impl CandleEmbedder {
         let bert_cfg: BertConfig = serde_json::from_str(&cfg_json)
             .map_err(|e| EmbedError::Parse(format!("parse config.json: {e}")))?;
 
-        let is_safetensors = weights_file
-            .extension()
-            .and_then(|s| s.to_str())
-            == Some("safetensors");
+        let is_safetensors =
+            weights_file.extension().and_then(|s| s.to_str()) == Some("safetensors");
         let vb = if is_safetensors {
             // SAFETY: file is read-only, mmap lifetime is tied to the
             // resulting VarBuilder which we immediately consume.
