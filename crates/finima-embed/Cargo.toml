@@ -1,0 +1,32 @@
+[package]
+name = "finima-embed"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+# Ollama backend: HTTP call to /api/embeddings.
+reqwest = { workspace = true, optional = true }
+
+# Candle backend: local sentence-transformer via mistralrs (the crate
+# already present in the workspace via finima-llm for the LLM side).
+# Phase 3.A ships the feature gate + stub; full wiring happens in a
+# follow-up because embedding model loading differs from chat model
+# loading and needs its own downloader.
+mistralrs = { version = "0.8", optional = true, default-features = false }
+
+[features]
+default = []
+ollama = ["dep:reqwest"]
+candle = ["dep:mistralrs"]
+candle-metal = ["candle", "mistralrs/metal"]
+candle-cuda = ["candle", "mistralrs/cuda"]
+
+[dev-dependencies]
+tokio = { workspace = true }
