@@ -12,9 +12,11 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
+ruvector-core = { version = "2.1", default-features = false, features = ["hnsw", "simd", "memory-only"], optional = true }
+ruvector-sona = { version = "0.1", default-features = false, features = ["serde-support"], optional = true }
 
 [features]
-sona = []  # Enable SONA/RuVector integration (add ruvector dep when available)
+sona = ["dep:ruvector-core", "dep:ruvector-sona"]
 
 [dev-dependencies]
 rust_decimal_macros = "1"
