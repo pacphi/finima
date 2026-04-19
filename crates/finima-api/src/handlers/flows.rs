@@ -8,10 +8,12 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use finima_analysis::sona::FlowPattern;
 use finima_analysis::{build_sankey_data, build_waterfall, detect_flows, FlowRecord};
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
 use finima_core::{next_month_start, AppError};
+use finima_db::repos::NewFlowPattern;
 use finima_db::NewAccountFlow;
 
 use crate::state::AppState;
@@ -262,13 +264,83 @@ pub async fn update_flow(
         .verify_ownership(flow.portfolio_id, user.user_id)
         .await?;
 
+    // Look up the source transaction description up-front so both
+    // confirm and dismiss branches can feed the pattern store.
+    // Errors here must NOT fail the handler — the user's confirm/dismiss
+    // action is the primary signal and already authorized.
+    let source_desc: Option<String> = match flow.source_transaction_id {
+        Some(txn_id) => match state.transaction_repo().find_by_id(txn_id).await {
+            Ok(txn) => Some(txn.description),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    flow_id = %id,
+                    "failed to load source transaction for flow-pattern write; skipping"
+                );
+                None
+            }
+        },
+        None => None,
+    };
+
     match body.action.as_str() {
         "confirm" => {
             state.flow_repo().confirm(id).await?;
+
+            if let Some(desc) = source_desc.as_ref() {
+                let new_pattern = NewFlowPattern {
+                    portfolio_id: flow.portfolio_id,
+                    description_text: desc.clone(),
+                    source_account_id: flow.source_account_id,
+                    target_account_id: flow.target_account_id,
+                    confidence: 1.0,
+                    embedding: None,
+                    embedding_dim: None,
+                };
+                if let Err(e) = state.flow_pattern_repo().upsert_confirmed(new_pattern).await {
+                    tracing::warn!(
+                        error = %e,
+                        flow_id = %id,
+                        "flow_patterns upsert_confirmed failed; continuing"
+                    );
+                }
+
+                // In-memory matcher update (trait-level no-op on the
+                // RuVector backend; meaningful on Stub).
+                if let Ok(mut matcher) = state.flow_matcher().write() {
+                    matcher.store_pattern(FlowPattern {
+                        description: desc.clone(),
+                        source_account_id: flow.source_account_id,
+                        target_account_id: flow.target_account_id,
+                        confidence: 1.0,
+                        match_count: 1,
+                    });
+                }
+            }
+
             Ok(Json(serde_json::json!({"status": "confirmed"})))
         }
         "dismiss" => {
             state.flow_repo().dismiss(id).await?;
+
+            if let Some(desc) = source_desc.as_ref() {
+                if let Err(e) = state
+                    .flow_pattern_repo()
+                    .record_dismissal(flow.portfolio_id, flow.source_account_id, desc)
+                    .await
+                {
+                    tracing::warn!(
+                        error = %e,
+                        flow_id = %id,
+                        "flow_patterns record_dismissal failed; continuing"
+                    );
+                }
+
+                if let Ok(mut matcher) = state.flow_matcher().write() {
+                    matcher.record_dismissal(desc, flow.source_account_id);
+                }
+            }
+
             Ok(Json(serde_json::json!({"status": "dismissed"})))
         }
         _ => Err(AppError::BadRequest(

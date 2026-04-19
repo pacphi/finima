@@ -55,6 +55,10 @@ path = "src/bin/normalize_directions.rs"
 name = "finima-redetect-recurring"
 path = "src/bin/redetect_recurring.rs"
 
+[[bin]]
+name = "bootstrap_flows"
+path = "src/bin/bootstrap_flows.rs"
+
 [features]
 candle = ["finima-llm/candle"]
 metal = ["candle", "finima-llm/metal"]
@@ -62,7 +66,7 @@ cuda = ["candle", "finima-llm/cuda"]
 ollama = ["finima-llm/ollama"]
 # Enables the RuVector + SONA Tier 2 categorization backend (ADR-012).
 # Off by default in Phase 1; Phase 3 will decide rollout.
-sona = ["finima-categorize/sona"]
+sona = ["finima-categorize/sona", "finima-analysis/sona"]
 
 [dev-dependencies]
 async-trait = "0.1"

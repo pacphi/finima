@@ -5,12 +5,16 @@ use std::sync::{Arc, RwLock};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use finima_analysis::sona::{FlowPatternMatcher, StubPatternMatcher};
 use finima_auth::EmailSender;
 use finima_categorize::tier2::{EmbeddingStore, SemanticCategorizer};
 use finima_categorize::{CascadeEngine, MerchantRegistry};
 
 #[cfg(feature = "sona")]
+use finima_analysis::sona::{RuVectorPatternMatcher, RuVectorPatternMatcherConfig};
+#[cfg(feature = "sona")]
 use finima_categorize::tier2::RuVectorEmbeddingStore;
+use finima_db::repos::FlowPatternRepo;
 use finima_db::{
     PgAccountRepo, PgBudgetRepo, PgFlowGroupRepo, PgFlowRepo, PgMagicLinkRepo, PgOverrideRepo,
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
@@ -70,6 +74,15 @@ struct InnerState {
     pub savings_goal_repo: PgSavingsGoalRepo,
     pub flow_repo: PgFlowRepo,
     pub flow_group_repo: PgFlowGroupRepo,
+    pub flow_pattern_repo: Arc<FlowPatternRepo>,
+    /// Shared flow-pattern matcher (ADR-017). Falls back to
+    /// `StubPatternMatcher` when the `sona` feature is disabled or when
+    /// RuVector construction fails.
+    pub flow_matcher: Arc<RwLock<dyn FlowPatternMatcher>>,
+    /// Concrete RuVector flow-pattern matcher handle used by callers
+    /// that have precomputed embeddings.
+    #[cfg(feature = "sona")]
+    pub flow_matcher_ruvector: Option<Arc<RwLock<RuVectorPatternMatcher>>>,
     pub ws_manager: WsConnectionManager,
     /// LLM client loaded in the background. `None` until the model is ready
     /// (or if loading failed).
@@ -187,6 +200,47 @@ impl AppState {
             }
         };
 
+        // Build the flow-pattern repo (Phase 2.A) and matcher (Phase 2.B).
+        let flow_pattern_repo = Arc::new(FlowPatternRepo::new(pool.clone()));
+
+        #[cfg(feature = "sona")]
+        let (flow_matcher, flow_matcher_ruvector): (
+            Arc<RwLock<dyn FlowPatternMatcher>>,
+            Option<Arc<RwLock<RuVectorPatternMatcher>>>,
+        ) = {
+            let cfg = RuVectorPatternMatcherConfig {
+                dim: categorize_cfg.tier2.dim,
+                hnsw_m: categorize_cfg.tier2.hnsw_m,
+                hnsw_ef_construction: categorize_cfg.tier2.hnsw_ef_construction,
+                hnsw_ef_search: categorize_cfg.tier2.hnsw_ef_search,
+            };
+            match RuVectorPatternMatcher::new(cfg) {
+                Ok(m) => {
+                    let arc = Arc::new(RwLock::new(m));
+                    // The concrete Arc isn't coerceable to the trait-object
+                    // Arc directly; build a second instance for the trait
+                    // handle so both views are independent (acceptable since
+                    // the trait-level methods are no-ops on this backend).
+                    let stub: Arc<RwLock<dyn FlowPatternMatcher>> =
+                        Arc::new(RwLock::new(StubPatternMatcher));
+                    (stub, Some(arc))
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "RuVector flow-pattern matcher construction failed; falling back to StubPatternMatcher"
+                    );
+                    let stub: Arc<RwLock<dyn FlowPatternMatcher>> =
+                        Arc::new(RwLock::new(StubPatternMatcher));
+                    (stub, None)
+                }
+            }
+        };
+
+        #[cfg(not(feature = "sona"))]
+        let flow_matcher: Arc<RwLock<dyn FlowPatternMatcher>> =
+            Arc::new(RwLock::new(StubPatternMatcher));
+
         Self {
             inner: Arc::new(InnerState {
                 pool,
@@ -205,6 +259,10 @@ impl AppState {
                 savings_goal_repo,
                 flow_repo,
                 flow_group_repo,
+                flow_pattern_repo,
+                flow_matcher,
+                #[cfg(feature = "sona")]
+                flow_matcher_ruvector,
                 ws_manager,
                 llm_client: RwLock::new(None),
                 llm_status: AtomicU8::new(LLM_LOADING),
@@ -313,6 +371,24 @@ impl AppState {
 
     pub fn flow_group_repo(&self) -> &PgFlowGroupRepo {
         &self.inner.flow_group_repo
+    }
+
+    /// Shared `FlowPatternRepo` (ADR-017 Phase 2.A).
+    pub fn flow_pattern_repo(&self) -> &Arc<FlowPatternRepo> {
+        &self.inner.flow_pattern_repo
+    }
+
+    /// Shared flow-pattern matcher (ADR-017 Phase 2.B).
+    pub fn flow_matcher(&self) -> Arc<RwLock<dyn FlowPatternMatcher>> {
+        self.inner.flow_matcher.clone()
+    }
+
+    /// Concrete RuVector flow-pattern matcher handle (ADR-017 Phase 2.C),
+    /// only populated when the `sona` feature is enabled and construction
+    /// succeeded.
+    #[cfg(feature = "sona")]
+    pub fn flow_matcher_ruvector(&self) -> Option<Arc<RwLock<RuVectorPatternMatcher>>> {
+        self.inner.flow_matcher_ruvector.clone()
     }
 
     pub fn ws_manager(&self) -> &WsConnectionManager {
