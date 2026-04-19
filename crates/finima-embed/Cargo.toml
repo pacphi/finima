@@ -14,19 +14,26 @@ tokio = { workspace = true }
 # Ollama backend: HTTP call to /api/embeddings.
 reqwest = { workspace = true, optional = true }
 
-# Candle backend: local sentence-transformer via mistralrs (the crate
-# already present in the workspace via finima-llm for the LLM side).
-# Phase 3.A ships the feature gate + stub; full wiring happens in a
-# follow-up because embedding model loading differs from chat model
-# loading and needs its own downloader.
-mistralrs = { version = "0.8", optional = true, default-features = false }
+# Candle backend: real sentence-transformer (BERT-family) via
+# candle-transformers. Model + tokenizer downloaded once via hf-hub.
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+candle-transformers = { workspace = true, optional = true }
+hf-hub = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
 
 [features]
 default = []
 ollama = ["dep:reqwest"]
-candle = ["dep:mistralrs"]
-candle-metal = ["candle", "mistralrs/metal"]
-candle-cuda = ["candle", "mistralrs/cuda"]
+candle = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:hf-hub",
+    "dep:tokenizers",
+]
+candle-metal = ["candle", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+candle-cuda = ["candle", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 
 [dev-dependencies]
 tokio = { workspace = true }

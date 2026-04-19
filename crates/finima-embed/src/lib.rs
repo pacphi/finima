@@ -1,6 +1,6 @@
 //! Embedding providers for Finima's semantic search (Tier 2, flow
 //! matching). Matches the LLM flag family: `none` (noop), `ollama`
-//! (HTTP), `candle` (local model via mistralrs).
+//! (HTTP), `candle` (local BERT sentence-transformer via candle-core).
 
 use async_trait::async_trait;
 

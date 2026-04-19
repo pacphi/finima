@@ -94,3 +94,12 @@ async-trait = "0.1"
 
 # Hardware detection
 sysinfo = "0.38"
+
+# Candle sentence-transformer stack (used by finima-embed and finima-llm).
+# Pinned to the 0.10 family that the workspace already pulls in
+# transitively via mistralrs — avoids duplicate candle-core builds.
+candle-core = { version = "0.10", default-features = false }
+candle-nn = { version = "0.10", default-features = false }
+candle-transformers = { version = "0.10", default-features = false }
+hf-hub = { version = "0.4", default-features = false, features = ["ureq"] }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
