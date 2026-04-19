@@ -1,0 +1,55 @@
+# Tiered categorization engine tuning (ADR-012).
+#
+# `backend` selects the Tier 2 semantic similarity implementation:
+#   * `jaccard`  — default; pure-Rust character n-gram Jaccard store,
+#                  no extra dependencies.
+#   * `ruvector` — HNSW-backed `VectorDB` from ruvector-core + ReasoningBank
+#                  patterns from ruvector-sona (see ADR-017). Requires the
+#                  `sona` Cargo feature on `finima-categorize`; if the
+#                  feature is not enabled, this value falls back to
+#                  `jaccard` with a warning logged at startup.
+#
+# `dim` is the embedding dimensionality expected by the Tier 2 backend.
+# Bring-your-own vectors: anything that produces stable `dim`-dimensional
+# f32 unit-vectors for a given transaction description works.
+#   * 384 matches all-MiniLM-L6-v2 and similar small sentence-transformers.
+#   * 768 matches most base-size models.
+# Jaccard ignores this field.
+
+categorize:
+  fuzzy_threshold: 0.88
+  pattern_min_confidence: 0.70
+  semantic_min_confidence: 0.85
+  prefix_length: 3
+
+  tier2:
+    backend: jaccard
+    dim: 384
+    # HNSW tuning (ruvector backend only — ignored by Jaccard).
+    # See hnsw_rs crate docs for M / efConstruction / efSearch semantics.
+    hnsw_m: 32
+    hnsw_ef_construction: 200
+    hnsw_ef_search: 100
+    # On startup with the `sona` feature, load confirmed categorizations
+    # from the database and insert them into the HNSW index. Runs in the
+    # background; progress is surfaced via the `/metrics` endpoint and
+    # structured tracing events.
+    bootstrap_on_start: true
+    # Maximum number of labeled examples to ingest during bootstrap.
+    # 0 = unbounded. Protects against pathological first-boot latency on
+    # very large portfolios.
+    bootstrap_max_examples: 0
+
+# Embedding provider used to populate vectors for Tier 2 and the
+# flow-pattern matcher. Selects which backend is consulted when the
+# EMBEDDER=... Cargo feature is compiled in; mismatched backend +
+# feature falls back to `none` with a warning logged at startup.
+embedder:
+  backend: none # none | ollama | candle
+  dim: 384 # must match categorize.tier2.dim for RuVector
+  ollama:
+    url: http://localhost:11434
+    model: nomic-embed-text
+    timeout_millis: 30000
+  candle:
+    model_id: sentence-transformers/all-MiniLM-L6-v2

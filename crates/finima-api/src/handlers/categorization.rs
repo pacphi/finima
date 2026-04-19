@@ -5,11 +5,19 @@
 
 use std::collections::HashMap;
 
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::Json;
+use chrono::NaiveDate;
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use finima_auth::middleware::AuthUser;
 use finima_categorize::{
     cascade_tiers_0_1, CategoryAssignment as CascadeAssignment, MerchantEntry, MerchantSource,
-    PatternEngine,
+    PatternEngine, UncategorizedTransaction,
 };
 use finima_core::traits::AccountRepo;
 use finima_core::AppError;
@@ -490,4 +498,173 @@ pub async fn run_categorization_for_account_with_upload(
         flagged,
         categories,
     }))
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/categorize/with-vector  (ADR-012 Phase 1.C)
+// ---------------------------------------------------------------------------
+
+/// Request body for the vector-aware Tier 2 categorization endpoint.
+///
+/// `precomputed_vector` is optional to keep the shape forward-compatible
+/// with the Jaccard backend, which ignores the vector completely. When the
+/// resolved Tier 2 backend is RuVector (requires the
+/// `finima-categorize/sona` feature), callers should supply a unit-norm
+/// f32 vector of `categorize.tier2.dim` elements.
+#[derive(Debug, Deserialize)]
+pub struct CategorizeWithVectorRequest {
+    pub transaction_id: Uuid,
+    pub description: String,
+    pub amount: Decimal,
+    pub date: NaiveDate,
+    #[serde(default)]
+    pub mcc: Option<u16>,
+    #[serde(default)]
+    pub precomputed_vector: Option<Vec<f32>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CategorizeWithVectorResponse {
+    pub matched: bool,
+    pub category: Option<String>,
+    pub subcategory: Option<String>,
+    pub confidence: Option<f64>,
+    pub source_tier: Option<String>,
+}
+
+/// POST /api/categorize/with-vector
+///
+/// Optional Tier 2 probe using a caller-supplied embedding. When the
+/// configured backend is RuVector (feature-gated) and a vector is
+/// supplied, the request routes through `ruvector_store::categorize_with_vector`
+/// against the shared `AppState::semantic_tier2()`. For the Jaccard
+/// backend (or when no vector is supplied), the handler falls back to
+/// the trait-level text-only `SemanticCategorizer::categorize`.
+pub async fn categorize_transaction_with_vector(
+    _user: AuthUser,
+    State(state): State<AppState>,
+    Json(body): Json<CategorizeWithVectorRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let txn = UncategorizedTransaction {
+        id: body.transaction_id,
+        description: body.description.clone(),
+        amount: body.amount,
+        date: body.date,
+        mcc: body.mcc,
+    };
+
+    // If the caller didn't supply a vector AND an embedder is configured,
+    // embed the description server-side so the RuVector backend can be
+    // used transparently.
+    let server_computed: Option<Vec<f32>> = if body.precomputed_vector.is_none() {
+        let embedder = state.embedder();
+        if embedder.backend() != "noop" {
+            match embedder.embed(&body.description).await {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::debug!(
+                        error = %e,
+                        "server-side embedder.embed failed; falling back to text-only Tier 2"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    #[allow(unused_variables)]
+    let vector: Option<&[f32]> = body
+        .precomputed_vector
+        .as_deref()
+        .or(server_computed.as_deref());
+
+    // Time the Tier 2 search for the latency histogram. Backend label is
+    // resolved post-hoc from the store type.
+    let t2_start = std::time::Instant::now();
+
+    // Feature-gated vector path. When `sona` is compiled in, the YAML
+    // backend resolves to RuVector, AND the caller supplied a vector, we
+    // run the RuVector-specific similarity search. Otherwise the text-only
+    // trait method is used (Jaccard, or RuVector without a vector).
+    let assignment: Option<CascadeAssignment> = {
+        #[cfg(feature = "sona")]
+        {
+            use finima_categorize::tier2::ruvector_store::categorize_with_vector;
+            match (vector, state.semantic_tier2_ruvector()) {
+                (Some(v), Some(store)) => {
+                    let guard = store.read().expect("semantic_tier2_ruvector lock poisoned");
+                    categorize_with_vector(&*guard, &txn, v)
+                }
+                _ => {
+                    let semantic = state.semantic_tier2();
+                    let guard = semantic.read().expect("semantic_tier2 lock poisoned");
+                    guard.categorize(&txn)
+                }
+            }
+        }
+        #[cfg(not(feature = "sona"))]
+        {
+            let semantic = state.semantic_tier2();
+            let guard = semantic.read().expect("semantic_tier2 lock poisoned");
+            guard.categorize(&txn)
+        }
+    };
+
+    // Resolve backend label for metrics. When sona is compiled in and a
+    // concrete RuVector store exists, report "ruvector"; otherwise
+    // "jaccard".
+    #[cfg(feature = "sona")]
+    let backend_label = if state.semantic_tier2_ruvector().is_some() {
+        "ruvector"
+    } else {
+        "jaccard"
+    };
+    #[cfg(not(feature = "sona"))]
+    let backend_label = "jaccard";
+
+    let outcome = if assignment.is_some() {
+        "matched"
+    } else {
+        "rejected"
+    };
+
+    if let Some(m) = state.metrics() {
+        let metrics = m.metrics();
+        metrics
+            .tier2_queries_total
+            .get_or_create(&crate::metrics::Tier2QueryLabels {
+                backend: backend_label.to_string(),
+                outcome: outcome.to_string(),
+            })
+            .inc();
+        metrics
+            .tier2_search_latency_seconds
+            .get_or_create(&crate::metrics::Tier2BackendLabel {
+                backend: backend_label.to_string(),
+            })
+            .observe(t2_start.elapsed().as_secs_f64());
+    }
+
+    let response = match assignment {
+        Some(a) => CategorizeWithVectorResponse {
+            matched: true,
+            category: Some(a.category),
+            subcategory: Some(a.subcategory),
+            confidence: Some(a.confidence),
+            source_tier: Some(format!("{:?}", a.source_tier)),
+        },
+        None => CategorizeWithVectorResponse {
+            matched: false,
+            category: None,
+            subcategory: None,
+            confidence: None,
+            source_tier: None,
+        },
+    };
+
+    Ok((StatusCode::OK, Json(response)))
 }

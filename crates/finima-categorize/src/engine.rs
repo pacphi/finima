@@ -12,6 +12,16 @@ use crate::types::{
     CascadeResult, CategorizationTier, CategoryAssignment, TierStats, UncategorizedTransaction,
 };
 
+/// Errors raised while constructing a Tier 2 semantic backend from
+/// [`crate::config::Tier2Config`]. The Jaccard backend is infallible, so
+/// today this only surfaces RuVector construction failures (HNSW
+/// allocation errors, etc.).
+#[derive(Debug, thiserror::Error)]
+pub enum SemanticBuildError {
+    #[error("RuVector Tier 2 backend failed to construct: {0}")]
+    RuVector(String),
+}
+
 /// Transaction-outcome prefixes (NSF, RETURNED, REVERSED, etc.) are bank
 /// status markers, not merchants. When they appear at the start of a
 /// description, they dominate merchant signals that follow — e.g.
@@ -136,6 +146,60 @@ impl CascadeEngine {
     pub fn with_semantic(mut self, semantic: Arc<RwLock<dyn SemanticCategorizer>>) -> Self {
         self.semantic = Some(semantic);
         self
+    }
+
+    /// Build the default Tier 2 semantic store from configuration.
+    ///
+    /// Branches on [`Tier2Config::resolved_backend`]:
+    ///   * [`Tier2Backend::Jaccard`] → [`EmbeddingStore::new`] (always
+    ///     available).
+    ///   * [`Tier2Backend::RuVector`] → [`RuVectorEmbeddingStore::new`] if
+    ///     the `sona` feature is compiled in. Falls back to
+    ///     [`EmbeddingStore`] otherwise (resolved_backend already warns).
+    ///
+    /// Returns an `Arc<RwLock<dyn SemanticCategorizer>>` ready to pass into
+    /// [`CascadeEngine::with_semantic`]. Callers in `finima-api` should
+    /// prefer this over hand-rolling the backend branch themselves so the
+    /// Tier 2 construction policy lives in one place.
+    pub fn build_semantic_from_config(
+        cfg: &crate::config::Tier2Config,
+        min_confidence: f64,
+    ) -> Result<Arc<RwLock<dyn SemanticCategorizer>>, SemanticBuildError> {
+        use crate::config::Tier2Backend;
+        use crate::tier2::EmbeddingStore;
+
+        match cfg.resolved_backend() {
+            Tier2Backend::Jaccard => {
+                let store = EmbeddingStore::new(min_confidence);
+                Ok(Arc::new(RwLock::new(store)))
+            }
+            #[cfg(feature = "sona")]
+            Tier2Backend::RuVector => {
+                use crate::tier2::RuVectorEmbeddingStore;
+                let store = RuVectorEmbeddingStore::new(cfg.clone(), min_confidence)
+                    .map_err(|e| SemanticBuildError::RuVector(e.to_string()))?;
+                Ok(Arc::new(RwLock::new(store)))
+            }
+            // Without the `sona` feature, `resolved_backend()` has already
+            // downgraded `RuVector` → `Jaccard` (with a warning). This arm
+            // is therefore unreachable at runtime but is required for
+            // match exhaustiveness because the enum variant still exists.
+            #[cfg(not(feature = "sona"))]
+            Tier2Backend::RuVector => unreachable!(
+                "resolved_backend() must downgrade RuVector to Jaccard without the `sona` feature"
+            ),
+        }
+    }
+
+    /// Convenience that chains [`Self::build_semantic_from_config`] into
+    /// [`Self::with_semantic`].
+    pub fn with_semantic_from_config(
+        self,
+        cfg: &crate::config::Tier2Config,
+        min_confidence: f64,
+    ) -> Result<Self, SemanticBuildError> {
+        let store = Self::build_semantic_from_config(cfg, min_confidence)?;
+        Ok(self.with_semantic(store))
     }
 
     /// Categorize a batch of transactions through the cascade.
@@ -513,6 +577,62 @@ mod tests {
         let a = &result.assignments[0];
         assert_eq!(a.category, "income");
         assert_eq!(a.subcategory, "government_benefits");
+    }
+
+    #[test]
+    fn build_semantic_from_config_jaccard_backend() {
+        use crate::config::{Tier2Backend, Tier2Config};
+
+        let cfg = Tier2Config {
+            backend: Tier2Backend::Jaccard,
+            ..Tier2Config::default()
+        };
+        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65).expect("jaccard build");
+        {
+            let guard = store.read().expect("lock");
+            assert_eq!(guard.index_size(), 0);
+        }
+        {
+            let mut guard = store.write().expect("lock");
+            guard.learn("JOES ARTISAN BAKERY", "food_dining", "bakeries", 0.90);
+            assert_eq!(guard.index_size(), 1);
+        }
+    }
+
+    #[test]
+    fn with_semantic_from_config_chains() {
+        use crate::config::{Tier2Backend, Tier2Config};
+
+        let cfg = Tier2Config {
+            backend: Tier2Backend::Jaccard,
+            ..Tier2Config::default()
+        };
+        let engine = build_engine()
+            .with_semantic_from_config(&cfg, 0.65)
+            .expect("chain");
+
+        // Sanity: engine still cascades normally with an (empty) semantic
+        // store attached.
+        let txns = vec![make_txn("STARBUCKS #1234", -575, None)];
+        let result = engine.categorize(&txns);
+        assert_eq!(result.stats.tier0_matched, 1);
+        assert_eq!(result.stats.tier2_matched, 0);
+        assert_eq!(result.remaining.len(), 0);
+    }
+
+    #[cfg(feature = "sona")]
+    #[test]
+    fn build_semantic_from_config_ruvector_backend() {
+        use crate::config::{Tier2Backend, Tier2Config};
+
+        let cfg = Tier2Config {
+            backend: Tier2Backend::RuVector,
+            dim: 64,
+            ..Tier2Config::default()
+        };
+        let store = CascadeEngine::build_semantic_from_config(&cfg, 0.65).expect("ruvector build");
+        let guard = store.read().expect("lock");
+        assert_eq!(guard.index_size(), 0);
     }
 
     #[test]

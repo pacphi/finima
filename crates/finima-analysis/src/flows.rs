@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::recurring::TransactionForAnalysis;
+use crate::sona::FlowPatternMatcher;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -192,6 +193,70 @@ pub fn detect_flows(
     }
 
     candidates
+}
+
+// ---------------------------------------------------------------------------
+// One-sided flow resolution via SONA (ADR-017 Phase 2.C)
+// ---------------------------------------------------------------------------
+
+/// Resolve one-sided flow candidates (those with `target_account_id == None`)
+/// by delegating to a SONA flow-pattern matcher via the vector-less trait
+/// method. Mutates `candidates` in place: when the matcher returns a
+/// confident target, the target fields are populated; otherwise the
+/// candidate is left as-is.
+///
+/// `descriptions` must be the same length as `candidates` and provides
+/// the description text for each candidate's source transaction.
+///
+/// The RuVector backend's trait-level `infer_target` is a no-op (vectors
+/// are the load-bearing signal); use
+/// [`resolve_one_sided_flows_with_vectors`] when the caller has
+/// precomputed embeddings.
+pub fn resolve_one_sided_flows<M: FlowPatternMatcher + ?Sized>(
+    candidates: &mut [FlowCandidate],
+    descriptions: &[String],
+    matcher: &M,
+    min_confidence: f64,
+) {
+    for (cand, desc) in candidates.iter_mut().zip(descriptions.iter()) {
+        if cand.target_account_id.is_some() {
+            continue;
+        }
+        if let Some(inferred) = matcher.infer_target(desc, cand.source_account_id, min_confidence) {
+            cand.target_account_id = Some(inferred.target_account_id);
+        }
+    }
+}
+
+/// Vector-aware variant of [`resolve_one_sided_flows`] that calls into
+/// the RuVector backend directly. `query_vectors` must have the same
+/// length as `candidates`; a per-candidate empty `Vec<f32>` is treated
+/// as "no vector available, skip this candidate".
+#[cfg(feature = "sona")]
+pub fn resolve_one_sided_flows_with_vectors(
+    candidates: &mut [FlowCandidate],
+    descriptions: &[String],
+    query_vectors: &[Vec<f32>],
+    matcher: &crate::sona::RuVectorPatternMatcher,
+    min_confidence: f64,
+) {
+    for (idx, cand) in candidates.iter_mut().enumerate() {
+        if cand.target_account_id.is_some() {
+            continue;
+        }
+        let Some(vec) = query_vectors.get(idx) else {
+            continue;
+        };
+        if vec.is_empty() {
+            continue;
+        }
+        let desc = descriptions.get(idx).map(String::as_str).unwrap_or("");
+        if let Some(inferred) =
+            matcher.infer_target_with_vector(desc, cand.source_account_id, vec, min_confidence)
+        {
+            cand.target_account_id = Some(inferred.target_account_id);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -566,5 +631,146 @@ mod tests {
         let data = build_waterfall(Uuid::from_u128(1), dec!(1000), dec!(2000), &[]);
         assert_eq!(data.end_balance, dec!(3000));
         assert_eq!(data.segments.len(), 2);
+    }
+
+    // --- resolve_one_sided_flows tests ---
+
+    use crate::sona::{FlowPattern, FlowPatternMatcher, InferredTarget};
+
+    struct FakeMatcher {
+        target: Uuid,
+        confidence: f64,
+    }
+
+    impl FlowPatternMatcher for FakeMatcher {
+        fn infer_target(
+            &self,
+            _description: &str,
+            _source_account_id: Uuid,
+            min_confidence: f64,
+        ) -> Option<InferredTarget> {
+            if self.confidence >= min_confidence {
+                Some(InferredTarget {
+                    target_account_id: self.target,
+                    confidence: self.confidence,
+                    matched_pattern: "fake".into(),
+                })
+            } else {
+                None
+            }
+        }
+        fn store_pattern(&mut self, _p: FlowPattern) {}
+        fn record_dismissal(&mut self, _d: &str, _s: Uuid) {}
+        fn pattern_count(&self) -> usize {
+            0
+        }
+    }
+
+    fn one_sided_candidate(src: Uuid, txn_id: u128) -> FlowCandidate {
+        FlowCandidate {
+            source_account_id: src,
+            target_account_id: None,
+            source_transaction_id: Uuid::from_u128(txn_id),
+            target_transaction_id: None,
+            amount: dec!(100),
+            flow_date: NaiveDate::from_ymd_opt(2025, 3, 1).unwrap(),
+            is_transfer_like: true,
+        }
+    }
+
+    #[test]
+    fn resolve_one_sided_populates_target_when_confident() {
+        let src = Uuid::from_u128(1);
+        let target = Uuid::from_u128(2);
+        let matcher = FakeMatcher {
+            target,
+            confidence: 0.9,
+        };
+        let mut cands = vec![one_sided_candidate(src, 10)];
+        let descs = vec!["AUTOPAY AMEX".to_string()];
+        resolve_one_sided_flows(&mut cands, &descs, &matcher, 0.8);
+        assert_eq!(cands[0].target_account_id, Some(target));
+    }
+
+    #[test]
+    fn resolve_one_sided_skips_when_below_threshold() {
+        let src = Uuid::from_u128(1);
+        let matcher = FakeMatcher {
+            target: Uuid::from_u128(2),
+            confidence: 0.5,
+        };
+        let mut cands = vec![one_sided_candidate(src, 10)];
+        let descs = vec!["AUTOPAY".to_string()];
+        resolve_one_sided_flows(&mut cands, &descs, &matcher, 0.8);
+        assert!(cands[0].target_account_id.is_none());
+    }
+
+    #[test]
+    fn resolve_one_sided_leaves_two_sided_untouched() {
+        let src = Uuid::from_u128(1);
+        let existing_target = Uuid::from_u128(3);
+        let matcher = FakeMatcher {
+            target: Uuid::from_u128(2),
+            confidence: 0.99,
+        };
+        let mut cand = one_sided_candidate(src, 10);
+        cand.target_account_id = Some(existing_target);
+        let mut cands = vec![cand];
+        let descs = vec!["X".to_string()];
+        resolve_one_sided_flows(&mut cands, &descs, &matcher, 0.0);
+        assert_eq!(cands[0].target_account_id, Some(existing_target));
+    }
+
+    #[cfg(feature = "sona")]
+    #[test]
+    fn resolve_one_sided_with_vectors_populates_target() {
+        use crate::sona::{RuVectorPatternMatcher, RuVectorPatternMatcherConfig};
+
+        let dim = 64;
+        let mut matcher = RuVectorPatternMatcher::new(RuVectorPatternMatcherConfig {
+            dim,
+            ..RuVectorPatternMatcherConfig::default()
+        })
+        .expect("build");
+
+        let src = Uuid::from_u128(1);
+        let target = Uuid::from_u128(2);
+
+        // Construct a unit vector.
+        let mut v = vec![0.0f32; dim];
+        v[0] = 1.0;
+
+        matcher.store_pattern_with_vector(
+            FlowPattern {
+                description: "AUTOPAY AMEX".into(),
+                source_account_id: src,
+                target_account_id: target,
+                confidence: 0.95,
+                match_count: 1,
+            },
+            &v,
+        );
+
+        let mut cands = vec![one_sided_candidate(src, 10)];
+        let descs = vec!["AUTOPAY AMEX".to_string()];
+        let vecs = vec![v];
+        resolve_one_sided_flows_with_vectors(&mut cands, &descs, &vecs, &matcher, 0.0);
+        assert_eq!(cands[0].target_account_id, Some(target));
+    }
+
+    #[cfg(feature = "sona")]
+    #[test]
+    fn resolve_one_sided_with_vectors_empty_vec_skips() {
+        use crate::sona::{RuVectorPatternMatcher, RuVectorPatternMatcherConfig};
+        let matcher = RuVectorPatternMatcher::new(RuVectorPatternMatcherConfig {
+            dim: 64,
+            ..RuVectorPatternMatcherConfig::default()
+        })
+        .expect("build");
+        let mut cands = vec![one_sided_candidate(Uuid::from_u128(1), 10)];
+        let descs = vec!["X".to_string()];
+        let vecs: Vec<Vec<f32>> = vec![Vec::new()];
+        resolve_one_sided_flows_with_vectors(&mut cands, &descs, &vecs, &matcher, 0.0);
+        assert!(cands[0].target_account_id.is_none());
     }
 }

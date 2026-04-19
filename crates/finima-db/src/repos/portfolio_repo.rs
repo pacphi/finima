@@ -91,3 +91,37 @@ impl PortfolioRepo for PgPortfolioRepo {
         }
     }
 }
+
+impl PgPortfolioRepo {
+    /// Persist the Sona adapter state JSON for a portfolio.
+    pub async fn save_sona_state(
+        &self,
+        portfolio_id: Uuid,
+        state: &serde_json::Value,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE portfolios SET sona_state = $1, sona_state_updated_at = NOW() WHERE id = $2",
+        )
+        .bind(state)
+        .bind(portfolio_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Load the Sona adapter state JSON for a portfolio, if any.
+    pub async fn load_sona_state(
+        &self,
+        portfolio_id: Uuid,
+    ) -> Result<Option<serde_json::Value>, sqlx::Error> {
+        let state: Option<serde_json::Value> =
+            sqlx::query_scalar("SELECT sona_state FROM portfolios WHERE id = $1")
+                .bind(portfolio_id)
+                .fetch_optional(&self.pool)
+                .await?
+                .flatten();
+
+        Ok(state)
+    }
+}

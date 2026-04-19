@@ -151,6 +151,10 @@ async fn main() {
     let metrics_registry = metrics::MetricsRegistry::new();
     tracing::info!("Prometheus metrics registry initialized");
 
+    // Share the metrics registry with AppState so handlers can record
+    // Tier 2 / flow-pattern / bootstrap counters.
+    state.set_metrics(metrics_registry.clone());
+
     // Build router
     let app = router::build_router(state.clone(), &app_config, metrics_registry);
 

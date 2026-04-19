@@ -5,8 +5,16 @@ use std::sync::{Arc, RwLock};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use finima_analysis::sona::{FlowPatternMatcher, StubPatternMatcher};
 use finima_auth::EmailSender;
-use finima_categorize::MerchantRegistry;
+use finima_categorize::tier2::{EmbeddingStore, SemanticCategorizer};
+use finima_categorize::{CascadeEngine, MerchantRegistry};
+
+#[cfg(feature = "sona")]
+use finima_analysis::sona::{RuVectorPatternMatcher, RuVectorPatternMatcherConfig};
+#[cfg(feature = "sona")]
+use finima_categorize::tier2::RuVectorEmbeddingStore;
+use finima_db::repos::FlowPatternRepo;
 use finima_db::{
     PgAccountRepo, PgBudgetRepo, PgFlowGroupRepo, PgFlowRepo, PgMagicLinkRepo, PgOverrideRepo,
     PgPortfolioRepo, PgRecurringRepo, PgSavingsGoalRepo, PgSessionRepo, PgTransactionRepo,
@@ -16,8 +24,11 @@ use finima_feed::CachedFeedService;
 use finima_llm::LlmClient;
 
 use crate::config::AppConfig;
+use crate::metrics::MetricsRegistry;
 use crate::storage::ObjectStorage;
 use crate::ws::WsConnectionManager;
+
+use finima_embed::{EmbeddingProvider, NoopEmbedder};
 
 /// Status of an on-demand categorization job.
 #[derive(Clone, serde::Serialize)]
@@ -66,6 +77,15 @@ struct InnerState {
     pub savings_goal_repo: PgSavingsGoalRepo,
     pub flow_repo: PgFlowRepo,
     pub flow_group_repo: PgFlowGroupRepo,
+    pub flow_pattern_repo: Arc<FlowPatternRepo>,
+    /// Shared flow-pattern matcher (ADR-017). Falls back to
+    /// `StubPatternMatcher` when the `sona` feature is disabled or when
+    /// RuVector construction fails.
+    pub flow_matcher: Arc<RwLock<dyn FlowPatternMatcher>>,
+    /// Concrete RuVector flow-pattern matcher handle used by callers
+    /// that have precomputed embeddings.
+    #[cfg(feature = "sona")]
+    pub flow_matcher_ruvector: Option<Arc<RwLock<RuVectorPatternMatcher>>>,
     pub ws_manager: WsConnectionManager,
     /// LLM client loaded in the background. `None` until the model is ready
     /// (or if loading failed).
@@ -84,6 +104,25 @@ struct InnerState {
     /// Shared across requests so that LLM-learned merchants persist for the
     /// lifetime of the process.
     pub merchant_registry: Arc<RwLock<MerchantRegistry>>,
+    /// Shared Tier 2 semantic categorizer (Jaccard by default; RuVector
+    /// HNSW when `finima-categorize/sona` is enabled). Built once at
+    /// startup from `categorize.tier2` + `categorize.semantic_min_confidence`.
+    /// Falls back to an empty Jaccard `EmbeddingStore` if construction fails.
+    pub semantic_tier2: Arc<RwLock<dyn SemanticCategorizer>>,
+    /// Concrete RuVector store shared with the vector-aware Tier 2 handler
+    /// (`POST /api/categorize/with-vector`). Populated only when the
+    /// `sona` feature is enabled AND the YAML-resolved backend is RuVector;
+    /// otherwise `None` and the vector handler falls back to the trait-level
+    /// text-only probe.
+    #[cfg(feature = "sona")]
+    pub semantic_tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>>,
+    /// Shared embedding provider (ADR-017 Phase 3.C). Always present —
+    /// falls back to `NoopEmbedder` when the configured backend is
+    /// `none` or when the matching Cargo feature is disabled.
+    pub embedder: Arc<dyn EmbeddingProvider>,
+    /// Optional metrics registry. Set via `set_metrics` after construction
+    /// so handlers can record Tier 2 / flow-pattern / bootstrap counters.
+    pub metrics: RwLock<Option<MetricsRegistry>>,
     /// Set to `true` when the application is shutting down.
     /// Background tasks should check this and stop work promptly.
     pub shutdown: AtomicBool,
@@ -127,6 +166,96 @@ impl AppState {
         tracing::info!(seed_count, "merchant registry initialized");
         let merchant_registry = Arc::new(RwLock::new(registry));
 
+        // Build the Tier 2 semantic store from config, with a safe fallback
+        // to an empty Jaccard store on error. Construction errors are only
+        // possible for the RuVector backend; the Jaccard backend is
+        // infallible.
+        let categorize_cfg: finima_categorize::CategorizeConfig = config.categorize.clone().into();
+        let semantic_tier2: Arc<RwLock<dyn SemanticCategorizer>> =
+            match CascadeEngine::build_semantic_from_config(
+                &categorize_cfg.tier2,
+                categorize_cfg.semantic_min_confidence,
+            ) {
+                Ok(store) => store,
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "Tier 2 semantic backend construction failed; falling back to empty Jaccard store"
+                    );
+                    Arc::new(RwLock::new(EmbeddingStore::new(
+                        categorize_cfg.semantic_min_confidence,
+                    )))
+                }
+            };
+
+        // Build a typed RuVector handle only when the `sona` feature is
+        // compiled in and the YAML-resolved backend actually asks for it.
+        // This mirrors `semantic_tier2` construction so both views agree.
+        #[cfg(feature = "sona")]
+        let semantic_tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>> = {
+            use finima_categorize::config::Tier2Backend;
+            if categorize_cfg.tier2.resolved_backend() == Tier2Backend::RuVector {
+                match RuVectorEmbeddingStore::new(
+                    categorize_cfg.tier2.clone(),
+                    categorize_cfg.semantic_min_confidence,
+                ) {
+                    Ok(s) => Some(Arc::new(RwLock::new(s))),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "RuVector Tier 2 handle construction failed");
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
+        // Build the flow-pattern repo (Phase 2.A) and matcher (Phase 2.B).
+        let flow_pattern_repo = Arc::new(FlowPatternRepo::new(pool.clone()));
+
+        #[cfg(feature = "sona")]
+        let (flow_matcher, flow_matcher_ruvector): (
+            Arc<RwLock<dyn FlowPatternMatcher>>,
+            Option<Arc<RwLock<RuVectorPatternMatcher>>>,
+        ) = {
+            let cfg = RuVectorPatternMatcherConfig {
+                dim: categorize_cfg.tier2.dim,
+                hnsw_m: categorize_cfg.tier2.hnsw_m,
+                hnsw_ef_construction: categorize_cfg.tier2.hnsw_ef_construction,
+                hnsw_ef_search: categorize_cfg.tier2.hnsw_ef_search,
+            };
+            match RuVectorPatternMatcher::new(cfg) {
+                Ok(m) => {
+                    let arc = Arc::new(RwLock::new(m));
+                    // The concrete Arc isn't coerceable to the trait-object
+                    // Arc directly; build a second instance for the trait
+                    // handle so both views are independent (acceptable since
+                    // the trait-level methods are no-ops on this backend).
+                    let stub: Arc<RwLock<dyn FlowPatternMatcher>> =
+                        Arc::new(RwLock::new(StubPatternMatcher));
+                    (stub, Some(arc))
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "RuVector flow-pattern matcher construction failed; falling back to StubPatternMatcher"
+                    );
+                    let stub: Arc<RwLock<dyn FlowPatternMatcher>> =
+                        Arc::new(RwLock::new(StubPatternMatcher));
+                    (stub, None)
+                }
+            }
+        };
+
+        #[cfg(not(feature = "sona"))]
+        let flow_matcher: Arc<RwLock<dyn FlowPatternMatcher>> =
+            Arc::new(RwLock::new(StubPatternMatcher));
+
+        // Build the embedding provider from config. NoopEmbedder is the
+        // safe fallback; heavy backends are gated behind Cargo features
+        // so the default build stays lean.
+        let embedder: Arc<dyn EmbeddingProvider> = build_embedder(&config);
+
         Self {
             inner: Arc::new(InnerState {
                 pool,
@@ -145,6 +274,10 @@ impl AppState {
                 savings_goal_repo,
                 flow_repo,
                 flow_group_repo,
+                flow_pattern_repo,
+                flow_matcher,
+                #[cfg(feature = "sona")]
+                flow_matcher_ruvector,
                 ws_manager,
                 llm_client: RwLock::new(None),
                 llm_status: AtomicU8::new(LLM_LOADING),
@@ -153,6 +286,11 @@ impl AppState {
                 categorization_jobs: RwLock::new(HashMap::new()),
                 upload_categorization_progress: RwLock::new(HashMap::new()),
                 merchant_registry,
+                semantic_tier2,
+                #[cfg(feature = "sona")]
+                semantic_tier2_ruvector,
+                embedder,
+                metrics: RwLock::new(None),
                 shutdown: AtomicBool::new(false),
             }),
         }
@@ -252,6 +390,24 @@ impl AppState {
         &self.inner.flow_group_repo
     }
 
+    /// Shared `FlowPatternRepo` (ADR-017 Phase 2.A).
+    pub fn flow_pattern_repo(&self) -> &Arc<FlowPatternRepo> {
+        &self.inner.flow_pattern_repo
+    }
+
+    /// Shared flow-pattern matcher (ADR-017 Phase 2.B).
+    pub fn flow_matcher(&self) -> Arc<RwLock<dyn FlowPatternMatcher>> {
+        self.inner.flow_matcher.clone()
+    }
+
+    /// Concrete RuVector flow-pattern matcher handle (ADR-017 Phase 2.C),
+    /// only populated when the `sona` feature is enabled and construction
+    /// succeeded.
+    #[cfg(feature = "sona")]
+    pub fn flow_matcher_ruvector(&self) -> Option<Arc<RwLock<RuVectorPatternMatcher>>> {
+        self.inner.flow_matcher_ruvector.clone()
+    }
+
     pub fn ws_manager(&self) -> &WsConnectionManager {
         &self.inner.ws_manager
     }
@@ -276,6 +432,18 @@ impl AppState {
     /// Returns the shared merchant registry for Tier 0 categorization.
     pub fn merchant_registry(&self) -> &Arc<RwLock<MerchantRegistry>> {
         &self.inner.merchant_registry
+    }
+
+    /// Returns the shared Tier 2 semantic categorizer (clone of the `Arc`).
+    pub fn semantic_tier2(&self) -> Arc<RwLock<dyn SemanticCategorizer>> {
+        self.inner.semantic_tier2.clone()
+    }
+
+    /// Returns the concrete RuVector Tier 2 handle if the `sona` feature is
+    /// enabled and the resolved backend is RuVector.
+    #[cfg(feature = "sona")]
+    pub fn semantic_tier2_ruvector(&self) -> Option<Arc<RwLock<RuVectorEmbeddingStore>>> {
+        self.inner.semantic_tier2_ruvector.clone()
     }
 
     /// Get the status of an on-demand categorization job.
@@ -356,5 +524,96 @@ impl AppState {
             .write()
             .expect("categorization_jobs lock poisoned")
             .remove(&(user_id, account_id));
+    }
+
+    /// Returns the shared embedding provider. Always populated; the
+    /// noop implementation errors cleanly for callers that check
+    /// `backend() != "noop"` before invoking.
+    pub fn embedder(&self) -> Arc<dyn EmbeddingProvider> {
+        self.inner.embedder.clone()
+    }
+
+    /// Install a metrics registry for handler-level instrumentation.
+    /// Called once from `main` after the registry is constructed.
+    pub fn set_metrics(&self, registry: MetricsRegistry) {
+        *self.inner.metrics.write().expect("metrics lock poisoned") = Some(registry);
+    }
+
+    /// Clone of the installed metrics registry, if any.
+    pub fn metrics(&self) -> Option<MetricsRegistry> {
+        self.inner
+            .metrics
+            .read()
+            .expect("metrics lock poisoned")
+            .clone()
+    }
+}
+
+/// Construct the embedding provider based on YAML config and the
+/// compile-time `embedder-*` feature flags. Falls back to
+/// `NoopEmbedder` (logging a warning) when the requested backend's
+/// feature is not enabled.
+fn build_embedder(config: &AppConfig) -> Arc<dyn EmbeddingProvider> {
+    let cfg = &config.embedder;
+    match cfg.backend.as_str() {
+        "none" | "" => {
+            tracing::info!(dim = cfg.dim, "Embedder: NoopEmbedder (backend=none)");
+            Arc::new(NoopEmbedder::new(cfg.dim))
+        }
+        "ollama" => {
+            #[cfg(feature = "embedder-ollama")]
+            {
+                tracing::info!(
+                    url = %cfg.ollama.url,
+                    model = %cfg.ollama.model,
+                    dim = cfg.dim,
+                    "Embedder: OllamaEmbedder"
+                );
+                let e = finima_embed::OllamaEmbedder::new(
+                    cfg.ollama.url.clone(),
+                    cfg.ollama.model.clone(),
+                    cfg.dim,
+                )
+                .with_timeout_ms(cfg.ollama.timeout_millis);
+                Arc::new(e) as Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-ollama"))]
+            {
+                tracing::warn!(
+                    requested = "ollama",
+                    "Embedder feature `embedder-ollama` not enabled at compile time; using NoopEmbedder"
+                );
+                Arc::new(NoopEmbedder::new(cfg.dim))
+            }
+        }
+        "candle" => {
+            #[cfg(feature = "embedder-candle")]
+            {
+                tracing::info!(
+                    model_id = %cfg.candle.model_id,
+                    dim = cfg.dim,
+                    "Embedder: CandleEmbedder (stub)"
+                );
+                Arc::new(finima_embed::CandleEmbedder::new(
+                    cfg.candle.model_id.clone(),
+                    cfg.dim,
+                )) as Arc<dyn EmbeddingProvider>
+            }
+            #[cfg(not(feature = "embedder-candle"))]
+            {
+                tracing::warn!(
+                    requested = "candle",
+                    "Embedder feature `embedder-candle` not enabled at compile time; using NoopEmbedder"
+                );
+                Arc::new(NoopEmbedder::new(cfg.dim))
+            }
+        }
+        other => {
+            tracing::warn!(
+                requested = %other,
+                "Unknown embedder.backend value; using NoopEmbedder"
+            );
+            Arc::new(NoopEmbedder::new(cfg.dim))
+        }
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::SemanticCategorizer;
+use super::{SemanticCategorizer, SemanticVectorIngest};
 use crate::types::{CategorizationTier, CategoryAssignment, UncategorizedTransaction};
 
 /// A single stored example with pre-computed character n-grams.
@@ -179,6 +179,27 @@ impl SemanticCategorizer for EmbeddingStore {
 
     fn index_size(&self) -> usize {
         self.len()
+    }
+}
+
+impl SemanticVectorIngest for EmbeddingStore {
+    /// Jaccard is a lexical backend — it ignores `_vector` completely and
+    /// simply inserts the description. Returns `true` as long as the
+    /// description survives normalization (non-empty after lowercasing /
+    /// stripping non-letters).
+    fn learn_with_vector(
+        &mut self,
+        description: &str,
+        category: &str,
+        subcategory: &str,
+        confidence: f64,
+        _vector: Option<&[f32]>,
+    ) -> bool {
+        if description.trim().is_empty() {
+            return false;
+        }
+        self.insert(description, category, subcategory, confidence);
+        true
     }
 }
 

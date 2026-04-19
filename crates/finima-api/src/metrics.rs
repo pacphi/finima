@@ -62,6 +62,42 @@ pub enum UploadStatus {
     Failure,
 }
 
+/// Labels for Tier 2 query counters: backend ("jaccard" | "ruvector") and outcome
+/// ("matched" | "rejected" | "error").
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+pub struct Tier2QueryLabels {
+    pub backend: String,
+    pub outcome: String,
+}
+
+/// Labels for Tier 2 latency histograms: backend only.
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+pub struct Tier2BackendLabel {
+    pub backend: String,
+}
+
+/// Labels for flow-pattern matcher query counters: backend ("stub" | "ruvector")
+/// and outcome ("resolved" | "miss" | "error").
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+pub struct FlowQueryLabels {
+    pub backend: String,
+    pub outcome: String,
+}
+
+/// Labels for flow-pattern matcher latency histograms: backend only.
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+pub struct FlowBackendLabel {
+    pub backend: String,
+}
+
+/// Labels for bootstrap duration histograms: component ("tier2" | "flows") and
+/// result ("ok" | "partial" | "failed").
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+pub struct BootstrapLabels {
+    pub component: String,
+    pub result: String,
+}
+
 // ---------------------------------------------------------------------------
 // Metrics struct
 // ---------------------------------------------------------------------------
@@ -119,6 +155,34 @@ pub struct Metrics {
     // -- Error budget ---------------------------------------------------------
     /// 5xx error count (for computing error budget burn rate).
     pub error_rate_5xx: Counter,
+
+    // -- Tier 2 categorization ------------------------------------------------
+    /// Total Tier 2 semantic categorization queries by backend and outcome.
+    pub tier2_queries_total: Family<Tier2QueryLabels, Counter>,
+    /// Tier 2 search latency histogram by backend.
+    pub tier2_search_latency_seconds: Family<Tier2BackendLabel, Histogram>,
+    /// Labeled examples inserted during Tier 2 bootstrap.
+    pub tier2_bootstrap_inserted_total: Counter,
+    /// Labeled examples rejected during Tier 2 bootstrap.
+    pub tier2_bootstrap_rejected_total: Counter,
+    /// Current Tier 2 store size in entries.
+    pub tier2_index_size: Gauge<i64, std::sync::atomic::AtomicI64>,
+
+    // -- Flow-pattern matcher (ADR-017) ---------------------------------------
+    /// Total flow-pattern matcher queries by backend and outcome.
+    pub flow_pattern_queries_total: Family<FlowQueryLabels, Counter>,
+    /// Flow-pattern matcher search latency histogram by backend.
+    pub flow_pattern_search_latency_seconds: Family<FlowBackendLabel, Histogram>,
+    /// Flow patterns confirmed and persisted.
+    pub flow_patterns_confirmed_total: Counter,
+    /// Flow patterns dismissed.
+    pub flow_patterns_dismissed_total: Counter,
+    /// Current flow-pattern store size in entries.
+    pub flow_pattern_index_size: Gauge<i64, std::sync::atomic::AtomicI64>,
+
+    // -- Bootstrap (Tier 2 + Flow) --------------------------------------------
+    /// Bootstrap task duration in seconds by component and result.
+    pub bootstrap_duration_seconds: Family<BootstrapLabels, Histogram>,
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +326,97 @@ impl MetricsRegistry {
             error_rate_5xx.clone(),
         );
 
+        // -- Tier 2 categorization metrics ------------------------------------
+        let tier2_queries_total = Family::<Tier2QueryLabels, Counter>::default();
+        registry.register(
+            "tier2_queries_total",
+            "Total Tier 2 semantic categorization queries, labeled by backend and outcome.",
+            tier2_queries_total.clone(),
+        );
+
+        let tier2_search_latency_seconds =
+            Family::<Tier2BackendLabel, Histogram>::new_with_constructor(|| {
+                // 100 µs to ~3 s
+                Histogram::new(exponential_buckets(0.0001, 2.0, 16))
+            });
+        registry.register(
+            "tier2_search_latency_seconds",
+            "Latency of Tier 2 k-NN / similarity search in seconds, labeled by backend.",
+            tier2_search_latency_seconds.clone(),
+        );
+
+        let tier2_bootstrap_inserted_total = Counter::default();
+        registry.register(
+            "tier2_bootstrap_inserted_total",
+            "Labeled examples inserted during Tier 2 bootstrap.",
+            tier2_bootstrap_inserted_total.clone(),
+        );
+
+        let tier2_bootstrap_rejected_total = Counter::default();
+        registry.register(
+            "tier2_bootstrap_rejected_total",
+            "Labeled examples rejected during Tier 2 bootstrap.",
+            tier2_bootstrap_rejected_total.clone(),
+        );
+
+        let tier2_index_size = Gauge::<i64, std::sync::atomic::AtomicI64>::default();
+        registry.register(
+            "tier2_index_size",
+            "Current Tier 2 store size in entries.",
+            tier2_index_size.clone(),
+        );
+
+        // -- Flow-pattern matcher metrics -------------------------------------
+        let flow_pattern_queries_total = Family::<FlowQueryLabels, Counter>::default();
+        registry.register(
+            "flow_pattern_queries_total",
+            "Total flow-pattern matcher queries, labeled by backend and outcome.",
+            flow_pattern_queries_total.clone(),
+        );
+
+        let flow_pattern_search_latency_seconds =
+            Family::<FlowBackendLabel, Histogram>::new_with_constructor(|| {
+                Histogram::new(exponential_buckets(0.0001, 2.0, 16))
+            });
+        registry.register(
+            "flow_pattern_search_latency_seconds",
+            "Latency of flow-pattern matcher search in seconds, labeled by backend.",
+            flow_pattern_search_latency_seconds.clone(),
+        );
+
+        let flow_patterns_confirmed_total = Counter::default();
+        registry.register(
+            "flow_patterns_confirmed_total",
+            "Flow patterns confirmed and persisted.",
+            flow_patterns_confirmed_total.clone(),
+        );
+
+        let flow_patterns_dismissed_total = Counter::default();
+        registry.register(
+            "flow_patterns_dismissed_total",
+            "Flow patterns dismissed.",
+            flow_patterns_dismissed_total.clone(),
+        );
+
+        let flow_pattern_index_size = Gauge::<i64, std::sync::atomic::AtomicI64>::default();
+        registry.register(
+            "flow_pattern_index_size",
+            "Current flow-pattern store size in entries.",
+            flow_pattern_index_size.clone(),
+        );
+
+        // -- Bootstrap metrics ------------------------------------------------
+        let bootstrap_duration_seconds =
+            Family::<BootstrapLabels, Histogram>::new_with_constructor(|| {
+                // 10 ms to ~26 min
+                Histogram::new(exponential_buckets(0.01, 2.0, 18))
+            });
+        registry.register(
+            "bootstrap_duration_seconds",
+            "Bootstrap task duration in seconds, labeled by component and result.",
+            bootstrap_duration_seconds.clone(),
+        );
+
         let metrics = Metrics {
             http_requests_total,
             http_request_duration_seconds,
@@ -278,6 +433,17 @@ impl MetricsRegistry {
             magic_links_sent_total,
             auth_refresh_total,
             error_rate_5xx,
+            tier2_queries_total,
+            tier2_search_latency_seconds,
+            tier2_bootstrap_inserted_total,
+            tier2_bootstrap_rejected_total,
+            tier2_index_size,
+            flow_pattern_queries_total,
+            flow_pattern_search_latency_seconds,
+            flow_patterns_confirmed_total,
+            flow_patterns_dismissed_total,
+            flow_pattern_index_size,
+            bootstrap_duration_seconds,
         };
 
         Self {

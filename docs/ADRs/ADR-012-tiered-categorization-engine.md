@@ -2,11 +2,36 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
 2026-04-14
+
+## Implementation Status
+
+Accepted and implemented on branch `feat/tier2-ruvector` (merged via
+PR #TBD). Delivery breakdown:
+
+- **Tier 0 (merchants), Tier 1 (patterns)** — already shipped prior to this ADR.
+- **Tier 2 (semantic search)** — pluggable `SemanticCategorizer` trait with two backends:
+  - `jaccard` (default) — character n-gram Jaccard store, no extra deps.
+  - `ruvector` — HNSW via `ruvector-core` 2.1 + ReasoningBank via
+    `ruvector-sona` 0.1.9, compiled under the `sona` feature.
+- **Embedder layer** — new `finima-embed` crate with `none` (Noop),
+  `ollama` (local HTTP), `candle` (local BertModel) backends. No
+  external / paid providers.
+- **Persistence** — `embedding_index` table (migration 025);
+  `portfolios.sona_state JSONB` for ReasoningBank snapshot
+  (migration 026).
+- **Operator tooling** — `bootstrap_tier2` bin, `POST
+  /api/categorize/with-vector` handler, Prometheus metrics under
+  `tier2_*` + `bootstrap_duration_seconds`.
+- **Tier 3 (LLM)** — remains out of scope for this ADR; covered by
+  the existing `LLM=` flag family.
+
+See [`docs/guides/embedder.md`](../guides/embedder.md) for
+operational tuning.
 
 ## Context
 

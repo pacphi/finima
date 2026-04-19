@@ -24,14 +24,14 @@ ruvector-core = { version = "2.1", default-features = false,
 
 ## Build metrics (release, M-series mac)
 
-| Metric                         | Value                        |
-| ------------------------------ | ---------------------------- |
-| `ruvector-core` version on crates.io | **2.1.0** (latest)     |
-| Clean build, wall clock        | **~17 s**                    |
-| CPU time                       | ~82 s user (parallel)        |
-| Transitive deps                | 120                          |
-| Release binary size            | **936 KB**                   |
-| Direct deps of ruvector-core   | 17 crates (hnsw_rs, simsimd, ndarray, rkyv, dashmap, parking_lot, rand, uuid, chrono, serde, bincode, thiserror, anyhow, tracing, rand_distr, once_cell) |
+| Metric                               | Value                                                                                                                                                    |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ruvector-core` version on crates.io | **2.1.0** (latest)                                                                                                                                       |
+| Clean build, wall clock              | **~17 s**                                                                                                                                                |
+| CPU time                             | ~82 s user (parallel)                                                                                                                                    |
+| Transitive deps                      | 120                                                                                                                                                      |
+| Release binary size                  | **936 KB**                                                                                                                                               |
+| Direct deps of ruvector-core         | 17 crates (hnsw_rs, simsimd, ndarray, rkyv, dashmap, parking_lot, rand, uuid, chrono, serde, bincode, thiserror, anyhow, tracing, rand_distr, once_cell) |
 
 No C/system deps required at this feature set. No ONNX, no reqwest, no redb.
 
@@ -86,12 +86,12 @@ as a later swap-in.
 `ruvector-core` does not generate embeddings at the `hnsw,simd,memory-only`
 feature set — it only stores and searches them. Options offered by the crate:
 
-| Feature             | What it pulls in                        | Use              |
-| ------------------- | --------------------------------------- | ---------------- |
-| `hash-embeddings` (default of `HashEmbedding`) | none                        | testing only, NOT semantic |
-| `api-embeddings`    | reqwest (+rustls)                       | OpenAI-compatible HTTP |
-| `onnx-embeddings`   | `ort` 2.0-rc, `tokenizers`, `hf-hub`    | local semantic, big deps |
-| `real-embeddings`   | Candle                                  | local semantic, also large |
+| Feature                                        | What it pulls in                     | Use                        |
+| ---------------------------------------------- | ------------------------------------ | -------------------------- |
+| `hash-embeddings` (default of `HashEmbedding`) | none                                 | testing only, NOT semantic |
+| `api-embeddings`                               | reqwest (+rustls)                    | OpenAI-compatible HTTP     |
+| `onnx-embeddings`                              | `ort` 2.0-rc, `tokenizers`, `hf-hub` | local semantic, big deps   |
+| `real-embeddings`                              | Candle                               | local semantic, also large |
 
 For the Tier 2 MVP we can start with a small sentence-transformer via
 `onnx-embeddings` OR keep our own ONNX wiring and just hand ruvector the
@@ -104,7 +104,7 @@ vectors. Deferred to Phase 1 decision.
 2. **API names in ADR-017 are wrong** (`HnswIndex`, `SonaAdapter`). Will be
    updated during Phase 1 implementation, not pre-emptively.
 3. **SONA is not on crates.io.** Capability downgrade: we get HNSW + quantization
-   + hybrid search, we do not get auto-tuning / LoRA / EWC++ without a git dep.
+   - hybrid search, we do not get auto-tuning / LoRA / EWC++ without a git dep.
 4. **ONNX runtime is heavy.** If we enable `onnx-embeddings` the dep graph
    grows significantly (ort 2.0-rc is pre-1.0). Keep embedding generation
    behind its own feature flag, separate from the vector-store feature flag.
@@ -122,16 +122,16 @@ adapter.
 
 ## Follow-ups
 
-+ [x] Update ADR-017 version pin to `2.1`.
-+ [x] Phase 0b: validate `ruvector-sona`. See [Phase 0b addendum](#phase-0b-addendum--ruvector-sona).
-+ [x] Phase 0c: persistence round-trip. See [Phase 0c addendum](#phase-0c-addendum--persistence-round-trip).
-+ [x] Phase 0d: MicroLoRA training-path verification. See [Phase 0d addendum](#phase-0d-addendum--what-actually-makes-microlora-adapt).
-+ [ ] Phase 1: implement `RuVectorEmbeddingStore: SemanticCategorizer` in
+- [x] Update ADR-017 version pin to `2.1`.
+- [x] Phase 0b: validate `ruvector-sona`. See [Phase 0b addendum](#phase-0b-addendum--ruvector-sona).
+- [x] Phase 0c: persistence round-trip. See [Phase 0c addendum](#phase-0c-addendum--persistence-round-trip).
+- [x] Phase 0d: MicroLoRA training-path verification. See [Phase 0d addendum](#phase-0d-addendum--what-actually-makes-microlora-adapt).
+- [ ] Phase 1: implement `RuVectorEmbeddingStore: SemanticCategorizer` in
       `crates/finima-categorize/src/tier2/ruvector_store.rs` behind a `sona`
       feature.
-+ [ ] Phase 1: decide embedder (ONNX local vs. small Rust-native model vs.
+- [ ] Phase 1: decide embedder (ONNX local vs. small Rust-native model vs.
       bring-your-own).
-+ [ ] Phase 2: implement `RuVectorPatternMatcher: FlowPatternMatcher` backed
+- [ ] Phase 2: implement `RuVectorPatternMatcher: FlowPatternMatcher` backed
       by `ruvector-core::VectorDB` (HNSW) and `ruvector-sona::SonaEngine`
       (feedback loop), and add `flow_patterns` migration.
 
@@ -153,10 +153,10 @@ forces learning, measures micro-LoRA latency and pattern recall.
 
 ### Dep footprint
 
-+ Added crates beyond Phase 0: only `parking_lot` / `crossbeam` / `rand` were
+- Added crates beyond Phase 0: only `parking_lot` / `crossbeam` / `rand` were
   already present transitively — **net new build graph is effectively zero**.
-+ Incremental rebuild after adding `ruvector-sona`: ~8 s (crate is small).
-+ No ONNX, no C deps, no workspace coupling.
+- Incremental rebuild after adding `ruvector-sona`: ~8 s (crate is small).
+- No ONNX, no C deps, no workspace coupling.
 
 ### Real API (0.1.9) vs. README
 
@@ -188,13 +188,13 @@ let s: CoordinatorStats = engine.stats();
 
 ### Measured performance (Apple Silicon release build)
 
-| Operation                                 | Value                      |
-| ----------------------------------------- | -------------------------- |
-| `begin_trajectory` + `add_step` + `end_trajectory` | **3.2 µs** / trajectory |
-| `apply_micro_lora` p50 / p95 / p99 (n=1000) | **1.2 / 1.3 / 1.3 µs**   |
-| `force_learn` on 25 trajectories          | synchronous, immediate     |
-| `find_patterns(k=3)` after 25 trajectories | 3 hits returned           |
-| Mean per-dim abs-delta after adaptation   | 0.055 (non-trivial mutation) |
+| Operation                                          | Value                        |
+| -------------------------------------------------- | ---------------------------- |
+| `begin_trajectory` + `add_step` + `end_trajectory` | **3.2 µs** / trajectory      |
+| `apply_micro_lora` p50 / p95 / p99 (n=1000)        | **1.2 / 1.3 / 1.3 µs**       |
+| `force_learn` on 25 trajectories                   | synchronous, immediate       |
+| `find_patterns(k=3)` after 25 trajectories         | 3 hits returned              |
+| Mean per-dim abs-delta after adaptation            | 0.055 (non-trivial mutation) |
 
 All comfortably inside our Tier 2 latency budget (<10 ms). The <1 ms
 adaptation claim in upstream marketing holds up for `hidden_dim=256`.
@@ -246,11 +246,11 @@ let engine_b: SonaEngine = SonaEngineBuilder::new().hidden_dim(256).build();
 engine_b.coordinator().load_state(&json)?;   // returns Ok(n_patterns)
 ```
 
-| Metric                      | Value                   |
-| --------------------------- | ----------------------- |
-| 50 patterns → JSON size     | **274 KB**              |
-| `serialize_state()` latency | **0.7 ms**              |
-| `load_state()` latency      | **0.6 ms**              |
+| Metric                      | Value                              |
+| --------------------------- | ---------------------------------- |
+| 50 patterns → JSON size     | **274 KB**                         |
+| `serialize_state()` latency | **0.7 ms**                         |
+| `load_state()` latency      | **0.6 ms**                         |
 | `find_patterns` equivalence | **bit-identical** before vs. after |
 
 The JSON is self-describing (includes `version`, `patterns`, `ewc_task_count`,
@@ -266,12 +266,12 @@ HuggingFaceExporter::with_config(&engine, cfg)
     .export_lora_safetensors(&path)?;                    // writes adapter_model.safetensors
 ```
 
-| Metric                            | Value                 |
-| --------------------------------- | --------------------- |
-| micro_lora_layers                 | 1 (rank 2, 256×256)   |
-| base_lora_layers                  | 12 (rank 8, 256×256)  |
-| `export_lora_safetensors` latency | 0.8 ms                |
-| safetensors file size             | **784 KB**            |
+| Metric                            | Value                |
+| --------------------------------- | -------------------- |
+| micro_lora_layers                 | 1 (rank 2, 256×256)  |
+| base_lora_layers                  | 12 (rank 8, 256×256) |
+| `export_lora_safetensors` latency | 0.8 ms               |
+| safetensors file size             | **784 KB**           |
 
 Grepped the 0.1.9 source for any `import`/`load`/`restore`/`from_safetensors`
 hook into a `SonaEngine` — there is none. The exporter is fire-and-forget for
@@ -300,13 +300,13 @@ let snapshot: Vec<VectorEntry> = keys.iter()
 // persist `snapshot` (we use JSON below; see note)
 ```
 
-| Metric                            | Value                |
-| --------------------------------- | -------------------- |
-| 10 entries (dim=64) → JSON size   | 8.5 KB               |
-| Dump latency                      | < 0.1 ms             |
-| Reload into fresh VectorDB        | 0.1 ms               |
-| Ranked search ids, before vs after | **identical**       |
-| Search scores, before vs after    | **identical within 1e-5** |
+| Metric                             | Value                     |
+| ---------------------------------- | ------------------------- |
+| 10 entries (dim=64) → JSON size    | 8.5 KB                    |
+| Dump latency                       | < 0.1 ms                  |
+| Reload into fresh VectorDB         | 0.1 ms                    |
+| Ranked search ids, before vs after | **identical**             |
+| Search scores, before vs after     | **identical within 1e-5** |
 
 **Gotcha:** `bincode = "1"` does not work — `VectorEntry.metadata` uses
 `serde_json::Value` which invokes `deserialize_any`, unsupported by non-self-
@@ -324,12 +324,12 @@ Recommendation: **option 1**. It matches ADR-012's `EmbeddingIndex` /
 
 ### Phase 0c verdict
 
-| Concern                         | Resolution                                           |
-| ------------------------------- | ---------------------------------------------------- |
-| Reasoning patterns survive restart | ✅ JSON round-trip, bit-identical retrieval         |
-| LoRA weights survive restart       | ❌ No import API — accept that LoRA re-converges   |
-| Vector index survives restart      | ✅ Dump via `keys()`/`get()`, reinsert on boot      |
-| Can we skip ruvector's `storage` feature? | ✅ Yes — we have Postgres                     |
+| Concern                                   | Resolution                                       |
+| ----------------------------------------- | ------------------------------------------------ |
+| Reasoning patterns survive restart        | ✅ JSON round-trip, bit-identical retrieval      |
+| LoRA weights survive restart              | ❌ No import API — accept that LoRA re-converges |
+| Vector index survives restart             | ✅ Dump via `keys()`/`get()`, reinsert on boot   |
+| Can we skip ruvector's `storage` feature? | ✅ Yes — we have Postgres                        |
 
 Cold-start design for Phase 1:
 
@@ -350,13 +350,13 @@ recording again post-restart.
 
 ### Follow-ups added by this spike
 
-+ [x] Phase 0d: verify whether `apply_micro_lora` output actually shifts
+- [x] Phase 0d: verify whether `apply_micro_lora` output actually shifts
       after training. **Answered below — it does, but only under specific
       conditions we had not satisfied.**
-+ [ ] Phase 1 schema: `portfolios.sona_state JSONB NULL` column, plus the
+- [ ] Phase 1 schema: `portfolios.sona_state JSONB NULL` column, plus the
       existing `embedding_index` / `flow_patterns` tables from ADR-012 /
       ADR-017.
-+ [ ] Phase 1 policy: persist SONA state on N confirmations OR M minutes,
+- [ ] Phase 1 policy: persist SONA state on N confirmations OR M minutes,
       whichever first.
 
 ---
@@ -377,7 +377,7 @@ From `ruvector-sona-0.1.9/src/loops/instant.rs` and `lora.rs`:
 2. `on_trajectory` calls `micro_lora.accumulate_gradient(&signal)` and bumps
    a pending-signal counter. **Gradients are applied only when
    `pending ≥ flush_threshold` (default 100)**, OR on `engine.flush()`.
-3. `force_learn()` runs the *background* cycle (ReasoningBank + BaseLoRA +
+3. `force_learn()` runs the _background_ cycle (ReasoningBank + BaseLoRA +
    EWC). It does **not** flush MicroLoRA.
 4. `MicroLoRA::new` initialises with the standard LoRA scheme: `A` random,
    `B = 0`. So `forward(x)` returns zero until `B` is updated.
@@ -394,22 +394,22 @@ From `ruvector-sona-0.1.9/src/loops/instant.rs` and `lora.rs`:
 All five scenarios below compare `apply_micro_lora(probe)` against a fresh
 engine's output on the same probe (single-step trajectories throughout):
 
-| Scenario (all single-step, rank 2, hidden=256)       | L2 Δ        | patterns |
-| ---------------------------------------------------- | ----------- | -------- |
-| A. 25 traj + `force_learn`                           | **0.000000** | 25       |
-| B. 25 traj + `engine.flush()` only                   | **0.000000** | 0        |
-| C. 99 traj (below auto-flush, no flush)              | **0.000000** | 0        |
-| D. 100 traj (hits auto-flush threshold)              | **0.000000** | 0        |
-| E. 500 traj + flush + `force_learn`                  | **0.000000** | 100      |
-| F. 100 traj via `submit_trajectory()` + flush        | **0.000000** | 0        |
+| Scenario (all single-step, rank 2, hidden=256) | L2 Δ         | patterns |
+| ---------------------------------------------- | ------------ | -------- |
+| A. 25 traj + `force_learn`                     | **0.000000** | 25       |
+| B. 25 traj + `engine.flush()` only             | **0.000000** | 0        |
+| C. 99 traj (below auto-flush, no flush)        | **0.000000** | 0        |
+| D. 100 traj (hits auto-flush threshold)        | **0.000000** | 0        |
+| E. 500 traj + flush + `force_learn`            | **0.000000** | 100      |
+| F. 100 traj via `submit_trajectory()` + flush  | **0.000000** | 0        |
 
 All zeros. Matches the theoretical prediction.
 
 Then the multi-step control:
 
-| Scenario                                           | L2 Δ         |
-| -------------------------------------------------- | ------------ |
-| G. 200 × **3-step trajectories** + `engine.flush()` | **1e-6**    |
+| Scenario                                            | L2 Δ     |
+| --------------------------------------------------- | -------- |
+| G. 200 × **3-step trajectories** + `engine.flush()` | **1e-6** |
 
 Small but nonzero — MicroLoRA did mutate. Magnitude is constrained by the
 default `micro_lora_lr = 0.002` and the normalized gradient; it would rise
@@ -425,13 +425,13 @@ with more diverse trajectories and tuned learning rate.
    recording a trajectory per detection pass with intermediate "steps"
    (e.g., heuristic match attempt, k-NN retrieval, final decision) each
    tagged with its own confidence as the `reward`. This is implementable,
-   but it is *extra* instrumentation we had not planned.
+   but it is _extra_ instrumentation we had not planned.
 3. **`force_learn()` ≠ flush.** We were wrong in 0b to treat them as
    equivalent. Production code must call `engine.flush()` at the end of a
    detection pass (or rely on the 100-signal auto-flush) if we want
    MicroLoRA updates applied.
 4. The marketing line "SONA adapts in <1 ms per query" is narrowly true
-   (`apply_micro_lora` forward is ~1.2 µs p50) but the *learning* is
+   (`apply_micro_lora` forward is ~1.2 µs p50) but the _learning_ is
    batched at flush time, not per-query. No change to our latency budget.
 5. **LoRA adaptation is best-effort for MVP.** Given that LoRA weights
    don't survive restart (0c) and require bespoke instrumentation to
@@ -457,7 +457,7 @@ engine.end_trajectory(tb, user_quality);
 
 ### Phase 0d verdict
 
-+ ADR-017's "SONA adapts LoRA weights on each query cycle" is **aspirational
+- ADR-017's "SONA adapts LoRA weights on each query cycle" is **aspirational
   as written.** Real behavior: patterns learn immediately and persist;
   LoRA learns in batches and doesn't persist. Neither is a blocker.
-+ No new spikes needed. **Ready to land Phase 0 docs and start Phase 1.**
+- No new spikes needed. **Ready to land Phase 0 docs and start Phase 1.**
