@@ -306,8 +306,28 @@ export function DashboardPage() {
 
   const handleCategoryClick = useCallback(
     async (category: string) => {
+      // "Other" in the donut is a frontend rollup of the tail of the sorted
+      // category list. It has no single backend parent, so instead of asking
+      // for subcategories we show the component categories that make it up.
+      // If the backend itself returned a literal "Other" row (true aggregate),
+      // fall back to navigating to Transactions.
       if (category === 'Other') {
-        navigate(`/transactions?category=${encodeURIComponent(category)}`);
+        const sorted = [...spendingData].sort((a, b) => b.amount - a.amount);
+        const backendHasOther = sorted.some((c) => c.category === 'Other');
+        const rolledUp = backendHasOther ? [] : sorted.slice(5);
+        if (rolledUp.length === 0) {
+          navigate(`/transactions?category=${encodeURIComponent(category)}`);
+          return;
+        }
+        const total = rolledUp.reduce((s, c) => s + c.amount, 0);
+        setSelectedSpendingCategory('Other');
+        setSubcategorySpending(
+          rolledUp.map((c) => ({
+            subcategory: c.category,
+            amount: c.amount,
+            percentage: total > 0 ? (c.amount / total) * 100 : 0,
+          })),
+        );
         return;
       }
       setSelectedSpendingCategory(category);
@@ -319,7 +339,7 @@ export function DashboardPage() {
         setSubcategorySpending(null);
       }
     },
-    [dashboardApi, navigate, spendingMode],
+    [dashboardApi, navigate, spendingMode, spendingData],
   );
 
   const handleDismissSubcategory = useCallback(() => {
