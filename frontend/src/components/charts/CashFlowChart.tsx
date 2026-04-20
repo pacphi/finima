@@ -96,7 +96,13 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-          <Bar dataKey="income" name="Income" fill="#22C55E" radius={[4, 4, 0, 0]} maxBarSize={28} />
+          <Bar
+            dataKey="income"
+            name="Income"
+            fill="#22C55E"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={28}
+          />
           <Bar
             dataKey="expenses"
             name="Expenses"

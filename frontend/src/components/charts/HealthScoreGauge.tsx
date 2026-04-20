@@ -45,14 +45,7 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
     >
       <div className="relative aspect-square w-[min(60%,170px)]">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="var(--color-border)"
-            strokeWidth="6"
-          />
+          <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-border)" strokeWidth="6" />
           <circle
             cx="50"
             cy="50"
