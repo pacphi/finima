@@ -25,7 +25,7 @@ PR #TBD). Delivery breakdown:
   `portfolios.sona_state JSONB` for ReasoningBank snapshot
   (migration 026).
 - **Operator tooling** — `bootstrap_tier2` bin, `POST
-  /api/categorize/with-vector` handler, Prometheus metrics under
+/api/categorize/with-vector` handler, Prometheus metrics under
   `tier2_*` + `bootstrap_duration_seconds`.
 - **Tier 3 (LLM)** — remains out of scope for this ADR; covered by
   the existing `LLM=` flag family.

@@ -177,7 +177,7 @@ volumes:
 
 ```dockerfile
 # Dockerfile.backend
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.95-bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
@@ -549,7 +549,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
 ```

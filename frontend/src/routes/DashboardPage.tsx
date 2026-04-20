@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ResponsiveGridLayout, useContainerWidth } from 'react-grid-layout';
 import { useApi } from '@/hooks/useApi';
+import { useConfigStore } from '@/stores/configStore';
 import { createDashboardApi } from '@/api/dashboard';
 import { createBudgetApi } from '@/api/budgets';
 import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
@@ -20,78 +20,175 @@ import type {
   HealthScore,
   RecurringGroup,
 } from '@/types/models';
-import type { ResponsiveLayouts, Layout } from 'react-grid-layout';
-import 'react-grid-layout/css/styles.css';
 
-const LAYOUT_KEY = 'finima-dashboard-layout';
-
-const DEFAULT_LAYOUTS: ResponsiveLayouts = {
-  lg: [
-    { i: 'net-worth', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'health', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'cashflow', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'spending', x: 6, y: 4, w: 6, h: 5, minW: 4, minH: 3 },
-    { i: 'bills', x: 0, y: 8, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'budget', x: 6, y: 9, w: 6, h: 5, minW: 4, minH: 3 },
-  ],
-  md: [
-    { i: 'net-worth', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'health', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'cashflow', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'spending', x: 6, y: 4, w: 6, h: 5, minW: 4, minH: 3 },
-    { i: 'bills', x: 0, y: 8, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'budget', x: 6, y: 9, w: 6, h: 5, minW: 4, minH: 3 },
-  ],
-  sm: [
-    { i: 'net-worth', x: 0, y: 0, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'health', x: 0, y: 4, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'cashflow', x: 0, y: 8, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'spending', x: 0, y: 12, w: 12, h: 5, minW: 12, minH: 3 },
-    { i: 'bills', x: 0, y: 17, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'budget', x: 0, y: 21, w: 12, h: 5, minW: 12, minH: 3 },
-  ],
-};
-
-function loadSavedLayouts(): ResponsiveLayouts | null {
-  try {
-    const saved = localStorage.getItem(LAYOUT_KEY);
-    if (saved) return JSON.parse(saved) as ResponsiveLayouts;
-  } catch {
-    // ignore
-  }
-  return null;
+// ── Sparkline (lightweight inline SVG) ───────────────────────────────
+function Sparkline({
+  points,
+  stroke = 'currentColor',
+  fill,
+  className = '',
+}: {
+  points: number[];
+  stroke?: string;
+  fill?: string;
+  className?: string;
+}) {
+  if (points.length < 2) return <div className={className} aria-hidden="true" />;
+  const w = 100;
+  const h = 32;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const coords = points.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / range) * h;
+    return [x, y] as const;
+  });
+  const path = coords
+    .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(' ');
+  const area = `${path} L${w},${h} L0,${h} Z`;
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className={className}
+      aria-hidden="true"
+    >
+      {fill && <path d={area} fill={fill} />}
+      <path
+        d={path}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-function WidgetCard({ title, children }: { title: string; children: React.ReactNode }) {
+// ── Delta pill ───────────────────────────────────────────────────────
+function DeltaPill({ delta, suffix = '' }: { delta: number | null; suffix?: string }) {
+  if (delta === null || !isFinite(delta)) return null;
+  const up = delta > 0;
+  const flat = delta === 0;
+  const cls = flat
+    ? 'bg-[var(--color-border)]/50 text-[var(--color-text-secondary)]'
+    : up
+      ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'
+      : 'bg-rose-500/10 text-rose-500 dark:text-rose-400';
+  const arrow = flat ? '→' : up ? '↑' : '↓';
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 pb-3 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300 overflow-y-auto overflow-x-hidden">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
-        {title}
-      </h3>
-      <div className="min-h-0 flex-1">{children}</div>
+    <span
+      className={`num inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tracking-tight ${cls}`}
+    >
+      <span aria-hidden="true">{arrow}</span>
+      {Math.abs(delta).toFixed(1)}
+      {suffix}
+    </span>
+  );
+}
+
+// ── Unified widget card (header + toolbar + body slots) ─────────────
+function WidgetCard({
+  title,
+  tooltip,
+  toolbar,
+  headerAccent,
+  children,
+}: {
+  title: string;
+  tooltip?: string;
+  toolbar?: React.ReactNode;
+  headerAccent?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="group relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--card-shadow)] backdrop-blur-sm transition-shadow duration-300 hover:shadow-[var(--card-shadow-hover)]">
+      {headerAccent && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-70"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${headerAccent}, transparent)`,
+          }}
+        />
+      )}
+      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-3">
+        <h3
+          className={`text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-secondary)] ${
+            tooltip ? 'cursor-help' : ''
+          }`}
+          title={tooltip}
+        >
+          {title}
+          {tooltip && (
+            <span aria-hidden="true" className="ml-1 align-baseline opacity-60">
+              ⓘ
+            </span>
+          )}
+        </h3>
+        {toolbar && <div className="flex items-center gap-1">{toolbar}</div>}
+      </div>
+      <div className="min-h-0 flex-1 px-5 pb-5">{children}</div>
     </div>
   );
 }
 
-function SummaryCard({
+// ── Hero KPI card (value + delta + sparkline) ───────────────────────
+function KpiCard({
   label,
   value,
+  delta,
+  deltaSuffix,
+  accent,
+  sparkPoints,
   icon,
 }: {
   label: string;
   value: string;
-  icon: React.ReactNode;
+  delta?: number | null;
+  deltaSuffix?: string;
+  accent: string;
+  sparkPoints?: number[];
+  icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 shadow-[var(--card-shadow)]">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary-subtle)] text-[var(--color-primary)]">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-[var(--card-shadow)] backdrop-blur-sm transition-shadow duration-300 hover:shadow-[var(--card-shadow-hover)]">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-80"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-secondary)]">
           {label}
-        </p>
-        <p className="mt-0.5 text-xl font-bold text-[var(--color-text)] truncate">{value}</p>
+        </span>
+        {icon && (
+          <span
+            className="flex h-7 w-7 items-center justify-center rounded-lg"
+            style={{ backgroundColor: `${accent}15`, color: accent }}
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="num text-3xl font-bold leading-none tracking-[-0.025em] text-[var(--color-text)]">
+          {value}
+        </span>
+        <DeltaPill delta={delta ?? null} suffix={deltaSuffix ?? '%'} />
+      </div>
+      <div className="mt-3 h-8 w-full" style={{ color: accent }}>
+        <Sparkline
+          points={sparkPoints ?? []}
+          stroke={accent}
+          fill={`${accent}22`}
+          className="h-full w-full"
+        />
       </div>
     </div>
   );
@@ -102,11 +199,49 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function pctDelta(curr: number, prev: number): number | null {
+  if (!isFinite(curr) || !isFinite(prev) || prev === 0) return null;
+  return ((curr - prev) / Math.abs(prev)) * 100;
+}
+
+// ── Small icons ──────────────────────────────────────────────────────
+const Icon = {
+  wallet: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 8.5A2.5 2.5 0 015.5 6h13A2.5 2.5 0 0121 8.5V17a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5zM16 13h2"
+      />
+    </svg>
+  ),
+  up: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M15 7h6v6" />
+    </svg>
+  ),
+  down: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l6 6 4-4 8 8M15 17h6v-6" />
+    </svg>
+  ),
+  layers: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3l9 5-9 5-9-5 9-5zm9 9l-9 5-9-5m18 4l-9 5-9-5"
+      />
+    </svg>
+  ),
+};
+
 export function DashboardPage() {
   const api = useApi();
   const navigate = useNavigate();
   const dashboardApi = useMemo(() => createDashboardApi(api), [api]);
   const budgetApi = useMemo(() => createBudgetApi(api), [api]);
+  const upcomingWindowDays = useConfigStore((s) => s.dashboard.upcomingWindowDays);
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [netWorthData, setNetWorthData] = useState<NetWorthPoint[]>([]);
@@ -119,11 +254,7 @@ export function DashboardPage() {
   const [healthData, setHealthData] = useState<HealthScore | null>(null);
   const [upcomingBills, setUpcomingBills] = useState<RecurringGroup[]>([]);
   const [billsMode, setBillsMode] = useState<'expenses' | 'income'>('expenses');
-  const [layouts, setLayouts] = useState<ResponsiveLayouts>(
-    () => loadSavedLayouts() ?? DEFAULT_LAYOUTS,
-  );
   const [loading, setLoading] = useState(true);
-  const { width, containerRef, mounted } = useContainerWidth();
 
   useEffect(() => {
     async function loadData() {
@@ -138,7 +269,7 @@ export function DashboardPage() {
             dashboardApi.getSpending(month),
             budgetApi.getBudgetVsActual(month),
             dashboardApi.getHealthScore(),
-            api.get<RecurringGroup[]>('/api/recurring?upcoming=true&days=30'),
+            api.get<RecurringGroup[]>(`/api/recurring?upcoming=true&days=${upcomingWindowDays}`),
           ]);
 
         if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
@@ -156,7 +287,7 @@ export function DashboardPage() {
     }
 
     void loadData();
-  }, [dashboardApi, budgetApi, api]);
+  }, [dashboardApi, budgetApi, api, upcomingWindowDays]);
 
   useEffect(() => {
     async function loadSpending() {
@@ -164,7 +295,6 @@ export function DashboardPage() {
         const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
         const data = await dashboardApi.getSpending(month);
         setSpendingData(data);
-        // Clear subcategory drill-down when spending mode changes
         setSelectedSpendingCategory(null);
         setSubcategorySpending(null);
       } catch {
@@ -174,22 +304,9 @@ export function DashboardPage() {
     if (!loading) void loadSpending();
   }, [spendingMode, dashboardApi, loading]);
 
-  const handleLayoutChange = useCallback(
-    (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
-      setLayouts(allLayouts);
-      try {
-        localStorage.setItem(LAYOUT_KEY, JSON.stringify(allLayouts));
-      } catch {
-        // ignore storage errors
-      }
-    },
-    [],
-  );
-
   const handleCategoryClick = useCallback(
     async (category: string) => {
       if (category === 'Other') {
-        // "Other" is an aggregate -- navigate instead of drilling down
         navigate(`/transactions?category=${encodeURIComponent(category)}`);
         return;
       }
@@ -210,12 +327,36 @@ export function DashboardPage() {
     setSubcategorySpending(null);
   }, []);
 
+  // ── KPI deltas derived from historical series ──────────────────────
+  const kpi = useMemo(() => {
+    const nw = netWorthData;
+    const last = nw[nw.length - 1];
+    const prev = nw[nw.length - 2];
+    const netWorthDelta = last && prev ? pctDelta(last.total, prev.total) : null;
+    const assetsDelta = last && prev ? pctDelta(last.assets, prev.assets) : null;
+    const liabDelta = last && prev ? pctDelta(last.liabilities, prev.liabilities) : null;
+    const savingsRate = summary?.savings_rate ?? null;
+
+    return {
+      netWorthDelta,
+      assetsDelta,
+      liabDelta,
+      savingsRate: savingsRate !== null ? savingsRate * 100 : null,
+      spark: {
+        total: nw.map((p) => p.total),
+        assets: nw.map((p) => p.assets),
+        liabilities: nw.map((p) => p.liabilities),
+        net: cashflowData.map((m) => m.net),
+      },
+    };
+  }, [netWorthData, cashflowData, summary]);
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center p-6" role="status" aria-live="polite">
         <div className="flex items-center gap-3 text-[var(--color-text-secondary)]">
           <svg
-            className="animate-spin h-5 w-5 text-[var(--color-primary)]"
+            className="h-5 w-5 animate-spin text-[var(--color-primary)]"
             fill="none"
             viewBox="0 0 24 24"
           >
@@ -239,288 +380,290 @@ export function DashboardPage() {
     );
   }
 
+  const toggleBtn = (active: boolean, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+        active
+          ? 'bg-[var(--color-primary)] text-white shadow-sm'
+          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="p-6 lg:p-8" ref={containerRef}>
+    <div className="p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--color-text)] tracking-tight">Dashboard</h1>
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
+          </span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+            Live overview
+          </span>
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">Dashboard</h1>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Your financial overview at a glance
+          Your complete financial picture, updated{' '}
+          <span className="font-medium text-[var(--color-text)]">
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </span>
         </p>
       </div>
 
-      {/* Summary cards */}
+      {/* ── Hero KPI row ─────────────────────────────────────────────── */}
       {summary && (
-        <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <SummaryCard
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
             label="Net Worth"
             value={formatCurrency(summary.net_worth)}
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                />
-              </svg>
-            }
+            delta={kpi.netWorthDelta}
+            accent="#10b981"
+            sparkPoints={kpi.spark.total}
+            icon={Icon.wallet}
           />
-          <SummaryCard
+          <KpiCard
             label="Total Assets"
             value={formatCurrency(summary.total_assets)}
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
-                />
-              </svg>
-            }
+            delta={kpi.assetsDelta}
+            accent="#3B82F6"
+            sparkPoints={kpi.spark.assets}
+            icon={Icon.up}
           />
-          <SummaryCard
+          <KpiCard
             label="Total Liabilities"
             value={formatCurrency(summary.total_liabilities)}
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.511m-3.182 5.51-5.511-3.181"
-                />
-              </svg>
-            }
+            delta={kpi.liabDelta !== null ? -kpi.liabDelta : null}
+            accent="#F59E0B"
+            sparkPoints={kpi.spark.liabilities}
+            icon={Icon.down}
           />
-          <SummaryCard
-            label="Accounts"
-            value={String(summary.account_count ?? 0)}
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"
-                />
-              </svg>
-            }
+          <KpiCard
+            label="Savings Rate"
+            value={kpi.savingsRate !== null ? `${kpi.savingsRate.toFixed(0)}%` : '—'}
+            delta={null}
+            accent="#8B5CF6"
+            sparkPoints={kpi.spark.net}
+            icon={Icon.layers}
           />
         </div>
       )}
 
-      {mounted && (
-        <ResponsiveGridLayout
-          className="layout"
-          width={width}
-          layouts={layouts}
-          breakpoints={{ lg: 1024, md: 768, sm: 0 }}
-          cols={{ lg: 12, md: 12, sm: 12 }}
-          rowHeight={60}
-          margin={[16, 16]}
-          containerPadding={[0, 0]}
-          onLayoutChange={handleLayoutChange}
-          dragConfig={{ handle: '.widget-drag-handle' }}
-        >
-          <div key="net-worth">
-            <WidgetCard title="Net Worth">
-              <div className="widget-drag-handle cursor-grab" />
-              {summary && (
-                <p className="mb-2 text-2xl font-bold text-[var(--color-text)]">
-                  {formatCurrency(summary.net_worth)}
-                </p>
-              )}
-              {netWorthData.length > 0 ? (
+      {/* ── Row 2: Net Worth + Health Score ──────────────────────────── */}
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-4 lg:auto-rows-[340px]">
+        <div className="lg:col-span-3">
+          <WidgetCard
+            title="Net Worth"
+            headerAccent="#10b981"
+            toolbar={
+              <span className="text-[11px] text-[var(--color-text-secondary)]">Last 12 months</span>
+            }
+          >
+            {netWorthData.length > 0 ? (
+              <div className="h-full w-full">
                 <NetWorthChart data={netWorthData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No net worth data yet</p>
-              )}
-            </WidgetCard>
-          </div>
-
-          <div key="health">
-            <WidgetCard title="Financial Health">
-              <div className="widget-drag-handle cursor-grab" />
-              {healthData ? (
-                <HealthScoreGauge data={healthData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  No health score data yet
-                </p>
-              )}
-            </WidgetCard>
-          </div>
-
-          <div key="cashflow">
-            <WidgetCard title="Cash Flow">
-              <div className="widget-drag-handle cursor-grab" />
-              {cashflowData.length > 0 ? (
-                <CashFlowChart data={cashflowData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No cash flow data yet</p>
-              )}
-            </WidgetCard>
-          </div>
-
-          <div key="spending">
-            <WidgetCard title="Spending by Category">
-              <div className="widget-drag-handle cursor-grab" />
-              <div className="mb-2 flex gap-1">
-                <button
-                  onClick={() => setSpendingMode('month')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    spendingMode === 'month'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  This Month
-                </button>
-                <button
-                  onClick={() => setSpendingMode('all')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    spendingMode === 'all'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  All Time
-                </button>
               </div>
-              {spendingData.length > 0 ? (
-                <SpendingDonut
-                  data={spendingData}
-                  onCategoryClick={handleCategoryClick}
-                  selectedCategory={selectedSpendingCategory}
-                  subcategoryData={subcategorySpending}
-                  onDismissSubcategory={handleDismissSubcategory}
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {spendingMode === 'month'
-                    ? 'No spending data for the current month'
-                    : 'No spending data yet'}
-                </p>
-              )}
-            </WidgetCard>
-          </div>
+            ) : (
+              <EmptyState message="No net worth data yet" />
+            )}
+          </WidgetCard>
+        </div>
 
-          <div key="bills">
-            <WidgetCard title="Upcoming">
-              <div className="widget-drag-handle cursor-grab" />
-              <div className="mb-2 flex gap-1">
-                <button
-                  onClick={() => setBillsMode('expenses')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    billsMode === 'expenses'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Expenses
-                </button>
-                <button
-                  onClick={() => setBillsMode('income')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    billsMode === 'income'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Income
-                </button>
-              </div>
-              {(() => {
-                const NON_INCOME_CATEGORIES = new Set(['transfer', 'debt_payment', 'investment']);
-                const filtered = upcomingBills.filter((b) =>
-                  billsMode === 'income'
-                    ? b.avg_amount > 0 && !NON_INCOME_CATEGORIES.has(b.category ?? '')
-                    : b.avg_amount < 0,
-                );
-                return filtered.length > 0 ? (
-                  <ul className="space-y-2">
-                    {filtered.map((bill) => (
-                      <li
-                        key={bill.id}
-                        className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
-                      >
-                        <div>
-                          <span className="text-sm font-medium text-[var(--color-text)]">
-                            {toTitleCase(bill.merchant_name)}
-                          </span>
-                          <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
-                            {bill.next_expected_date
-                              ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
-                              : ''}
-                          </span>
-                        </div>
-                        <span
-                          className={`text-sm font-semibold ${
-                            billsMode === 'income' ? 'text-green-400' : 'text-[var(--color-text)]'
-                          }`}
-                        >
-                          {formatCurrency(Math.abs(bill.avg_amount))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    No upcoming {billsMode}
-                  </p>
-                );
-              })()}
-            </WidgetCard>
-          </div>
+        <div className="lg:col-span-1">
+          <WidgetCard title="Financial Health" headerAccent="#3B82F6">
+            {healthData ? (
+              <HealthScoreGauge data={healthData} />
+            ) : (
+              <EmptyState message="No health score data yet" />
+            )}
+          </WidgetCard>
+        </div>
+      </div>
 
-          <div key="budget">
-            <WidgetCard title="Budget vs Actual">
-              <div className="widget-drag-handle cursor-grab" />
-              {budgetData.length > 0 ? (
-                <div className="space-y-3">
-                  {budgetData.map((b) => (
-                    <BudgetProgress key={b.category} data={b} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  No budget data yet.{' '}
-                  <a
-                    href="/budget"
-                    className="text-[var(--color-primary)] hover:underline font-medium"
-                  >
-                    Set up a budget
-                  </a>
-                </p>
-              )}
-            </WidgetCard>
-          </div>
-        </ResponsiveGridLayout>
-      )}
+      {/* ── Row 3: Cash Flow + Spending Donut ────────────────────────── */}
+      <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:auto-rows-[380px]">
+        <WidgetCard
+          title="Cash Flow"
+          headerAccent="#22C55E"
+          toolbar={
+            <span className="text-[11px] text-[var(--color-text-secondary)]">
+              Income vs. Expenses · Net
+            </span>
+          }
+        >
+          {cashflowData.length > 0 ? (
+            <div className="h-full w-full">
+              <CashFlowChart data={cashflowData} />
+            </div>
+          ) : (
+            <EmptyState message="No cash flow data yet" />
+          )}
+        </WidgetCard>
+
+        <WidgetCard
+          title="Spending by Category"
+          headerAccent="#8B5CF6"
+          toolbar={
+            <div className="flex gap-0.5 rounded-lg bg-[var(--color-surface)] p-0.5">
+              {toggleBtn(spendingMode === 'month', 'Month', () => setSpendingMode('month'))}
+              {toggleBtn(spendingMode === 'all', 'All Time', () => setSpendingMode('all'))}
+            </div>
+          }
+        >
+          {spendingData.length > 0 ? (
+            <SpendingDonut
+              data={spendingData}
+              onCategoryClick={handleCategoryClick}
+              selectedCategory={selectedSpendingCategory}
+              subcategoryData={subcategorySpending}
+              onDismissSubcategory={handleDismissSubcategory}
+            />
+          ) : (
+            <EmptyState
+              message={
+                spendingMode === 'month'
+                  ? 'No spending data for this month'
+                  : 'No spending data yet'
+              }
+            />
+          )}
+        </WidgetCard>
+      </div>
+
+      {/* ── Row 4: Upcoming + Budget ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:auto-rows-[minmax(320px,auto)]">
+        <WidgetCard
+          title="Upcoming"
+          tooltip={`Showing recurring items with a next-expected date within the next ${upcomingWindowDays} day${upcomingWindowDays === 1 ? '' : 's'}.`}
+          headerAccent="#F59E0B"
+          toolbar={
+            <div className="flex gap-0.5 rounded-lg bg-[var(--color-surface)] p-0.5">
+              {toggleBtn(billsMode === 'expenses', 'Expenses', () => setBillsMode('expenses'))}
+              {toggleBtn(billsMode === 'income', 'Income', () => setBillsMode('income'))}
+            </div>
+          }
+        >
+          <UpcomingList bills={upcomingBills} mode={billsMode} windowDays={upcomingWindowDays} />
+        </WidgetCard>
+
+        <WidgetCard
+          title="Budget vs Actual"
+          headerAccent="#EC4899"
+          toolbar={
+            <a
+              href="/budget"
+              className="text-[11px] font-medium text-[var(--color-primary)] hover:underline"
+            >
+              Manage →
+            </a>
+          }
+        >
+          {budgetData.length > 0 ? (
+            <div className="flex h-full flex-col gap-3 overflow-y-auto pr-1">
+              {budgetData.map((b) => (
+                <BudgetProgress key={b.category} data={b} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              message="No budget yet"
+              action={
+                <a
+                  href="/budget"
+                  className="font-medium text-[var(--color-primary)] hover:underline"
+                >
+                  Set up a budget →
+                </a>
+              }
+            />
+          )}
+        </WidgetCard>
+      </div>
     </div>
+  );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function EmptyState({ message, action }: { message: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center">
+      <p className="text-sm text-[var(--color-text-secondary)]">{message}</p>
+      {action}
+    </div>
+  );
+}
+
+function UpcomingList({
+  bills,
+  mode,
+  windowDays,
+}: {
+  bills: RecurringGroup[];
+  mode: 'expenses' | 'income';
+  windowDays: number;
+}) {
+  const NON_INCOME_CATEGORIES = new Set(['transfer', 'debt_payment', 'investment']);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const horizon = new Date(now);
+  horizon.setDate(horizon.getDate() + windowDays);
+  const withinWindow = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d >= now && d <= horizon;
+  };
+  const filtered = bills.filter(
+    (b) =>
+      withinWindow(b.next_expected_date) &&
+      (mode === 'income'
+        ? b.avg_amount > 0 && !NON_INCOME_CATEGORIES.has(b.category ?? '')
+        : b.avg_amount < 0),
+  );
+
+  if (filtered.length === 0) {
+    return <EmptyState message={`No upcoming ${mode}`} />;
+  }
+
+  return (
+    <ul className="flex h-full flex-col gap-1.5 overflow-y-auto pr-1">
+      {filtered.map((bill) => (
+        <li
+          key={bill.id}
+          className="group flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)]/30 px-4 py-2.5 transition-all hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface)]"
+        >
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium text-[var(--color-text)]">
+              {toTitleCase(bill.merchant_name)}
+            </span>
+            <span className="text-[11px] text-[var(--color-text-secondary)]">
+              {bill.next_expected_date
+                ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : ''}
+            </span>
+          </div>
+          <span
+            className={`num shrink-0 text-sm font-semibold ${
+              mode === 'income'
+                ? 'text-emerald-500 dark:text-emerald-400'
+                : 'text-[var(--color-text)]'
+            }`}
+          >
+            {mode === 'income' ? '+' : ''}
+            {formatCurrency(Math.abs(bill.avg_amount))}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

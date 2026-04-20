@@ -64,6 +64,26 @@ body {
   color: var(--color-text);
 }
 
+/* ── Number formatting utility: tabular-nums for aligned digits ── */
+.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    'tnum' 1,
+    'lnum' 1;
+}
+
+/* Large-numeral display style — still Inter, but tight and bold for impact */
+.font-display {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    'tnum' 1,
+    'lnum' 1,
+    'ss01' 1;
+}
+
 /* ── Reusable component classes (theme-aware) ──────────────────── */
 /* Change the accent color once in variables.css; all components follow. */
 

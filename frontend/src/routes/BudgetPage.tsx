@@ -52,7 +52,6 @@ export function BudgetPage() {
   const [goalDate, setGoalDate] = useState('');
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const [budgetRes, budgetListRes, goalsRes] = await Promise.allSettled([
         budgetApi.getBudgetVsActual(month),
@@ -70,8 +69,26 @@ export function BudgetPage() {
   }, [budgetApi, goalsApi, month]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    let ignore = false;
+    (async () => {
+      try {
+        const [budgetRes, budgetListRes, goalsRes] = await Promise.allSettled([
+          budgetApi.getBudgetVsActual(month),
+          budgetApi.listBudgets(month),
+          goalsApi.listGoals(),
+        ]);
+        if (ignore) return;
+        if (budgetRes.status === 'fulfilled') setBudgetData(budgetRes.value);
+        if (budgetListRes.status === 'fulfilled') setBudgets(budgetListRes.value);
+        if (goalsRes.status === 'fulfilled') setGoals(goalsRes.value);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [budgetApi, goalsApi, month]);
 
   const handleAutoSuggest = useCallback(async () => {
     try {

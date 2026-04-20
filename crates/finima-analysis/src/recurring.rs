@@ -70,12 +70,18 @@ pub struct RecurringDetectorConfig {
     pub min_occurrences_for_variable: usize,
     pub variable_window_months: u32,
     pub min_occurrences_for_fixed: usize,
+    /// Minimum span (months) between the first and last observation of a
+    /// candidate before the detector trusts the pattern. Filters out short
+    /// bursts that look cadence-like inside a narrow window but haven't
+    /// been observed long enough to be confidently recurring.
+    pub min_history_months: u32,
 }
 
 impl RecurringDetectorConfig {
     pub const DEFAULT_MIN_OCCURRENCES_FOR_VARIABLE: usize = 3;
     pub const DEFAULT_VARIABLE_WINDOW_MONTHS: u32 = 6;
     pub const DEFAULT_MIN_OCCURRENCES_FOR_FIXED: usize = 3;
+    pub const DEFAULT_MIN_HISTORY_MONTHS: u32 = 6;
 }
 
 impl Default for RecurringDetectorConfig {
@@ -84,6 +90,7 @@ impl Default for RecurringDetectorConfig {
             min_occurrences_for_variable: Self::DEFAULT_MIN_OCCURRENCES_FOR_VARIABLE,
             variable_window_months: Self::DEFAULT_VARIABLE_WINDOW_MONTHS,
             min_occurrences_for_fixed: Self::DEFAULT_MIN_OCCURRENCES_FOR_FIXED,
+            min_history_months: Self::DEFAULT_MIN_HISTORY_MONTHS,
         }
     }
 }
@@ -278,6 +285,27 @@ pub fn detect_recurring_with_config(
             }
         }
 
+        // 6b. Require a minimum pattern span (first→last observation) for
+        //     sub-annual / variable cadences. This rejects short bursts that
+        //     look periodic over a few weeks but haven't been observed long
+        //     enough to be confidently recurring. Semiannual and Annual are
+        //     exempt — by construction they can't reach their own threshold
+        //     without more than a year of history.
+        if matches!(
+            frequency,
+            Frequency::Weekly
+                | Frequency::Biweekly
+                | Frequency::Monthly
+                | Frequency::Quarterly
+                | Frequency::Variable
+        ) {
+            let min_span_days = (config.min_history_months as i64) * 30;
+            let observed_span_days = (last_date - first_date).num_days();
+            if observed_span_days < min_span_days {
+                continue;
+            }
+        }
+
         let next_expected_date =
             nominal_interval(frequency).map(|d| last_date + chrono::Duration::days(d));
 
@@ -315,6 +343,19 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use rust_decimal_macros::dec;
+
+    /// Classification-only harness: disables the history-span floor so
+    /// unit tests can focus on cadence detection with short test fixtures.
+    /// The floor itself is covered by dedicated tests below.
+    fn detect_recurring(txns: &[TransactionForAnalysis]) -> Vec<RecurringGroupCandidate> {
+        detect_recurring_with_config(
+            txns,
+            RecurringDetectorConfig {
+                min_history_months: 0,
+                ..RecurringDetectorConfig::default()
+            },
+        )
+    }
 
     fn txn(id: u128, date: &str, amount: Decimal, merchant: &str) -> TransactionForAnalysis {
         TransactionForAnalysis {
@@ -516,6 +557,9 @@ mod tests {
                 variable_window_months: 6,
                 min_occurrences_for_fixed:
                     RecurringDetectorConfig::DEFAULT_MIN_OCCURRENCES_FOR_FIXED,
+                // Disable the history floor so this test exercises only the
+                // variable-threshold behavior it was written to cover.
+                min_history_months: 0,
             },
         );
         assert!(strict.is_empty());
@@ -524,6 +568,51 @@ mod tests {
         let lenient = detect_recurring(&txns);
         assert_eq!(lenient.len(), 1);
         assert_eq!(lenient[0].frequency, Frequency::Variable);
+    }
+
+    #[test]
+    fn short_span_dropped_under_default_history_floor() {
+        // Three monthly-looking samples inside ~2 months — classifies as
+        // Monthly but falls below the default 6-month history floor, so the
+        // candidate must be rejected.
+        let txns = vec![
+            txn(1, "2025-01-15", dec!(-9.99), "Netflix"),
+            txn(2, "2025-02-15", dec!(-9.99), "Netflix"),
+            txn(3, "2025-03-15", dec!(-9.99), "Netflix"),
+        ];
+        let result = detect_recurring_with_config(&txns, RecurringDetectorConfig::default());
+        assert!(result.is_empty(), "short-span pattern should be dropped");
+    }
+
+    #[test]
+    fn long_span_passes_default_history_floor() {
+        // Seven monthly samples spanning >6 months — the pattern is trusted.
+        let txns = vec![
+            txn(1, "2025-01-15", dec!(-9.99), "Netflix"),
+            txn(2, "2025-02-15", dec!(-9.99), "Netflix"),
+            txn(3, "2025-03-15", dec!(-9.99), "Netflix"),
+            txn(4, "2025-04-15", dec!(-9.99), "Netflix"),
+            txn(5, "2025-05-15", dec!(-9.99), "Netflix"),
+            txn(6, "2025-06-15", dec!(-9.99), "Netflix"),
+            txn(7, "2025-07-15", dec!(-9.99), "Netflix"),
+        ];
+        let result = detect_recurring_with_config(&txns, RecurringDetectorConfig::default());
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].frequency, Frequency::Monthly);
+    }
+
+    #[test]
+    fn history_floor_exempts_annual_cadences() {
+        // Annual and Semiannual patterns are exempt from the history floor —
+        // by definition they need multi-year history to accumulate enough
+        // samples, and the floor would otherwise never let them through.
+        let txns = vec![
+            txn(1, "2024-06-01", dec!(-120.00), "Domain Registrar"),
+            txn(2, "2025-06-01", dec!(-120.00), "Domain Registrar"),
+        ];
+        let result = detect_recurring_with_config(&txns, RecurringDetectorConfig::default());
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].frequency, Frequency::Annual);
     }
 
     #[test]

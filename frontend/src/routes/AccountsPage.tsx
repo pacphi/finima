@@ -55,7 +55,8 @@ export function AccountsPage() {
   const addAccount = usePortfolioStore((s) => s.addAccount);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [fetchingAccounts, setFetchingAccounts] = useState(true);
+  const loading = !!activePortfolioId && fetchingAccounts;
   const [archiving, setArchiving] = useState<string | null>(null);
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
@@ -78,11 +79,7 @@ export function AccountsPage() {
   });
 
   useEffect(() => {
-    if (!activePortfolioId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!activePortfolioId) return;
     let cancelled = false;
     accountApi
       .listAccounts(activePortfolioId)
@@ -91,7 +88,7 @@ export function AccountsPage() {
       })
       .catch(console.error)
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFetchingAccounts(false);
       });
     return () => {
       cancelled = true;

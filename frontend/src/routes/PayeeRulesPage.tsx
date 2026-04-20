@@ -30,7 +30,8 @@ export function PayeeRulesPage() {
 
   const [payees, setPayees] = useState<PayeeSummary[]>([]);
   const [categories, setCategories] = useState<CategoryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
+  const loading = !!activePortfolioId && fetching;
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('merchant_name');
@@ -66,11 +67,7 @@ export function PayeeRulesPage() {
   }, [categories]);
 
   useEffect(() => {
-    if (!activePortfolioId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!activePortfolioId) return;
     Promise.all([payeeApi.listPayeeRules(activePortfolioId), categoryApi.listCategories()])
       .then(([p, c]) => {
         setPayees(p);
@@ -86,7 +83,7 @@ export function PayeeRulesPage() {
         setCategories(sorted);
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => setFetching(false));
   }, [activePortfolioId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const displayLabel = (category: string | null, subcategory?: string | null) => {

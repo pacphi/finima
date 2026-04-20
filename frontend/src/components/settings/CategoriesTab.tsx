@@ -75,8 +75,30 @@ export function CategoriesTab() {
   }, [categoryApi]);
 
   useEffect(() => {
-    void fetchCategories();
-  }, [fetchCategories]);
+    let ignore = false;
+    (async () => {
+      try {
+        const data = await categoryApi.listCategories();
+        if (ignore) return;
+        const sorted = [...data]
+          .sort((a, b) => a.label.localeCompare(b.label))
+          .map((cat) => ({
+            ...cat,
+            subcategories: cat.subcategories
+              ? [...cat.subcategories].sort((a, b) => a.label.localeCompare(b.label))
+              : [],
+          }));
+        setCategories(sorted);
+      } catch (err) {
+        if (!ignore) console.error('Failed to load categories:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [categoryApi]);
 
   // Close row menu on outside click
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -114,17 +136,16 @@ export function CategoriesTab() {
       });
   }, [categories, search, filter]);
 
-  // Auto-expand parents whose subs matched the search
-  useEffect(() => {
-    if (!search.trim()) return;
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      for (const c of filtered) {
-        if ((c as CategoryEntry & { _subHit?: boolean })._subHit) next.add(c.key);
-      }
-      return next;
-    });
-  }, [search, filtered]);
+  // Auto-expand parents whose subs matched the search. Derived during render so
+  // we don't duplicate state into a separate `expanded` set via an effect.
+  const effectiveExpanded = useMemo(() => {
+    if (!search.trim()) return expanded;
+    const next = new Set(expanded);
+    for (const c of filtered) {
+      if ((c as CategoryEntry & { _subHit?: boolean })._subHit) next.add(c.key);
+    }
+    return next;
+  }, [search, filtered, expanded]);
 
   // ── Helpers ─────────────────────────────────────────────────────────
   const showSuccess = (msg: string) => {
@@ -426,7 +447,7 @@ export function CategoriesTab() {
           </thead>
           <tbody className="divide-y divide-[var(--color-border)]">
             {filtered.map((cat) => {
-              const isOpen = expanded.has(cat.key);
+              const isOpen = effectiveExpanded.has(cat.key);
               const subCount = (cat.subcategories ?? []).length;
               const isEditingParent =
                 editing && editing.parentKey === null && editing.key === cat.key;

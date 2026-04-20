@@ -531,3 +531,127 @@ pub async fn purge_account(
 
     Ok(StatusCode::NO_CONTENT)
 }
+
+// ---------------------------------------------------------------------------
+// Balance history
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct BalanceHistoryQuery {
+    /// Bucket granularity. "auto" picks daily / weekly / monthly / yearly
+    /// from the account's transaction date span, mirroring the frontend's
+    /// previous client-side logic. Explicit values let the UI override.
+    #[serde(default = "default_bucket")]
+    pub bucket: String,
+}
+
+fn default_bucket() -> String {
+    "auto".to_string()
+}
+
+#[derive(Debug, Serialize)]
+pub struct BalanceHistoryPoint {
+    pub date: chrono::NaiveDate,
+    pub balance: Decimal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BalanceHistoryResponse {
+    /// The bucket that was actually used. When `bucket=auto` the server
+    /// picks this based on the txn span; callers can echo it back in tick
+    /// formatting decisions.
+    pub bucket: String,
+    pub points: Vec<BalanceHistoryPoint>,
+}
+
+/// GET /api/accounts/:id/balance-history?bucket=auto|daily|weekly|monthly|yearly
+///
+/// Returns the account's balance at the end of each bucket across the full
+/// transaction history. Bucketing and cumulative sums run in Postgres, so
+/// large histories stay fast and the browser gets ~12–60 points instead of
+/// thousands of raw transactions (which the previous client-side chart
+/// couldn't request anyway — the list endpoint clamps `per_page` to 100).
+pub async fn balance_history(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Query(params): Query<BalanceHistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let account = state.account_repo().find_by_id(id).await?;
+    state
+        .portfolio_repo()
+        .verify_ownership(account.portfolio_id, user.user_id)
+        .await?;
+
+    // Resolve the actual bucket. `auto` picks granularity from the txn span
+    // so short histories don't collapse to a single monthly point and very
+    // long ones don't explode to thousands of daily rows.
+    let bucket = match params.bucket.as_str() {
+        "daily" | "weekly" | "monthly" | "yearly" => params.bucket.clone(),
+        _ => {
+            let span: Option<(chrono::NaiveDate, chrono::NaiveDate)> = sqlx::query_as(
+                "SELECT MIN(date), MAX(date) FROM transactions WHERE account_id = $1",
+            )
+            .bind(id)
+            .fetch_optional(state.pool())
+            .await?
+            .and_then(
+                |(lo, hi): (Option<chrono::NaiveDate>, Option<chrono::NaiveDate>)| lo.zip(hi),
+            );
+
+            match span {
+                None => "monthly".to_string(),
+                Some((lo, hi)) => {
+                    let days = (hi - lo).num_days();
+                    if days <= 90 {
+                        "daily".to_string()
+                    } else if days <= 365 {
+                        "weekly".to_string()
+                    } else if days <= 365 * 5 {
+                        "monthly".to_string()
+                    } else {
+                        "yearly".to_string()
+                    }
+                }
+            }
+        }
+    };
+
+    // Map to Postgres `date_trunc` field. `date_trunc('week', d)` returns
+    // Monday; other units are unambiguous.
+    let pg_field = match bucket.as_str() {
+        "daily" => "day",
+        "weekly" => "week",
+        "monthly" => "month",
+        "yearly" => "year",
+        _ => unreachable!("bucket already normalized"),
+    };
+
+    let rows: Vec<(chrono::NaiveDate, Decimal)> = sqlx::query_as(
+        r#"
+        WITH bucketed AS (
+            SELECT date_trunc($1, date)::date AS bucket,
+                   SUM(amount) AS delta
+            FROM transactions
+            WHERE account_id = $2
+            GROUP BY bucket
+        )
+        SELECT bucket,
+               (SELECT opening_balance FROM accounts WHERE id = $2)
+                 + SUM(delta) OVER (ORDER BY bucket) AS balance
+        FROM bucketed
+        ORDER BY bucket
+        "#,
+    )
+    .bind(pg_field)
+    .bind(id)
+    .fetch_all(state.pool())
+    .await?;
+
+    let points = rows
+        .into_iter()
+        .map(|(date, balance)| BalanceHistoryPoint { date, balance })
+        .collect();
+
+    Ok(Json(BalanceHistoryResponse { bucket, points }))
+}

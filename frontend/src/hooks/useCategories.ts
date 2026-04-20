@@ -32,9 +32,18 @@ export function useCategories() {
   }, []);
 
   useEffect(() => {
+    let ignore = false;
+    // If the cache was populated by another hook instance already, resolve on
+    // a microtask so the setState runs asynchronously (satisfies
+    // react-hooks/set-state-in-effect).
     if (cachedCategories && version === cacheVersion) {
-      setCategories(cachedCategories);
-      return;
+      const snapshot = cachedCategories;
+      Promise.resolve().then(() => {
+        if (!ignore) setCategories(snapshot);
+      });
+      return () => {
+        ignore = true;
+      };
     }
     categoryApi
       .listCategories()
@@ -49,9 +58,12 @@ export function useCategories() {
               : cat.subcategories,
           }));
         cachedCategories = sorted;
-        setCategories(sorted);
+        if (!ignore) setCategories(sorted);
       })
       .catch(console.error);
+    return () => {
+      ignore = true;
+    };
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Maps both parent category keys and subcategory keys to their display labels. */

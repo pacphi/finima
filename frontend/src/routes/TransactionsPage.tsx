@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
@@ -27,12 +27,13 @@ export function TransactionsPage() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }]);
-  const [filters, setFilters] = useState<TransactionFilters>(() =>
-    activePortfolioId ? { portfolio_id: activePortfolioId } : {},
-  );
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  // Filters that the user edits directly (search/category pickers/etc.). The
+  // active portfolio and URL deep-link parameters are merged on top during
+  // render so we never duplicate that state into an effect.
+  const [userFilters, setUserFilters] = useState<TransactionFilters>({});
+  const [fetchedAccounts, setFetchedAccounts] = useState<Account[]>([]);
+  const accounts = storedAccounts.length > 0 ? storedAccounts : fetchedAccounts;
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Transaction[] | null>(null);
@@ -46,48 +47,76 @@ export function TransactionsPage() {
   } | null>(null);
   const categorizePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // When activePortfolioId becomes available, inject it into filters so the
-  // global transactions view fetches across all accounts in the portfolio.
-  useEffect(() => {
-    if (activePortfolioId) {
-      setFilters((prev) => ({ ...prev, portfolio_id: activePortfolioId }));
-    }
-  }, [activePortfolioId]);
-
-  // Deep-link support: read ?category=&date_from=&date_to=&account_id=
-  // from the URL on mount (and whenever they change) and merge into the
-  // filter state. Enables FlowsPage's "View" action on category rows to
-  // drop the user here with the correct filter pre-applied.
-  const [searchParams] = useSearchParams();
-  useEffect(() => {
-    const category = searchParams.get('category') ?? undefined;
-    const date_from = searchParams.get('date_from') ?? undefined;
-    const date_to = searchParams.get('date_to') ?? undefined;
-    const account_id = searchParams.get('account_id') ?? undefined;
-    if (!category && !date_from && !date_to && !account_id) return;
-    setFilters((prev) => ({
-      ...prev,
-      ...(category !== undefined ? { category } : {}),
-      ...(date_from !== undefined ? { date_from } : {}),
-      ...(date_to !== undefined ? { date_to } : {}),
-      ...(account_id !== undefined ? { account_id } : {}),
-    }));
-    setPage(1);
+  // Deep-link support: ?category=&date_from=&date_to=&account_id= merged from
+  // the URL into `filters` during render (no state duplication, no effect).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlFilters = useMemo<TransactionFilters>(() => {
+    const f: TransactionFilters = {};
+    const category = searchParams.get('category');
+    const date_from = searchParams.get('date_from');
+    const date_to = searchParams.get('date_to');
+    const account_id = searchParams.get('account_id');
+    if (category != null) f.category = category;
+    if (date_from != null) f.date_from = date_from;
+    if (date_to != null) f.date_to = date_to;
+    if (account_id != null) f.account_id = account_id;
+    return f;
   }, [searchParams]);
+  const urlKey = useMemo(
+    () =>
+      ['category', 'date_from', 'date_to', 'account_id']
+        .map((k) => searchParams.get(k) ?? '')
+        .join('|'),
+    [searchParams],
+  );
 
+  // Page lives alongside the URL key so it resets whenever the deep-link
+  // filters change, without an effect that would sync-update state.
+  const [pageState, setPageState] = useState<{ page: number; key: string }>({
+    page: 1,
+    key: urlKey,
+  });
+  const page = pageState.key === urlKey ? pageState.page : 1;
+  const setPage = useCallback(
+    (next: number | ((p: number) => number)) =>
+      setPageState((prev) => {
+        const basePage = prev.key === urlKey ? prev.page : 1;
+        const resolved = typeof next === 'function' ? next(basePage) : next;
+        return { page: resolved, key: urlKey };
+      }),
+    [urlKey],
+  );
+
+  // URL is the source of truth for deep-linkable filter keys (category,
+  // date_from, date_to, account_id). Non-URL keys live in userFilters.
+  const filters = useMemo<TransactionFilters>(
+    () => ({
+      ...userFilters,
+      ...urlFilters,
+      ...(activePortfolioId ? { portfolio_id: activePortfolioId } : {}),
+    }),
+    [userFilters, urlFilters, activePortfolioId],
+  );
+
+  // Fetch accounts from the API only if the portfolio store hasn't cached them.
   useEffect(() => {
-    if (storedAccounts.length > 0) {
-      setAccounts(storedAccounts);
-    } else if (activePortfolioId) {
-      accountApi.listAccounts(activePortfolioId).then(setAccounts).catch(console.error);
-    }
+    if (storedAccounts.length > 0 || !activePortfolioId) return;
+    let ignore = false;
+    accountApi
+      .listAccounts(activePortfolioId)
+      .then((a) => {
+        if (!ignore) setFetchedAccounts(a);
+      })
+      .catch(console.error);
+    return () => {
+      ignore = true;
+    };
   }, [activePortfolioId, storedAccounts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTransactions = useCallback(async () => {
     // The backend requires at least portfolio_id or account_id.
     if (!filters.portfolio_id && !filters.account_id) return;
 
-    setLoading(true);
     try {
       const sortCol = sorting[0];
       const result = await txApi.listTransactions(
@@ -106,8 +135,30 @@ export function TransactionsPage() {
   }, [filters, page, sorting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
+    if (!filters.portfolio_id && !filters.account_id) return;
+    let ignore = false;
+    (async () => {
+      try {
+        const sortCol = sorting[0];
+        const result = await txApi.listTransactions(
+          filters,
+          { page, per_page: PER_PAGE },
+          sortCol ? { sort_by: sortCol.id, sort_dir: sortCol.desc ? 'desc' : 'asc' } : undefined,
+        );
+        if (ignore) return;
+        const response = result as PaginatedResponse<Transaction>;
+        setTransactions(response.data);
+        setTotal(response.total);
+      } catch (err) {
+        if (!ignore) console.error('Failed to load transactions:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [filters, page, sorting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCategoryChange = async (
     transactionId: string,
@@ -352,7 +403,22 @@ export function TransactionsPage() {
           onSortingChange={setSorting}
           onPageChange={setPage}
           onFiltersChange={(f) => {
-            setFilters(activePortfolioId ? { ...f, portfolio_id: activePortfolioId } : f);
+            // Deep-linkable filter keys are persisted to the URL (shareable /
+            // back-button friendly). The rest live in local state.
+            setSearchParams((sp) => {
+              const updated = new URLSearchParams(sp);
+              for (const key of ['category', 'date_from', 'date_to', 'account_id'] as const) {
+                const val = f[key];
+                if (val) updated.set(key, val);
+                else updated.delete(key);
+              }
+              return updated;
+            });
+            const rest: TransactionFilters = {};
+            if (f.search) rest.search = f.search;
+            if (f.amount_min != null) rest.amount_min = f.amount_min;
+            if (f.amount_max != null) rest.amount_max = f.amount_max;
+            setUserFilters(rest);
             setPage(1);
           }}
           onCategoryChange={handleCategoryChange}

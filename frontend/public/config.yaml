@@ -10,3 +10,9 @@ defaults:
   currency: "USD"
   date_format: "MM/DD/YYYY"
   theme: "system"
+
+dashboard:
+  # Sliding window (in days) used by the Dashboard's "Upcoming" tile to
+  # filter recurring bills and income by `next_expected_date`. Keep this
+  # small so the tile surfaces only items due imminently.
+  upcoming_window_days: 7

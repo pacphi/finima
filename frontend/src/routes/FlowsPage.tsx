@@ -107,7 +107,6 @@ function DetectedFlowsTab({
   const [loading, setLoading] = useState(true);
 
   const loadFlows = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await flowApi.listFlows(month);
       setFlows(data);
@@ -119,8 +118,21 @@ function DetectedFlowsTab({
   }, [flowApi, month]);
 
   useEffect(() => {
-    void loadFlows();
-  }, [loadFlows]);
+    let ignore = false;
+    (async () => {
+      try {
+        const data = await flowApi.listFlows(month);
+        if (!ignore) setFlows(data);
+      } catch {
+        // ignore
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [flowApi, month]);
 
   const handleConfirm = useCallback(
     async (id: string) => {
@@ -402,32 +414,33 @@ function BalanceImpactTab({
   flowApi: ReturnType<typeof createFlowApi>;
   accounts: Account[];
 }) {
-  const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [selectedOverride, setSelectedOverride] = useState<string | null>(null);
   const [waterfallData, setWaterfallData] = useState<WaterfallData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Pre-select the primary income account, or first account.
-  useEffect(() => {
-    if (selectedAccount || accounts.length === 0) return;
+  // Default to the primary income account (or first account) unless the user picks another.
+  const defaultAccountId = useMemo(() => {
     const primary = accounts.find((a) => a.is_primary_income);
-    const first = primary ?? accounts[0];
-    if (first) setSelectedAccount(first.id);
-  }, [accounts, selectedAccount]);
+    return (primary ?? accounts[0])?.id ?? '';
+  }, [accounts]);
+  const selectedAccount = selectedOverride ?? defaultAccountId;
 
   useEffect(() => {
     if (!selectedAccount) return;
-    async function load() {
-      setLoading(true);
+    let ignore = false;
+    (async () => {
       try {
         const data = await flowApi.getBalanceImpact(month, selectedAccount);
-        setWaterfallData(data);
+        if (!ignore) setWaterfallData(data);
       } catch {
-        setWaterfallData(null);
+        if (!ignore) setWaterfallData(null);
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
-    }
-    void load();
+    })();
+    return () => {
+      ignore = true;
+    };
   }, [month, selectedAccount, flowApi]);
 
   return (
@@ -442,7 +455,7 @@ function BalanceImpactTab({
         <select
           id="balance-impact-account"
           value={selectedAccount}
-          onChange={(e) => setSelectedAccount(e.target.value)}
+          onChange={(e) => setSelectedOverride(e.target.value)}
           className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)]"
         >
           {accounts.map((a) => (
@@ -480,7 +493,6 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
   const [editName, setEditName] = useState('');
 
   const loadGroups = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await flowApi.listFlowGroups();
       setGroups(data);
@@ -492,8 +504,21 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
   }, [flowApi]);
 
   useEffect(() => {
-    void loadGroups();
-  }, [loadGroups]);
+    let ignore = false;
+    (async () => {
+      try {
+        const data = await flowApi.listFlowGroups();
+        if (!ignore) setGroups(data);
+      } catch {
+        // ignore
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [flowApi]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;

@@ -19,3 +19,9 @@ recurring:
   min_occurrences_for_variable: 3
   variable_window_months: 6
   min_occurrences_for_fixed: 3
+  # Minimum span (months) between a candidate's first and last observation
+  # before a sub-annual/variable cadence is trusted. Guards against short
+  # bursts whose median interval happens to look periodic. Semiannual and
+  # annual cadences are exempt (they can't reach their own thresholds
+  # without more than a year of history).
+  min_history_months: 6
