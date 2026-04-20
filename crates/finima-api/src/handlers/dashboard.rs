@@ -425,13 +425,11 @@ pub async fn get_subcategory_spending(
                 .chain(f.target_transaction_id)
         })
         .collect();
-    let transfer_categories: std::collections::HashSet<&str> = state
-        .config()
-        .sankey
-        .transfer_categories
-        .iter()
-        .map(String::as_str)
-        .collect();
+    // Intentionally NOT filtering by `sankey.transfer_categories` here:
+    // the main donut surfaces categories like `debt_payment` (which the
+    // Sankey excludes to avoid double-counting against spending), and
+    // when a user explicitly drills into one of those categories they
+    // expect to see its subcategory breakdown rather than an empty chart.
 
     let mut by_subcategory: std::collections::HashMap<String, Decimal> =
         std::collections::HashMap::new();
@@ -446,9 +444,6 @@ pub async fn get_subcategory_spending(
         }
         let cat = row.category.as_deref().unwrap_or("");
         if cat != params.category {
-            continue;
-        }
-        if transfer_categories.contains(cat) {
             continue;
         }
         let sub = row

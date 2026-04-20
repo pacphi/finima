@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate, toTitleCase } from '@/utils/format';
 import { useCategories, categoryLabel } from '@/hooks/useCategories';
@@ -25,22 +25,25 @@ export function RecurringPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('expense');
 
-  const loadRecurring = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.get<RecurringGroup[]>('/api/recurring');
-      setGroups(data);
-    } catch {
-      setError('Failed to load recurring payments.');
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
-
   useEffect(() => {
-    void loadRecurring();
-  }, [loadRecurring]);
+    let ignore = false;
+    (async () => {
+      try {
+        const data = await api.get<RecurringGroup[]>('/api/recurring');
+        if (!ignore) {
+          setGroups(data);
+          setError(null);
+        }
+      } catch {
+        if (!ignore) setError('Failed to load recurring payments.');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [api]);
 
   const handleSort = (field: SortField) => {
     if (sortBy === field) {

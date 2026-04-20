@@ -71,6 +71,21 @@ export function createAccountApi(api: {
 
     setPrimary: (id: string) => api.post<Account>(`/api/accounts/${id}/set-primary`),
 
+    /** Fetch the account's balance-at-end-of-bucket series across its full
+     *  transaction history. Bucketing and running sums run in Postgres, so
+     *  the response is already chart-sized (~12–60 points). Pass
+     *  `bucket="auto"` (default) to let the server pick granularity from the
+     *  txn span; override with daily/weekly/monthly/yearly when the UI
+     *  exposes a toggle. */
+    getBalanceHistory: (
+      id: string,
+      bucket: 'auto' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'auto',
+    ) =>
+      api.get<{
+        bucket: 'daily' | 'weekly' | 'monthly' | 'yearly';
+        points: { date: string; balance: number | string }[];
+      }>(`/api/accounts/${id}/balance-history?bucket=${bucket}`),
+
     /** Set or clear the per-account sign-convention override. Pass
      *  `null` to clear and fall back to the default resolution chain.
      *  Triggers server-side re-normalization of every transaction on

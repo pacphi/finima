@@ -6,11 +6,11 @@ covers selection, configuration, and operational tuning.
 
 ## Backends
 
-| Backend  | Use case                                         | Deps                                  | Setup                                |
-| -------- | ------------------------------------------------ | ------------------------------------- | ------------------------------------ |
-| `none`   | CI / tests / BYO vectors                         | none                                  | always available                     |
-| `ollama` | Local HTTP — reuses the existing Ollama service  | `reqwest`                             | run `ollama pull nomic-embed-text`   |
-| `candle` | Local in-process BertModel                       | `candle-*`, `hf-hub`, `tokenizers`    | first run downloads the model        |
+| Backend  | Use case                                        | Deps                               | Setup                              |
+| -------- | ----------------------------------------------- | ---------------------------------- | ---------------------------------- |
+| `none`   | CI / tests / BYO vectors                        | none                               | always available                   |
+| `ollama` | Local HTTP — reuses the existing Ollama service | `reqwest`                          | run `ollama pull nomic-embed-text` |
+| `candle` | Local in-process BertModel                      | `candle-*`, `hf-hub`, `tokenizers` | first run downloads the model      |
 
 No external / paid providers are supported (OpenAI, Cohere, etc.)
 by design.
@@ -44,17 +44,17 @@ make start LLM=none EMBEDDER=candle-metal   # Apple Silicon acceleration
 categorize:
   # ... tier 0/1 settings ...
   tier2:
-    backend: jaccard           # jaccard | ruvector
-    dim: 384                   # must match embedder.dim for ruvector
+    backend: jaccard # jaccard | ruvector
+    dim: 384 # must match embedder.dim for ruvector
     hnsw_m: 32
     hnsw_ef_construction: 200
     hnsw_ef_search: 100
     bootstrap_on_start: true
-    bootstrap_max_examples: 0  # 0 = unbounded
+    bootstrap_max_examples: 0 # 0 = unbounded
 
 embedder:
-  backend: none                # none | ollama | candle
-  dim: 384                     # must match categorize.tier2.dim for RuVector
+  backend: none # none | ollama | candle
+  dim: 384 # must match categorize.tier2.dim for RuVector
   ollama:
     url: http://localhost:11434
     model: nomic-embed-text

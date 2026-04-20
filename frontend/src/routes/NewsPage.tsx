@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { useHealthStore } from '@/stores/healthStore';
 
@@ -50,39 +50,29 @@ export function NewsPage() {
   const [activeTopic, setActiveTopic] = useState('All');
   const [loading, setLoading] = useState(false);
 
-  // Keep a stable ref to `api` so the fetch callback doesn't depend on it.
-  const apiRef = useRef(api);
-  apiRef.current = api;
-
-  const fetchArticles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const topicParam = activeTopic === 'All' ? '' : `&topic=${activeTopic.toLowerCase()}`;
-      const result = await apiRef.current.get<FeedResponse>(
-        `/api/feed?page=${page}&per_page=${PER_PAGE}${topicParam}`,
-      );
-      setArticles(result.data);
-      setTotal(result.total);
-    } catch (err) {
-      console.error('Failed to fetch feed:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, activeTopic]);
-
-  // Fetch on page/topic change.
+  // Fetch on page/topic change, and re-fetch once when the feed cache becomes ready.
+  // `api` is stable (useApi returns a memoized object), so including it in deps is safe.
   useEffect(() => {
-    void fetchArticles();
-  }, [fetchArticles]);
-
-  // Re-fetch once when the feed cache finishes its initial load.
-  const prevFeedStatus = useRef(feedStatus);
-  useEffect(() => {
-    if (prevFeedStatus.current === 'loading' && feedStatus === 'ready') {
-      void fetchArticles();
-    }
-    prevFeedStatus.current = feedStatus;
-  }, [feedStatus, fetchArticles]);
+    let ignore = false;
+    (async () => {
+      try {
+        const topicParam = activeTopic === 'All' ? '' : `&topic=${activeTopic.toLowerCase()}`;
+        const result = await api.get<FeedResponse>(
+          `/api/feed?page=${page}&per_page=${PER_PAGE}${topicParam}`,
+        );
+        if (ignore) return;
+        setArticles(result.data);
+        setTotal(result.total);
+      } catch (err) {
+        if (!ignore) console.error('Failed to fetch feed:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [api, page, activeTopic, feedStatus]);
 
   const handleTopicChange = (topic: string) => {
     setArticles([]);
@@ -144,7 +134,7 @@ export function NewsPage() {
       {/* Article card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {articles.map((article) => (
-          <ArticleCard key={article.id} article={article} api={apiRef.current} />
+          <ArticleCard key={article.id} article={article} api={api} />
         ))}
       </div>
 

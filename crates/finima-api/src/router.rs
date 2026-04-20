@@ -307,7 +307,8 @@ pub fn build_router(
         .route(
             "/{id}/purge",
             axum::routing::delete(accounts::purge_account),
-        );
+        )
+        .route("/{id}/balance-history", get(accounts::balance_history));
 
     // Upload routes (authentication required) — 50 MB body limit for file uploads
     let upload_routes = Router::new()

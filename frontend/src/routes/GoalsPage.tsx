@@ -19,7 +19,6 @@ export function GoalsPage() {
   const [goalContribution, setGoalContribution] = useState('');
 
   const loadGoals = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await goalsApi.listGoals();
       setGoals(data);
@@ -31,8 +30,21 @@ export function GoalsPage() {
   }, [goalsApi]);
 
   useEffect(() => {
-    void loadGoals();
-  }, [loadGoals]);
+    let ignore = false;
+    (async () => {
+      try {
+        const data = await goalsApi.listGoals();
+        if (!ignore) setGoals(data);
+      } catch {
+        // ignore
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [goalsApi]);
 
   const handleCreate = useCallback(async () => {
     const target = parseFloat(goalTarget);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ResponsiveGridLayout, useContainerWidth } from 'react-grid-layout';
 import { useApi } from '@/hooks/useApi';
+import { useConfigStore } from '@/stores/configStore';
 import { createDashboardApi } from '@/api/dashboard';
 import { createBudgetApi } from '@/api/budgets';
 import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
@@ -20,55 +20,39 @@ import type {
   HealthScore,
   RecurringGroup,
 } from '@/types/models';
-import type { ResponsiveLayouts, Layout } from 'react-grid-layout';
-import 'react-grid-layout/css/styles.css';
 
-const LAYOUT_KEY = 'finima-dashboard-layout';
-
-const DEFAULT_LAYOUTS: ResponsiveLayouts = {
-  lg: [
-    { i: 'net-worth', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'health', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'cashflow', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'spending', x: 6, y: 4, w: 6, h: 5, minW: 4, minH: 3 },
-    { i: 'bills', x: 0, y: 8, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'budget', x: 6, y: 9, w: 6, h: 5, minW: 4, minH: 3 },
-  ],
-  md: [
-    { i: 'net-worth', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'health', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'cashflow', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'spending', x: 6, y: 4, w: 6, h: 5, minW: 4, minH: 3 },
-    { i: 'bills', x: 0, y: 8, w: 6, h: 4, minW: 4, minH: 3 },
-    { i: 'budget', x: 6, y: 9, w: 6, h: 5, minW: 4, minH: 3 },
-  ],
-  sm: [
-    { i: 'net-worth', x: 0, y: 0, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'health', x: 0, y: 4, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'cashflow', x: 0, y: 8, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'spending', x: 0, y: 12, w: 12, h: 5, minW: 12, minH: 3 },
-    { i: 'bills', x: 0, y: 17, w: 12, h: 4, minW: 12, minH: 3 },
-    { i: 'budget', x: 0, y: 21, w: 12, h: 5, minW: 12, minH: 3 },
-  ],
-};
-
-function loadSavedLayouts(): ResponsiveLayouts | null {
-  try {
-    const saved = localStorage.getItem(LAYOUT_KEY);
-    if (saved) return JSON.parse(saved) as ResponsiveLayouts;
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function WidgetCard({ title, children }: { title: string; children: React.ReactNode }) {
+function WidgetCard({
+  title,
+  tooltip,
+  children,
+}: {
+  title: string;
+  tooltip?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm p-5 pb-3 shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300 overflow-y-auto overflow-x-hidden">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)]">
-        {title}
-      </h3>
-      <div className="min-h-0 flex-1">{children}</div>
+    <div className="relative flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] backdrop-blur-sm shadow-[var(--card-shadow)] hover:shadow-[var(--card-shadow-hover)] transition-shadow duration-300 overflow-hidden">
+      <div className="sticky top-0 z-10 bg-[var(--color-card)]/95 backdrop-blur-sm px-5 pt-5 pb-2 border-b border-[var(--color-border)]/40">
+        <h3
+          className={`text-xs font-semibold uppercase tracking-widest text-[var(--color-text-secondary)] ${
+            tooltip ? 'cursor-help' : ''
+          }`}
+          title={tooltip}
+        >
+          {title}
+          {tooltip && (
+            <span
+              aria-hidden="true"
+              className="ml-1 align-baseline text-[var(--color-text-secondary)]/70"
+            >
+              {/* info glyph hints that hovering reveals criteria */}ⓘ
+            </span>
+          )}
+        </h3>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pt-3 pb-3">
+        {children}
+      </div>
     </div>
   );
 }
@@ -107,6 +91,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const dashboardApi = useMemo(() => createDashboardApi(api), [api]);
   const budgetApi = useMemo(() => createBudgetApi(api), [api]);
+  const upcomingWindowDays = useConfigStore((s) => s.dashboard.upcomingWindowDays);
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [netWorthData, setNetWorthData] = useState<NetWorthPoint[]>([]);
@@ -119,11 +104,7 @@ export function DashboardPage() {
   const [healthData, setHealthData] = useState<HealthScore | null>(null);
   const [upcomingBills, setUpcomingBills] = useState<RecurringGroup[]>([]);
   const [billsMode, setBillsMode] = useState<'expenses' | 'income'>('expenses');
-  const [layouts, setLayouts] = useState<ResponsiveLayouts>(
-    () => loadSavedLayouts() ?? DEFAULT_LAYOUTS,
-  );
   const [loading, setLoading] = useState(true);
-  const { width, containerRef, mounted } = useContainerWidth();
 
   useEffect(() => {
     async function loadData() {
@@ -138,7 +119,7 @@ export function DashboardPage() {
             dashboardApi.getSpending(month),
             budgetApi.getBudgetVsActual(month),
             dashboardApi.getHealthScore(),
-            api.get<RecurringGroup[]>('/api/recurring?upcoming=true&days=30'),
+            api.get<RecurringGroup[]>(`/api/recurring?upcoming=true&days=${upcomingWindowDays}`),
           ]);
 
         if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
@@ -156,7 +137,7 @@ export function DashboardPage() {
     }
 
     void loadData();
-  }, [dashboardApi, budgetApi, api]);
+  }, [dashboardApi, budgetApi, api, upcomingWindowDays]);
 
   useEffect(() => {
     async function loadSpending() {
@@ -173,18 +154,6 @@ export function DashboardPage() {
     }
     if (!loading) void loadSpending();
   }, [spendingMode, dashboardApi, loading]);
-
-  const handleLayoutChange = useCallback(
-    (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
-      setLayouts(allLayouts);
-      try {
-        localStorage.setItem(LAYOUT_KEY, JSON.stringify(allLayouts));
-      } catch {
-        // ignore storage errors
-      }
-    },
-    [],
-  );
 
   const handleCategoryClick = useCallback(
     async (category: string) => {
@@ -240,7 +209,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8" ref={containerRef}>
+    <div className="p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-[var(--color-text)] tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
@@ -330,197 +299,200 @@ export function DashboardPage() {
         </div>
       )}
 
-      {mounted && (
-        <ResponsiveGridLayout
-          className="layout"
-          width={width}
-          layouts={layouts}
-          breakpoints={{ lg: 1024, md: 768, sm: 0 }}
-          cols={{ lg: 12, md: 12, sm: 12 }}
-          rowHeight={60}
-          margin={[16, 16]}
-          containerPadding={[0, 0]}
-          onLayoutChange={handleLayoutChange}
-          dragConfig={{ handle: '.widget-drag-handle' }}
-        >
-          <div key="net-worth">
-            <WidgetCard title="Net Worth">
-              <div className="widget-drag-handle cursor-grab" />
-              {summary && (
-                <p className="mb-2 text-2xl font-bold text-[var(--color-text)]">
-                  {formatCurrency(summary.net_worth)}
-                </p>
-              )}
-              {netWorthData.length > 0 ? (
-                <NetWorthChart data={netWorthData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No net worth data yet</p>
-              )}
-            </WidgetCard>
-          </div>
+      {/*
+        Widget rows share the KPI grid (grid-cols-4 on lg, gap-4) so tile
+        edges line up with the four summary cards above. Tiles fill every
+        column — no empty space under the 4th KPI.
+          Row 2: Net Worth (2 cols, chart-heavy) · Financial Health (1) · Upcoming (1)
+          Row 3: Cash Flow (2) · Spending by Category (2)
+          Row 4: Budget vs Actual (4, full width)
+        Heights are uniform per row via grid-auto-rows so the tiles line up
+        visually instead of shrink-wrapping content.
+      */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[minmax(360px,auto)]">
+        <div className="sm:col-span-2 lg:col-span-2">
+          <WidgetCard title="Net Worth">
+            {summary && (
+              <p className="mb-2 text-2xl font-bold text-[var(--color-text)]">
+                {formatCurrency(summary.net_worth)}
+              </p>
+            )}
+            {netWorthData.length > 0 ? (
+              <NetWorthChart data={netWorthData} />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">No net worth data yet</p>
+            )}
+          </WidgetCard>
+        </div>
 
-          <div key="health">
-            <WidgetCard title="Financial Health">
-              <div className="widget-drag-handle cursor-grab" />
-              {healthData ? (
-                <HealthScoreGauge data={healthData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  No health score data yet
-                </p>
-              )}
-            </WidgetCard>
-          </div>
+        <div className="sm:col-span-1 lg:col-span-1">
+          <WidgetCard title="Financial Health">
+            {healthData ? (
+              <HealthScoreGauge data={healthData} />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">No health score data yet</p>
+            )}
+          </WidgetCard>
+        </div>
 
-          <div key="cashflow">
-            <WidgetCard title="Cash Flow">
-              <div className="widget-drag-handle cursor-grab" />
-              {cashflowData.length > 0 ? (
-                <CashFlowChart data={cashflowData} />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">No cash flow data yet</p>
-              )}
-            </WidgetCard>
-          </div>
-
-          <div key="spending">
-            <WidgetCard title="Spending by Category">
-              <div className="widget-drag-handle cursor-grab" />
-              <div className="mb-2 flex gap-1">
-                <button
-                  onClick={() => setSpendingMode('month')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    spendingMode === 'month'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  This Month
-                </button>
-                <button
-                  onClick={() => setSpendingMode('all')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    spendingMode === 'all'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  All Time
-                </button>
-              </div>
-              {spendingData.length > 0 ? (
-                <SpendingDonut
-                  data={spendingData}
-                  onCategoryClick={handleCategoryClick}
-                  selectedCategory={selectedSpendingCategory}
-                  subcategoryData={subcategorySpending}
-                  onDismissSubcategory={handleDismissSubcategory}
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {spendingMode === 'month'
-                    ? 'No spending data for the current month'
-                    : 'No spending data yet'}
-                </p>
-              )}
-            </WidgetCard>
-          </div>
-
-          <div key="bills">
-            <WidgetCard title="Upcoming">
-              <div className="widget-drag-handle cursor-grab" />
-              <div className="mb-2 flex gap-1">
-                <button
-                  onClick={() => setBillsMode('expenses')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    billsMode === 'expenses'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Expenses
-                </button>
-                <button
-                  onClick={() => setBillsMode('income')}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-                    billsMode === 'income'
-                      ? 'bg-[var(--color-primary)] text-white'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Income
-                </button>
-              </div>
-              {(() => {
-                const NON_INCOME_CATEGORIES = new Set(['transfer', 'debt_payment', 'investment']);
-                const filtered = upcomingBills.filter((b) =>
+        <div className="sm:col-span-1 lg:col-span-1">
+          <WidgetCard
+            title="Upcoming"
+            tooltip={`Showing recurring items with a next-expected date within the next ${upcomingWindowDays} day${upcomingWindowDays === 1 ? '' : 's'}.`}
+          >
+            <div className="mb-2 flex gap-1">
+              <button
+                onClick={() => setBillsMode('expenses')}
+                className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                  billsMode === 'expenses'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Expenses
+              </button>
+              <button
+                onClick={() => setBillsMode('income')}
+                className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
                   billsMode === 'income'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Income
+              </button>
+            </div>
+            {(() => {
+              const NON_INCOME_CATEGORIES = new Set(['transfer', 'debt_payment', 'investment']);
+              const now = new Date();
+              now.setHours(0, 0, 0, 0);
+              const horizon = new Date(now);
+              horizon.setDate(horizon.getDate() + upcomingWindowDays);
+              const withinWindow = (dateStr?: string | null) => {
+                if (!dateStr) return false;
+                const d = new Date(dateStr);
+                return d >= now && d <= horizon;
+              };
+              const filtered = upcomingBills.filter(
+                (b) =>
+                  withinWindow(b.next_expected_date) &&
+                  (billsMode === 'income'
                     ? b.avg_amount > 0 && !NON_INCOME_CATEGORIES.has(b.category ?? '')
-                    : b.avg_amount < 0,
-                );
-                return filtered.length > 0 ? (
-                  <ul className="space-y-2">
-                    {filtered.map((bill) => (
-                      <li
-                        key={bill.id}
-                        className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
-                      >
-                        <div>
-                          <span className="text-sm font-medium text-[var(--color-text)]">
-                            {toTitleCase(bill.merchant_name)}
-                          </span>
-                          <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
-                            {bill.next_expected_date
-                              ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
-                              : ''}
-                          </span>
-                        </div>
-                        <span
-                          className={`text-sm font-semibold ${
-                            billsMode === 'income' ? 'text-green-400' : 'text-[var(--color-text)]'
-                          }`}
-                        >
-                          {formatCurrency(Math.abs(bill.avg_amount))}
+                    : b.avg_amount < 0),
+              );
+              return filtered.length > 0 ? (
+                <ul className="space-y-2">
+                  {filtered.map((bill) => (
+                    <li
+                      key={bill.id}
+                      className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
+                    >
+                      <div>
+                        <span className="text-sm font-medium text-[var(--color-text)]">
+                          {toTitleCase(bill.merchant_name)}
                         </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    No upcoming {billsMode}
-                  </p>
-                );
-              })()}
-            </WidgetCard>
-          </div>
-
-          <div key="budget">
-            <WidgetCard title="Budget vs Actual">
-              <div className="widget-drag-handle cursor-grab" />
-              {budgetData.length > 0 ? (
-                <div className="space-y-3">
-                  {budgetData.map((b) => (
-                    <BudgetProgress key={b.category} data={b} />
+                        <span className="ml-2 text-xs text-[var(--color-text-secondary)]">
+                          {bill.next_expected_date
+                            ? new Date(bill.next_expected_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : ''}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-sm font-semibold ${
+                          billsMode === 'income' ? 'text-green-400' : 'text-[var(--color-text)]'
+                        }`}
+                      >
+                        {formatCurrency(Math.abs(bill.avg_amount))}
+                      </span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : (
                 <p className="text-sm text-[var(--color-text-secondary)]">
-                  No budget data yet.{' '}
-                  <a
-                    href="/budget"
-                    className="text-[var(--color-primary)] hover:underline font-medium"
-                  >
-                    Set up a budget
-                  </a>
+                  No upcoming {billsMode}
                 </p>
-              )}
-            </WidgetCard>
-          </div>
-        </ResponsiveGridLayout>
-      )}
+              );
+            })()}
+          </WidgetCard>
+        </div>
+
+        <div className="sm:col-span-2 lg:col-span-2">
+          <WidgetCard title="Cash Flow">
+            {cashflowData.length > 0 ? (
+              <CashFlowChart data={cashflowData} />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">No cash flow data yet</p>
+            )}
+          </WidgetCard>
+        </div>
+
+        <div className="sm:col-span-2 lg:col-span-2">
+          <WidgetCard title="Spending by Category">
+            <div className="mb-2 flex gap-1">
+              <button
+                onClick={() => setSpendingMode('month')}
+                className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                  spendingMode === 'month'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                This Month
+              </button>
+              <button
+                onClick={() => setSpendingMode('all')}
+                className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+                  spendingMode === 'all'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                All Time
+              </button>
+            </div>
+            {spendingData.length > 0 ? (
+              <SpendingDonut
+                data={spendingData}
+                onCategoryClick={handleCategoryClick}
+                selectedCategory={selectedSpendingCategory}
+                subcategoryData={subcategorySpending}
+                onDismissSubcategory={handleDismissSubcategory}
+              />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {spendingMode === 'month'
+                  ? 'No spending data for the current month'
+                  : 'No spending data yet'}
+              </p>
+            )}
+          </WidgetCard>
+        </div>
+
+        <div className="sm:col-span-2 lg:col-span-4">
+          <WidgetCard title="Budget vs Actual">
+            {budgetData.length > 0 ? (
+              <div className="space-y-3">
+                {budgetData.map((b) => (
+                  <BudgetProgress key={b.category} data={b} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                No budget data yet.{' '}
+                <a
+                  href="/budget"
+                  className="text-[var(--color-primary)] hover:underline font-medium"
+                >
+                  Set up a budget
+                </a>
+              </p>
+            )}
+          </WidgetCard>
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,9 @@ interface ConfigState {
     dateFormat: string;
     theme: string;
   };
+  dashboard: {
+    upcomingWindowDays: number;
+  };
   loaded: boolean;
   loadConfig: () => Promise<void>;
 }
@@ -31,6 +34,9 @@ interface RawConfig {
     date_format?: string;
     theme?: string;
   };
+  dashboard?: {
+    upcoming_window_days?: number;
+  };
 }
 
 export const useConfigStore = create<ConfigState>()((set) => ({
@@ -44,6 +50,9 @@ export const useConfigStore = create<ConfigState>()((set) => ({
     currency: 'USD',
     dateFormat: 'MM/DD/YYYY',
     theme: 'system',
+  },
+  dashboard: {
+    upcomingWindowDays: 7,
   },
   loaded: false,
 
@@ -64,6 +73,9 @@ export const useConfigStore = create<ConfigState>()((set) => ({
           currency: raw.defaults?.currency ?? 'USD',
           dateFormat: raw.defaults?.date_format ?? 'MM/DD/YYYY',
           theme: raw.defaults?.theme ?? 'system',
+        },
+        dashboard: {
+          upcomingWindowDays: raw.dashboard?.upcoming_window_days ?? 7,
         },
         loaded: true,
       });

@@ -47,19 +47,32 @@ function toNum(v: unknown): number {
   return 0;
 }
 
-function computeBalanceOverTime(transactions: Transaction[], currentBalance: number): ChartPoint[] {
-  if (transactions.length === 0) return [];
-
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
-  const firstDate = sorted[0]!.date;
-  const lastDate = sorted[sorted.length - 1]!.date;
-  const startMs = new Date(firstDate).getTime();
-  const endMs = new Date(lastDate).getTime();
-  const spanDays = Math.max(1, (endMs - startMs) / (1000 * 60 * 60 * 24));
-
-  const { bucketKey, formatLabel } = pickGranularity(spanDays);
-
-  return buildChartPoints(sorted, currentBalance, bucketKey, formatLabel, 60);
+/** Format bucket date labels to include context appropriate for the
+ *  granularity the server chose. Daily and weekly points live inside a
+ *  single year typically, so month+day is fine; monthly and yearly points
+ *  span multiple years so we include the year to avoid the previous bug
+ *  where "May 22, 2025" and "May 22, 2026" rendered identically. */
+function labelFormatterFor(
+  bucket: 'daily' | 'weekly' | 'monthly' | 'yearly',
+): (isoDate: string) => string {
+  switch (bucket) {
+    case 'daily':
+    case 'weekly':
+      return (iso) =>
+        new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: '2-digit',
+        });
+    case 'monthly':
+      return (iso) =>
+        new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {
+          month: 'short',
+          year: '2-digit',
+        });
+    case 'yearly':
+      return (iso) => iso.slice(0, 4);
+  }
 }
 
 function pickGranularity(spanDays: number) {
@@ -154,11 +167,17 @@ export function AccountDetailPage() {
   const [loading, setLoading] = useState(true);
   const [chartTransactions, setChartTransactions] = useState<Transaction[]>([]);
   const [chartMode, setChartMode] = useState<'page' | 'all'>('page');
+  const [allHistory, setAllHistory] = useState<{
+    bucket: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    points: ChartPoint[];
+  } | null>(null);
 
   useEffect(() => {
     if (!id) return;
     accountApi.getAccount(id).then(setAccount).catch(console.error);
-    // Fetch larger set of transactions for balance chart
+    // Fetch raw txns for "Current Page" chart. Backend clamps per_page to
+    // 100 so this is best-effort — "All Time" uses the dedicated history
+    // endpoint below instead.
     txApi
       .listTransactions(
         { account_id: id },
@@ -170,11 +189,26 @@ export function AccountDetailPage() {
         setChartTransactions(response.data);
       })
       .catch(console.error);
+    // Full-history chart: server aggregates in Postgres and returns one
+    // point per bucket, so we get every month (or week/day) of activity
+    // regardless of how many transactions exist.
+    accountApi
+      .getBalanceHistory(id, 'auto')
+      .then((res) => {
+        const labeler = labelFormatterFor(res.bucket);
+        setAllHistory({
+          bucket: res.bucket,
+          points: res.points.map((p) => ({
+            label: labeler(p.date),
+            balance: toNum(p.balance),
+          })),
+        });
+      })
+      .catch(console.error);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTransactions = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
     try {
       const sortCol = sorting[0];
       const result = await txApi.listTransactions(
@@ -193,8 +227,30 @@ export function AccountDetailPage() {
   }, [id, filters, page, sorting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
+    if (!id) return;
+    let ignore = false;
+    (async () => {
+      try {
+        const sortCol = sorting[0];
+        const result = await txApi.listTransactions(
+          { ...filters, account_id: id },
+          { page, per_page: PER_PAGE },
+          sortCol ? { sort_by: sortCol.id, sort_dir: sortCol.desc ? 'desc' : 'asc' } : undefined,
+        );
+        if (ignore) return;
+        const response = result as PaginatedResponse<Transaction>;
+        setTransactions(response.data);
+        setTotal(response.total);
+      } catch (err) {
+        if (!ignore) console.error('Failed to load transactions:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [id, filters, page, sorting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Page" mode: chart for transactions on the current page
   const pageChartData = useMemo(() => {
@@ -223,12 +279,10 @@ export function AccountDetailPage() {
     return buildChartPoints(sorted, balanceAtEnd, bucketKey, formatLabel, 60);
   }, [transactions, chartTransactions, account]);
 
-  // "All" mode: chart for entire transaction history
-  const allChartData = useMemo(
-    () =>
-      account ? computeBalanceOverTime(chartTransactions, toNum(account.current_balance)) : [],
-    [chartTransactions, account],
-  );
+  // "All" mode: points come from the server-side balance-history endpoint
+  // so we see the entire transaction history, not just the clamped 100
+  // rows the list endpoint returns.
+  const allChartData = useMemo(() => allHistory?.points ?? [], [allHistory]);
 
   const chartData = chartMode === 'page' ? pageChartData : allChartData;
 
@@ -299,6 +353,19 @@ export function AccountDetailPage() {
             setChartTransactions(response.data);
           })
           .catch(console.error);
+        void accountApi
+          .getBalanceHistory(id, 'auto')
+          .then((res) => {
+            const labeler = labelFormatterFor(res.bucket);
+            setAllHistory({
+              bucket: res.bucket,
+              points: res.points.map((p) => ({
+                label: labeler(p.date),
+                balance: toNum(p.balance),
+              })),
+            });
+          })
+          .catch(console.error);
         void fetchTransactions();
         setSignFlashMessage({
           text:
@@ -340,6 +407,19 @@ export function AccountDetailPage() {
       .then((res) => {
         const response = res as PaginatedResponse<Transaction>;
         setChartTransactions(response.data);
+      })
+      .catch(console.error);
+    accountApi
+      .getBalanceHistory(id, 'auto')
+      .then((res) => {
+        const labeler = labelFormatterFor(res.bucket);
+        setAllHistory({
+          bucket: res.bucket,
+          points: res.points.map((p) => ({
+            label: labeler(p.date),
+            balance: toNum(p.balance),
+          })),
+        });
       })
       .catch(console.error);
   }, [id, fetchTransactions]); // eslint-disable-line react-hooks/exhaustive-deps

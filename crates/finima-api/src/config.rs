@@ -428,6 +428,11 @@ pub struct RecurringConfig {
     /// (Weekly / Biweekly / Monthly / Quarterly). See ADR-019.
     #[serde(default = "default_recurring_min_occurrences_for_fixed")]
     pub min_occurrences_for_fixed: usize,
+    /// Minimum first→last span (months) required for sub-annual/variable
+    /// cadences before a candidate is trusted. Keeps short bursts with a
+    /// periodic-looking median from surfacing as recurring.
+    #[serde(default = "default_recurring_min_history_months")]
+    pub min_history_months: u32,
 }
 
 fn default_recurring_min_occurrences_for_variable() -> usize {
@@ -442,12 +447,17 @@ fn default_recurring_min_occurrences_for_fixed() -> usize {
     finima_analysis::RecurringDetectorConfig::DEFAULT_MIN_OCCURRENCES_FOR_FIXED
 }
 
+fn default_recurring_min_history_months() -> u32 {
+    finima_analysis::RecurringDetectorConfig::DEFAULT_MIN_HISTORY_MONTHS
+}
+
 impl Default for RecurringConfig {
     fn default() -> Self {
         Self {
             min_occurrences_for_variable: default_recurring_min_occurrences_for_variable(),
             variable_window_months: default_recurring_variable_window_months(),
             min_occurrences_for_fixed: default_recurring_min_occurrences_for_fixed(),
+            min_history_months: default_recurring_min_history_months(),
         }
     }
 }
@@ -589,6 +599,7 @@ impl From<RecurringConfig> for finima_analysis::RecurringDetectorConfig {
             min_occurrences_for_variable: c.min_occurrences_for_variable,
             variable_window_months: c.variable_window_months,
             min_occurrences_for_fixed: c.min_occurrences_for_fixed,
+            min_history_months: c.min_history_months,
         }
     }
 }
