@@ -115,107 +115,152 @@ export function SpendingDonut({
     ? [...subcategoryData].sort((a, b) => b.amount - a.amount)
     : [];
 
+  const total = chartData.reduce((s, c) => s + c.amount, 0);
+
   return (
-    <div className={`flex ${showSubchart ? 'gap-4' : ''}`}>
-      {/* Main category donut */}
-      <div className={showSubchart ? 'flex-1 min-w-0' : 'w-full'} role="img" aria-label={summary}>
-        <ResponsiveContainer width="100%" height={280}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="45%"
-              innerRadius={55}
-              outerRadius={90}
-              paddingAngle={2}
-              dataKey="amount"
-              nameKey="category"
-              onClick={(_data, index) => {
-                const entry = chartData[index];
-                if (entry && onCategoryClick) {
-                  onCategoryClick(entry.category);
-                }
-              }}
-              style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                  opacity={selectedCategory && entry.category !== selectedCategory ? 0.4 : 1}
-                />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              verticalAlign="bottom"
-              formatter={(value: string, entry) => {
-                const item = chartData.find((c) => c.category === value);
-                const color =
-                  'color' in entry && typeof entry.color === 'string'
-                    ? entry.color
-                    : 'var(--color-text)';
-                return (
-                  <span style={{ color }} className="text-xs">
-                    {toTitleCase(value)} {item ? `${item.percentage.toFixed(0)}%` : ''}
+    <div className={`flex h-full w-full gap-4 ${showSubchart ? 'flex-col xl:flex-row' : ''}`}>
+      {/* Main category donut + legend side-by-side */}
+      <div
+        className="flex h-full min-h-0 flex-1 items-center gap-3"
+        role="img"
+        aria-label={summary}
+      >
+        <div className="relative h-full min-h-[200px] flex-[1.2]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius="58%"
+                outerRadius="92%"
+                paddingAngle={2}
+                dataKey="amount"
+                nameKey="category"
+                onClick={(_data, index) => {
+                  const entry = chartData[index];
+                  if (entry && onCategoryClick) {
+                    onCategoryClick(entry.category);
+                  }
+                }}
+                style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={COLORS[index % COLORS.length]}
+                    stroke="var(--color-card)"
+                    strokeWidth={2}
+                    opacity={selectedCategory && entry.category !== selectedCategory ? 0.35 : 1}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* Center label */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-text-secondary)]">
+              Total
+            </span>
+            <span className="num text-2xl font-bold leading-tight tracking-[-0.025em] text-[var(--color-text)]">
+              {formatCurrency(total)}
+            </span>
+          </div>
+        </div>
+        {/* Legend list */}
+        <ul className="flex h-full min-w-[140px] flex-[1] flex-col justify-center gap-1.5 overflow-y-auto text-xs">
+          {chartData.map((entry, index) => {
+            const dim =
+              selectedCategory && entry.category !== selectedCategory
+                ? 'opacity-40'
+                : 'opacity-100';
+            return (
+              <li
+                key={entry.category}
+                className={`flex items-center justify-between gap-2 rounded-md px-1.5 py-1 transition-opacity hover:bg-[var(--color-surface)] ${dim}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onCategoryClick?.(entry.category)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                >
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate font-medium text-[var(--color-text)]">
+                    {toTitleCase(entry.category)}
                   </span>
-                );
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+                </button>
+                <span className="num shrink-0 text-[var(--color-text-secondary)]">
+                  {entry.percentage.toFixed(0)}%
+                </span>
+              </li>
+            );
+          })}
+        </ul>
         <span className="sr-only">{summary}</span>
       </div>
 
       {/* Subcategory drill-down donut */}
       {showSubchart && (
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2 px-2">
-            <h4 className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-text-secondary)]">
               {toTitleCase(selectedCategory)} Breakdown
             </h4>
             <button
               onClick={onDismissSubcategory}
-              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+              className="text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text)]"
               aria-label="Close subcategory breakdown"
             >
-              Close
+              Close ✕
             </button>
           </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={subChartData}
-                cx="50%"
-                cy="45%"
-                innerRadius={40}
-                outerRadius={70}
-                paddingAngle={2}
-                dataKey="amount"
-                nameKey="subcategory"
-              >
-                {subChartData.map((_, index) => (
-                  <Cell key={`sub-cell-${index}`} fill={SUB_COLORS[index % SUB_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                verticalAlign="bottom"
-                formatter={(value: string, entry) => {
-                  const item = subChartData.find((c) => c.subcategory === value);
-                  const color =
-                    'color' in entry && typeof entry.color === 'string'
-                      ? entry.color
-                      : 'var(--color-text)';
-                  return (
-                    <span style={{ color }} className="text-xs">
-                      {toTitleCase(value)} {item ? `${item.percentage.toFixed(0)}%` : ''}
-                    </span>
-                  );
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                <Pie
+                  data={subChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="55%"
+                  outerRadius="88%"
+                  paddingAngle={2}
+                  dataKey="amount"
+                  nameKey="subcategory"
+                >
+                  {subChartData.map((_, index) => (
+                    <Cell
+                      key={`sub-cell-${index}`}
+                      fill={SUB_COLORS[index % SUB_COLORS.length]}
+                      stroke="var(--color-card)"
+                      strokeWidth={2}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  formatter={(value: string, entry) => {
+                    const item = subChartData.find((c) => c.subcategory === value);
+                    const color =
+                      'color' in entry && typeof entry.color === 'string'
+                        ? entry.color
+                        : 'var(--color-text)';
+                    return (
+                      <span style={{ color }} className="text-xs">
+                        {toTitleCase(value)} {item ? `${item.percentage.toFixed(0)}%` : ''}
+                      </span>
+                    );
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
     </div>

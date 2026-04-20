@@ -30,18 +30,36 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
     data.spending_trend > 0 ? 'Increasing' : data.spending_trend < 0 ? 'Decreasing' : 'Stable';
   const summaryText = `Financial health score: ${data.score} out of 100 (${label}). Savings rate ${(data.savings_rate * 100).toFixed(0)}%, debt ratio ${(data.debt_ratio * 100).toFixed(0)}%, emergency fund ${data.emergency_months.toFixed(1)} months, spending trend ${trendLabel}.`;
 
+  const stats: Array<{ label: string; value: string }> = [
+    { label: 'Savings', value: `${(data.savings_rate * 100).toFixed(0)}%` },
+    { label: 'Debt', value: `${(data.debt_ratio * 100).toFixed(0)}%` },
+    { label: 'Emergency', value: `${data.emergency_months.toFixed(1)} mo` },
+    { label: 'Trend', value: trendLabel },
+  ];
+
   return (
-    <div className="flex flex-col items-center gap-4" role="img" aria-label={summaryText}>
-      <div className="relative h-32 w-32">
-        <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
-          <circle cx="50" cy="50" r="45" fill="none" stroke="var(--color-border)" strokeWidth="8" />
+    <div
+      className="flex h-full w-full flex-col items-center justify-center gap-5"
+      role="img"
+      aria-label={summaryText}
+    >
+      <div className="relative aspect-square w-[min(60%,170px)]">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+          <circle
+            cx="50"
+            cy="50"
+            r="45"
+            fill="none"
+            stroke="var(--color-border)"
+            strokeWidth="6"
+          />
           <circle
             cx="50"
             cy="50"
             r="45"
             fill="none"
             stroke={color}
-            strokeWidth="8"
+            strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
@@ -49,37 +67,30 @@ export function HealthScoreGauge({ data }: HealthScoreGaugeProps) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold" style={{ color }}>
+          <span
+            className="num text-5xl font-bold leading-none tracking-[-0.03em]"
+            style={{ color }}
+          >
             {data.score}
           </span>
-          <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+          <span className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-secondary)]">
+            {label}
+          </span>
         </div>
       </div>
-      <div className="grid w-full grid-cols-2 gap-x-4 gap-y-2 text-sm" aria-hidden="true">
-        <div className="flex justify-between">
-          <span className="text-[var(--color-text-secondary)]">Savings Rate</span>
-          <span className="font-medium text-[var(--color-text)]">
-            {(data.savings_rate * 100).toFixed(0)}%
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--color-text-secondary)]">Debt Ratio</span>
-          <span className="font-medium text-[var(--color-text)]">
-            {(data.debt_ratio * 100).toFixed(0)}%
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--color-text-secondary)]">Emergency</span>
-          <span className="font-medium text-[var(--color-text)]">
-            {data.emergency_months.toFixed(1)} mo
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--color-text-secondary)]">Trend</span>
-          <span className="font-medium text-[var(--color-text)]">{trendLabel}</span>
-        </div>
+      <div className="grid w-full grid-cols-2 gap-x-4 gap-y-2" aria-hidden="true">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="flex items-baseline justify-between border-b border-[var(--color-border)]/60 pb-1.5 last:border-0"
+          >
+            <span className="text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+              {s.label}
+            </span>
+            <span className="num text-sm font-semibold text-[var(--color-text)]">{s.value}</span>
+          </div>
+        ))}
       </div>
-      {/* Visually hidden text summary for screen readers (supplements the grid) */}
       <span className="sr-only">{summaryText}</span>
     </div>
   );

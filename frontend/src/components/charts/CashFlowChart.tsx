@@ -1,6 +1,7 @@
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -75,25 +76,45 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
   const summary = buildSummary(data);
 
   return (
-    <div role="img" aria-label={summary}>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+    <div className="h-full w-full" role="img" aria-label={summary}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
           <XAxis
             dataKey="month"
             tickFormatter={formatMonth}
             tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+            axisLine={false}
+            tickLine={false}
           />
           <YAxis
             tickFormatter={(v: number) => formatCurrency(v)}
             tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
-            width={80}
+            width={72}
+            axisLine={false}
+            tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          <Bar dataKey="income" name="Income" fill="#22C55E" radius={[2, 2, 0, 0]} />
-          <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[2, 2, 0, 0]} />
-        </BarChart>
+          <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+          <Bar dataKey="income" name="Income" fill="#22C55E" radius={[4, 4, 0, 0]} maxBarSize={28} />
+          <Bar
+            dataKey="expenses"
+            name="Expenses"
+            fill="#EF4444"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={28}
+          />
+          <Line
+            type="monotone"
+            dataKey="net"
+            name="Net"
+            stroke="var(--color-primary)"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={{ r: 2, fill: 'var(--color-primary)', strokeWidth: 0 }}
+            activeDot={{ r: 4 }}
+          />
+        </ComposedChart>
       </ResponsiveContainer>
       <span className="sr-only">{summary}</span>
     </div>
