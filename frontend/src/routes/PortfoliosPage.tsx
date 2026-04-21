@@ -7,6 +7,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore';
 import { formatCurrency } from '@/utils/format';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ICONS } from '@/types/models';
 import type { Portfolio, Account } from '@/types/models';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 
 export function PortfoliosPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export function PortfoliosPage() {
   const selectPortfolio = usePortfolioStore((s) => s.selectPortfolio);
   const setPortfolios = usePortfolioStore((s) => s.setPortfolios);
   const addPortfolio = usePortfolioStore((s) => s.addPortfolio);
+  const removePortfolio = usePortfolioStore((s) => s.removePortfolio);
   const removeAccount = usePortfolioStore((s) => s.removeAccount);
 
   const [showModal, setShowModal] = useState(false);
@@ -28,6 +30,9 @@ export function PortfoliosPage() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [movingAccountId, setMovingAccountId] = useState<string | null>(null);
+  const [deletingPortfolio, setDeletingPortfolio] = useState<Portfolio | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleMoveAccount = async (accountId: string, targetPortfolioId: string) => {
     setMovingAccountId(accountId);
@@ -76,6 +81,33 @@ export function PortfoliosPage() {
       console.error('Failed to save portfolio:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openDeleteModal = (portfolio: Portfolio) => {
+    setDeletingPortfolio(portfolio);
+    setDeleteError(null);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeletingPortfolio(null);
+    setDeleteError(null);
+  };
+
+  const handleDeletePortfolio = async () => {
+    if (!deletingPortfolio) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await portfolioApi.deletePortfolio(deletingPortfolio.id);
+      removePortfolio(deletingPortfolio.id);
+      setDeletingPortfolio(null);
+    } catch (err) {
+      console.error('Failed to delete portfolio:', err);
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete portfolio');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -150,6 +182,13 @@ export function PortfoliosPage() {
                       className="px-3 py-1.5 text-sm text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text)] transition-colors"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => openDeleteModal(portfolio)}
+                      className="px-3 py-1.5 text-sm text-red-400 border border-red-500/40 rounded-xl hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                      aria-label={`Delete portfolio ${portfolio.name}`}
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -319,6 +358,24 @@ export function PortfoliosPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {deletingPortfolio && (
+        <ConfirmDeleteDialog
+          entityName={deletingPortfolio.name}
+          warning={
+            <>
+              This will permanently delete the portfolio and{' '}
+              <strong className="text-[var(--color-text)]">every account</strong> inside it, along
+              with all transactions, uploads, budgets, goals, recurring groups, and stored files.
+              This cannot be undone.
+            </>
+          }
+          onConfirm={() => void handleDeletePortfolio()}
+          onCancel={closeDeleteModal}
+          loading={deleting}
+          error={deleteError}
+        />
       )}
     </div>
   );

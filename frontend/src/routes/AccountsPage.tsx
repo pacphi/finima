@@ -10,6 +10,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import type { Account, AccountType, Portfolio } from '@/types/models';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ICONS, classifyBalance } from '@/types/models';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Never';
@@ -60,7 +61,6 @@ export function AccountsPage() {
   const [archiving, setArchiving] = useState<string | null>(null);
   const [settingPrimary, setSettingPrimary] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -154,7 +154,6 @@ export function AccountsPage() {
   const openDeleteModal = (e: React.MouseEvent, account: Account) => {
     e.stopPropagation();
     setDeleteTarget(account);
-    setDeleteConfirmText('');
     setDeleteError(null);
   };
 
@@ -166,7 +165,6 @@ export function AccountsPage() {
       await accountApi.deleteAccount(deleteTarget.id);
       setAccounts(accounts.filter((a) => a.id !== deleteTarget.id));
       setDeleteTarget(null);
-      setDeleteConfirmText('');
     } catch (err) {
       console.error('Failed to delete account:', err);
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete account');
@@ -499,61 +497,24 @@ export function AccountsPage() {
         </div>
       )}
 
-      {/* Delete confirmation modal — requires typing the account name */}
       {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-account-title"
-        >
-          <div className="bg-[var(--color-surface)] border border-red-500/40 rounded-2xl shadow-xl max-w-md w-full p-6">
-            <h3 id="delete-account-title" className="text-lg font-semibold text-red-400 mb-2">
-              Delete “{deleteTarget.name}”?
-            </h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        <ConfirmDeleteDialog
+          entityName={deleteTarget.name}
+          warning={
+            <>
               This permanently deletes the account,{' '}
               <strong className="text-[var(--color-text)]">
                 {deleteTarget.transaction_count.toLocaleString()}
               </strong>{' '}
               transaction{deleteTarget.transaction_count === 1 ? '' : 's'}, every upload, and all
               associated stored files. This cannot be undone.
-            </p>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-1">
-              Type <span className="font-mono text-[var(--color-text)]">{deleteTarget.name}</span>{' '}
-              to confirm
-            </label>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              disabled={deleting}
-              className="input-themed"
-              autoFocus
-            />
-            {deleteError && (
-              <p className="mt-2 text-sm text-red-400" role="alert">
-                {deleteError}
-              </p>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] text-sm hover:bg-[var(--color-primary-subtle)] transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleDeleteAccount()}
-                disabled={deleting || deleteConfirmText !== deleteTarget.name}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {deleting ? 'Deleting…' : 'Permanently delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          onConfirm={() => void handleDeleteAccount()}
+          onCancel={() => setDeleteTarget(null)}
+          loading={deleting}
+          error={deleteError}
+        />
       )}
     </div>
   );

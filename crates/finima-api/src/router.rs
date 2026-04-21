@@ -284,7 +284,9 @@ pub fn build_router(
         )
         .route(
             "/{id}",
-            get(portfolios::get_portfolio).put(portfolios::update_portfolio),
+            get(portfolios::get_portfolio)
+                .put(portfolios::update_portfolio)
+                .delete(portfolios::delete_portfolio),
         );
 
     // Account routes (authentication required)

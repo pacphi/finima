@@ -25,6 +25,13 @@ pub trait PortfolioRepo: Send + Sync {
     async fn list_by_user(&self, user_id: Uuid) -> Result<Vec<Portfolio>, AppError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Portfolio, AppError>;
     async fn update(&self, id: Uuid, name: &str) -> Result<Portfolio, AppError>;
+    /// Hard-delete a portfolio and all dependent rows via ON DELETE CASCADE
+    /// (accounts, budgets, savings_goals, recurring_groups, flow_groups,
+    /// account_flows, flow_patterns, embedding_index, and transactively
+    /// transactions/uploads via accounts). Dangerous — cannot be undone.
+    /// Caller is responsible for removing any related object-storage
+    /// artifacts (e.g. S3 upload files) before invoking.
+    async fn delete(&self, id: Uuid) -> Result<(), AppError>;
     /// Verify that the given user owns the portfolio. Returns an error if not.
     async fn verify_ownership(&self, portfolio_id: Uuid, user_id: Uuid) -> Result<(), AppError>;
 }

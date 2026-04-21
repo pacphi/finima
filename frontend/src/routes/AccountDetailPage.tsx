@@ -4,6 +4,7 @@ import { type SortingState } from '@tanstack/react-table';
 import { TransactionTable } from '@/components/tables/TransactionTable';
 import { FileUpload } from '@/components/upload/FileUpload';
 import { AccountSignCard } from '@/components/accounts/AccountSignCard';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { useApi } from '@/hooks/useApi';
 import { createAccountApi } from '@/api/accounts';
 import { createTransactionApi } from '@/api/transactions';
@@ -150,7 +151,6 @@ export function AccountDetailPage() {
   const txApi = createTransactionApi(api);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -671,7 +671,6 @@ export function AccountDetailPage() {
         </p>
         <button
           onClick={() => {
-            setDeleteConfirmText('');
             setDeleteError(null);
             setShowDeleteModal(true);
           }}
@@ -681,61 +680,24 @@ export function AccountDetailPage() {
         </button>
       </div>
 
-      {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl shadow-xl max-w-md w-full p-6">
-            <h3 id="delete-modal-title" className="text-lg font-semibold text-red-400 mb-2">
-              Delete “{account.name}”?
-            </h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        <ConfirmDeleteDialog
+          entityName={account.name}
+          warning={
+            <>
               This will permanently delete the account and{' '}
               <strong className="text-[var(--color-text)]">
                 {account.transaction_count.toLocaleString()}
               </strong>{' '}
               transaction{account.transaction_count === 1 ? '' : 's'}, along with every upload and
               associated stored file. This cannot be undone.
-            </p>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-1">
-              Type <span className="font-mono text-[var(--color-text)]">{account.name}</span> to
-              confirm
-            </label>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              disabled={deleting}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              autoFocus
-            />
-            {deleteError && (
-              <p className="mt-2 text-sm text-red-400" role="alert">
-                {deleteError}
-              </p>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deleting}
-                className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text)] text-sm hover:bg-[var(--color-surface)] transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleting || deleteConfirmText !== account.name}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {deleting ? 'Deleting…' : 'Permanently delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setShowDeleteModal(false)}
+          loading={deleting}
+          error={deleteError}
+        />
       )}
     </div>
   );

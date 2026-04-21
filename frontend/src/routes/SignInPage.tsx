@@ -85,6 +85,12 @@ export function SignInPage() {
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'email-error' : undefined}
                 {...register('email')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !loading) {
+                    e.preventDefault();
+                    void handleSubmit(onSubmit)();
+                  }
+                }}
                 className="w-full px-4 py-3 border border-[var(--color-input-border)] rounded-xl
                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-glow)] focus:border-[var(--color-primary)]
                   bg-[var(--color-input-bg)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] text-sm

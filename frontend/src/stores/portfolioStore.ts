@@ -12,6 +12,7 @@ interface PortfolioState {
   selectPortfolio: (id: string) => void;
   setAccounts: (accounts: Account[]) => void;
   addPortfolio: (portfolio: Portfolio) => void;
+  removePortfolio: (id: string) => void;
   addAccount: (account: Account) => void;
   removeAccount: (id: string) => void;
   updateAccount: (id: string, data: Partial<Account>) => void;
@@ -90,6 +91,21 @@ export const usePortfolioStore = create<PortfolioState>()((set) => ({
       return {
         portfolios: [...state.portfolios, portfolio],
         activePortfolioId: nextActive,
+      };
+    }),
+
+  removePortfolio: (id) =>
+    set((state) => {
+      const remaining = state.portfolios.filter((p) => p.id !== id);
+      const wasActive = state.activePortfolioId === id;
+      const nextActive = wasActive ? (remaining[0]?.id ?? null) : state.activePortfolioId;
+      if (wasActive) {
+        storeActivePortfolioId(nextActive);
+      }
+      return {
+        portfolios: remaining,
+        activePortfolioId: nextActive,
+        accounts: wasActive ? [] : state.accounts,
       };
     }),
 

@@ -75,6 +75,15 @@ impl PortfolioRepo for PgPortfolioRepo {
         Ok(portfolio)
     }
 
+    async fn delete(&self, id: Uuid) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM portfolios WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
     async fn verify_ownership(&self, portfolio_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
         let exists = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM portfolios WHERE id = $1 AND user_id = $2)",
