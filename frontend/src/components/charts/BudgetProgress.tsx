@@ -1,4 +1,5 @@
 import type { BudgetVsActual } from '@/types/models';
+import { useCategories, categoryLabel } from '@/hooks/useCategories';
 
 interface BudgetProgressProps {
   data: BudgetVsActual;
@@ -26,15 +27,17 @@ function getStatusText(percentage: number): string {
 }
 
 export function BudgetProgress({ data }: BudgetProgressProps) {
+  const { categoryMap } = useCategories();
+  const label = categoryLabel(data.category, categoryMap);
   const pct = Math.min(data.percentage, 120);
   const color = getBarColor(data.percentage);
   const statusText = getStatusText(data.percentage);
-  const progressLabel = `${data.category}: ${data.percentage.toFixed(0)}% of budget used (${statusText}). ${formatCurrency(data.spent)} spent of ${formatCurrency(data.limit)}.`;
+  const progressLabel = `${label}: ${data.percentage.toFixed(0)}% of budget used (${statusText}). ${formatCurrency(data.spent)} spent of ${formatCurrency(data.limit)}.`;
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-4 text-sm">
-        <span className="truncate font-medium text-[var(--color-text)]">{data.category}</span>
+        <span className="truncate font-medium text-[var(--color-text)]">{label}</span>
         <span className="num shrink-0 text-[var(--color-text-secondary)]">
           <span className="font-semibold text-[var(--color-text)]">
             {formatCurrency(data.spent)}
