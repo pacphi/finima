@@ -229,6 +229,10 @@ help:
 	@echo "  migrate-create name=x  - Create a new migration"
 	@echo "  migrate-revert         - Revert the last migration"
 	@echo "  db-seed                - Load test seed data (dev/test only)"
+	@echo "  sample-load            - Load data/sample/sample.sql demo fixture"
+	@echo "  sample-attach EMAIL=x  - Re-own the sample portfolio to an existing user"
+	@echo "  sample-purge           - Remove the sample portfolio + user"
+	@echo "  sample-regen           - Regenerate data/sample/sample.sql"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)═══ Docker — Infrastructure ════════════════════════════════════════$(RESET)"
 	@echo "  docker-infra           - Start dev infrastructure (services depend on LLM)"
@@ -480,7 +484,7 @@ ci-full: ci links-check test-e2e ## CI + link checking + E2E tests
 #  Database
 # ═══════════════════════════════════════════════════════════════
 
-.PHONY: migrate migrate-create migrate-revert db-seed
+.PHONY: migrate migrate-create migrate-revert db-seed sample-load sample-purge sample-regen sample-attach
 
 migrate: ## Run database migrations
 	sqlx migrate run --source crates/finima-db/src/migrations
@@ -496,6 +500,61 @@ db-seed: ## Load test seed data (dev/test only)
 		echo "ERROR: Cannot seed production database"; exit 1; \
 	fi
 	psql "$${DATABASE_URL:-postgres://finima:finima_dev@localhost:5432/finima}" -f tests/seed.sql
+
+sample-load: ## Load data/sample/sample.sql demo fixture (dev only)
+	@if [ "$${APP_ENV}" = "production" ]; then \
+		echo "ERROR: Cannot load sample data into production"; exit 1; \
+	fi
+	psql "$${DATABASE_URL:-postgres://finima:finima_dev@localhost:5432/finima}" -f data/sample/sample.sql
+
+# Identify sample rows by stable semantic markers (email, portfolio name) —
+# never by hard-coded UUIDs. Each SQL script is piped as a single stdin
+# stream so the whole thing runs inside one shell / one psql invocation
+# (Make runs each recipe line in a fresh shell, so heredocs don't survive
+# across lines).
+
+define SAMPLE_PURGE_SQL
+BEGIN;
+DELETE FROM portfolios WHERE name = 'Sample Household';
+DELETE FROM users      WHERE email = 'sample@finima.local';
+COMMIT;
+endef
+export SAMPLE_PURGE_SQL
+
+define SAMPLE_ATTACH_SQL
+BEGIN;
+-- Abort if target user doesn't exist (division-by-zero).
+SELECT 1/COUNT(*)::int FROM users WHERE email = :'email';
+-- Abort if sample fixture isn't loaded.
+SELECT 1/COUNT(*)::int FROM users WHERE email = 'sample@finima.local';
+-- Re-own the sample portfolio. Scoped by both name AND current ownership
+-- so a real user's own 'Sample Household' is never touched.
+UPDATE portfolios
+   SET user_id = (SELECT id FROM users WHERE email = :'email')
+ WHERE name = 'Sample Household'
+   AND user_id = (SELECT id FROM users WHERE email = 'sample@finima.local');
+DELETE FROM users WHERE email = 'sample@finima.local';
+COMMIT;
+endef
+export SAMPLE_ATTACH_SQL
+
+sample-purge: ## Remove the sample portfolio + user (safe whether or not sample-attach was run)
+	@if [ "$${APP_ENV}" = "production" ]; then \
+		echo "ERROR: Cannot purge sample data in production"; exit 1; \
+	fi
+	@echo "$$SAMPLE_PURGE_SQL" | psql "$${DATABASE_URL:-postgres://finima:finima_dev@localhost:5432/finima}" -v ON_ERROR_STOP=1
+
+sample-attach: ## Re-own the sample portfolio to an existing user (usage: make sample-attach EMAIL=you@real.com)
+	@if [ -z "$(EMAIL)" ]; then \
+		echo "ERROR: EMAIL is required. Usage: make sample-attach EMAIL=you@real.com"; exit 1; \
+	fi
+	@if [ "$${APP_ENV}" = "production" ]; then \
+		echo "ERROR: Cannot attach sample data in production"; exit 1; \
+	fi
+	@echo "$$SAMPLE_ATTACH_SQL" | psql "$${DATABASE_URL:-postgres://finima:finima_dev@localhost:5432/finima}" -v ON_ERROR_STOP=1 -v email='$(EMAIL)'
+
+sample-regen: ## Regenerate data/sample/sample.sql from the deterministic generator
+	cargo run -p finima-api --bin finima-generate-sample
 
 # ═══════════════════════════════════════════════════════════════
 #  Docker — Infrastructure

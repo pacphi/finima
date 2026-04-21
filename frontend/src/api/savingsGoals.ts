@@ -1,5 +1,11 @@
 import type { SavingsGoal } from '@/types/models';
 
+function withPortfolio(path: string, portfolioId: string | null): string {
+  if (!portfolioId) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}portfolio_id=${encodeURIComponent(portfolioId)}`;
+}
+
 export function createSavingsGoalApi(api: {
   get: <T>(path: string) => Promise<T>;
   post: <T>(path: string, body?: unknown) => Promise<T>;
@@ -7,14 +13,20 @@ export function createSavingsGoalApi(api: {
   del: <T>(path: string) => Promise<T>;
 }) {
   return {
-    listGoals: () => api.get<SavingsGoal[]>('/api/savings-goals'),
+    listGoals: (portfolioId: string | null = null) =>
+      api.get<SavingsGoal[]>(withPortfolio('/api/savings-goals', portfolioId)),
 
     createGoal: (data: {
       name: string;
       target_amount: number;
       target_date?: string;
       monthly_contribution?: number;
-    }) => api.post<SavingsGoal>('/api/savings-goals', data),
+      portfolio_id?: string | null;
+    }) => {
+      const body = { ...data };
+      if (body.portfolio_id == null) delete body.portfolio_id;
+      return api.post<SavingsGoal>('/api/savings-goals', body);
+    },
 
     updateGoal: (
       id: string,

@@ -60,6 +60,10 @@ path = "src/bin/redetect_recurring.rs"
 name = "bootstrap_flows"
 path = "src/bin/bootstrap_flows.rs"
 
+[[bin]]
+name = "finima-generate-sample"
+path = "src/bin/generate_sample.rs"
+
 [features]
 candle = ["finima-llm/candle"]
 metal = ["candle", "finima-llm/metal"]

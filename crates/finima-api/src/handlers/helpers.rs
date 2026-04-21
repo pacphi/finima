@@ -15,6 +15,31 @@ pub async fn first_portfolio_id(user: &AuthUser, state: &AppState) -> Result<Uui
     portfolios.first().map(|p| p.id).ok_or(AppError::NotFound)
 }
 
+/// Resolve the portfolio a request should operate on.
+///
+/// If `requested` is provided, verify the caller owns it and return it.
+/// Otherwise fall back to the user's first portfolio.
+///
+/// This is what per-request handlers should call so the frontend's
+/// selected portfolio actually drives the response. `first_portfolio_id`
+/// remains available for internal callers that have no request context.
+pub async fn resolve_portfolio_id(
+    user: &AuthUser,
+    state: &AppState,
+    requested: Option<Uuid>,
+) -> Result<Uuid, AppError> {
+    match requested {
+        Some(id) => {
+            state
+                .portfolio_repo()
+                .verify_ownership(id, user.user_id)
+                .await?;
+            Ok(id)
+        }
+        None => first_portfolio_id(user, state).await,
+    }
+}
+
 /// Convert DB rows to analysis-compatible structs.
 pub fn to_analysis(rows: &[TransactionForAnalysisRow]) -> Vec<TransactionForAnalysis> {
     rows.iter()

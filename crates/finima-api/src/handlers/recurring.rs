@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use chrono::NaiveDate;
@@ -13,9 +13,23 @@ use finima_db::RecurringGroupUpdate;
 
 use crate::state::AppState;
 
+use super::helpers::resolve_portfolio_id;
+
 // ---------------------------------------------------------------------------
 // Request types
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct ListRecurringQuery {
+    pub portfolio_id: Option<Uuid>,
+    // `upcoming` and `days` are consumed downstream (or currently ignored
+    // by list_recurring); keeping them here so Axum deserialization
+    // accepts the full querystring the frontend sends.
+    #[allow(dead_code)]
+    pub upcoming: Option<bool>,
+    #[allow(dead_code)]
+    pub days: Option<i64>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct RecurringActionRequest {
@@ -29,22 +43,21 @@ pub struct RecurringActionRequest {
 // Handlers
 // ---------------------------------------------------------------------------
 
-/// GET /api/recurring
+/// GET /api/recurring?portfolio_id=...
 ///
-/// List recurring groups for the user's first portfolio.
-/// In the future this should accept a portfolio_id query param.
+/// List recurring groups. If `portfolio_id` is provided, it is validated
+/// against the caller's ownership and used; otherwise the user's first
+/// portfolio is returned.
 pub async fn list_recurring(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<ListRecurringQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Get the user's portfolios and use the first one
-    let portfolios = state.portfolio_repo().list_by_user(user.user_id).await?;
-
-    let portfolio = portfolios.first().ok_or(AppError::NotFound)?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let groups = state
         .recurring_repo()
-        .list_by_portfolio(portfolio.id)
+        .list_by_portfolio(portfolio_id)
         .await?;
 
     Ok(Json(groups))

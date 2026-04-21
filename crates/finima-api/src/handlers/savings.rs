@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use chrono::NaiveDate;
@@ -12,11 +12,16 @@ use finima_core::AppError;
 
 use crate::state::AppState;
 
-use super::helpers::first_portfolio_id;
+use super::helpers::resolve_portfolio_id;
 
 // ---------------------------------------------------------------------------
 // Request types
 // ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct PortfolioQuery {
+    pub portfolio_id: Option<Uuid>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateSavingsGoalRequest {
@@ -24,6 +29,7 @@ pub struct CreateSavingsGoalRequest {
     pub target_amount: Decimal,
     pub target_date: Option<NaiveDate>,
     pub linked_account_id: Option<Uuid>,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,8 +48,9 @@ pub struct UpdateSavingsGoalRequest {
 pub async fn list_goals(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<PortfolioQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let goals = state
         .savings_goal_repo()
@@ -59,7 +66,7 @@ pub async fn create_goal(
     State(state): State<AppState>,
     Json(body): Json<CreateSavingsGoalRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, body.portfolio_id).await?;
 
     let goal = state
         .savings_goal_repo()

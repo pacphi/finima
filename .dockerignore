@@ -14,6 +14,9 @@ frontend/dist/
 tests/
 config/test.yaml
 
+# Demo/sample fixture (dev-only, never loaded in production)
+data/sample/
+
 # Documentation
 docs/
 

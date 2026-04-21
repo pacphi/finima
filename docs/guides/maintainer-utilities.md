@@ -220,6 +220,53 @@ Done. Deleted 63 unconfirmed row(s); upserted 57 candidate(s).
 
 ---
 
+## `finima-generate-sample`
+
+Regenerates the committed demo fixture at `data/sample/sample.sql`. The
+fixture models a joint-household portfolio (Chase Bank joint checking +
+savings, Amex Reserve, Atmos Visa, Mazda CX-90 auto loan, Charles Schwab
+brokerage) over 18 months ending 2026-04-20, with per-month budgets and
+an "Australia Round-Trip" savings goal.
+
+The generator is **self-contained** (no DB connection) and **fully
+deterministic**: a fixed splitmix64 seed means reruns produce a
+byte-identical `sample.sql` — `git diff` is the regression check.
+Recurring/fixed costs are pinned to round numbers; variable spend is
+sampled from clipped distributions so the dataset has no extreme swings.
+
+**When to run:** Only when the sample portfolio spec changes (account
+list, cadences, amount ranges). Rare.
+
+**Usage:**
+
+```bash
+cargo run -p finima-api --bin finima-generate-sample -- [--out PATH]
+# or
+make sample-regen
+```
+
+| Flag    | Purpose                                        |
+| ------- | ---------------------------------------------- |
+| `--out` | Output path (default `data/sample/sample.sql`) |
+
+**Loading the generated fixture:**
+
+```bash
+make sample-load                    # idempotent: ON CONFLICT DO NOTHING
+make sample-attach EMAIL=you@real   # re-own the portfolio to an existing user
+make sample-purge                   # remove the sample portfolio + user
+                                    # (handles either ownership state;
+                                    #  identifies by email + portfolio name,
+                                    #  no hard-coded UUIDs)
+```
+
+`data/sample/sample.sql` is excluded from production Docker images via
+`.dockerignore` (mirrors the `tests/seed.sql` treatment).
+
+**Related docs:** [`data/sample/README.md`](../../data/sample/README.md)
+
+---
+
 ## Adding a New Utility
 
 Follow the pattern of the binaries above:

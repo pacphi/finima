@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { createSavingsGoalApi } from '@/api/savingsGoals';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 import { formatCurrencyCompact as formatCurrency } from '@/utils/format';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import type { SavingsGoal } from '@/types/models';
@@ -8,6 +9,7 @@ import type { SavingsGoal } from '@/types/models';
 export function GoalsPage() {
   const api = useApi();
   const goalsApi = useMemo(() => createSavingsGoalApi(api), [api]);
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
 
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,20 +22,20 @@ export function GoalsPage() {
 
   const loadGoals = useCallback(async () => {
     try {
-      const data = await goalsApi.listGoals();
+      const data = await goalsApi.listGoals(activePortfolioId);
       setGoals(data);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [goalsApi]);
+  }, [goalsApi, activePortfolioId]);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const data = await goalsApi.listGoals();
+        const data = await goalsApi.listGoals(activePortfolioId);
         if (!ignore) setGoals(data);
       } catch {
         // ignore
@@ -44,7 +46,7 @@ export function GoalsPage() {
     return () => {
       ignore = true;
     };
-  }, [goalsApi]);
+  }, [goalsApi, activePortfolioId]);
 
   const handleCreate = useCallback(async () => {
     const target = parseFloat(goalTarget);
@@ -63,6 +65,7 @@ export function GoalsPage() {
           target_amount: target,
           target_date: goalDate || undefined,
           monthly_contribution: goalContribution ? parseFloat(goalContribution) : undefined,
+          portfolio_id: activePortfolioId,
         });
       }
       setShowModal(false);
@@ -75,7 +78,16 @@ export function GoalsPage() {
     } catch {
       // ignore
     }
-  }, [goalName, goalTarget, goalDate, goalContribution, editingGoal, goalsApi, loadGoals]);
+  }, [
+    goalName,
+    goalTarget,
+    goalDate,
+    goalContribution,
+    editingGoal,
+    goalsApi,
+    loadGoals,
+    activePortfolioId,
+  ]);
 
   const handleOpenEdit = (goal: SavingsGoal) => {
     setEditingGoal(goal);

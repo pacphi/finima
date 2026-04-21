@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { formatCurrency, formatDate, toTitleCase } from '@/utils/format';
 import { useCategories, categoryLabel } from '@/hooks/useCategories';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 import type { RecurringGroup } from '@/types/models';
 
 type SortField =
@@ -17,6 +18,7 @@ type TypeFilter = 'income' | 'expense';
 export function RecurringPage() {
   const api = useApi();
   const { categoryMap } = useCategories();
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
 
   const [groups, setGroups] = useState<RecurringGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,10 @@ export function RecurringPage() {
     let ignore = false;
     (async () => {
       try {
-        const data = await api.get<RecurringGroup[]>('/api/recurring');
+        const path = activePortfolioId
+          ? `/api/recurring?portfolio_id=${encodeURIComponent(activePortfolioId)}`
+          : '/api/recurring';
+        const data = await api.get<RecurringGroup[]>(path);
         if (!ignore) {
           setGroups(data);
           setError(null);
@@ -43,7 +48,7 @@ export function RecurringPage() {
     return () => {
       ignore = true;
     };
-  }, [api]);
+  }, [api, activePortfolioId]);
 
   const handleSort = (field: SortField) => {
     if (sortBy === field) {

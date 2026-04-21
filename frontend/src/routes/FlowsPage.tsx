@@ -99,29 +99,31 @@ function transactionsLinkForCategory(month: string, categoryLabel: string): stri
 function DetectedFlowsTab({
   month,
   flowApi,
+  portfolioId,
 }: {
   month: string;
   flowApi: ReturnType<typeof createFlowApi>;
+  portfolioId: string | null;
 }) {
   const [flows, setFlows] = useState<AccountFlow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadFlows = useCallback(async () => {
     try {
-      const data = await flowApi.listFlows(month);
+      const data = await flowApi.listFlows(month, portfolioId);
       setFlows(data);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [flowApi, month]);
+  }, [flowApi, month, portfolioId]);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const data = await flowApi.listFlows(month);
+        const data = await flowApi.listFlows(month, portfolioId);
         if (!ignore) setFlows(data);
       } catch {
         // ignore
@@ -132,7 +134,7 @@ function DetectedFlowsTab({
     return () => {
       ignore = true;
     };
-  }, [flowApi, month]);
+  }, [flowApi, month, portfolioId]);
 
   const handleConfirm = useCallback(
     async (id: string) => {
@@ -258,10 +260,12 @@ function SankeyTab({
   month,
   flowApi,
   api,
+  portfolioId,
 }: {
   month: string;
   flowApi: ReturnType<typeof createFlowApi>;
   api: ReturnType<typeof useApi>;
+  portfolioId: string | null;
 }) {
   const [sankeyData, setSankeyData] = useState<SankeyData>({
     nodes: [],
@@ -275,8 +279,8 @@ function SankeyTab({
       setLoading(true);
       try {
         const [sankey, ranking] = await Promise.allSettled([
-          flowApi.getFullSankeyData(month),
-          flowApi.getOutflowRanking(month),
+          flowApi.getFullSankeyData(month, portfolioId),
+          flowApi.getOutflowRanking(month, portfolioId),
         ]);
         if (sankey.status === 'fulfilled') setSankeyData(sankey.value);
         if (ranking.status === 'fulfilled') setOutflows(ranking.value);
@@ -287,16 +291,17 @@ function SankeyTab({
       }
     }
     void load();
-  }, [month, flowApi]);
+  }, [month, flowApi, portfolioId]);
 
   const loadSubcategories = useCallback(
     async (category: string) => {
       const apiCategory = category.toLowerCase().replace(/\s+/g, '_');
+      const pidQs = portfolioId ? `&portfolio_id=${encodeURIComponent(portfolioId)}` : '';
       return api.get<SubcategorySpend[]>(
-        `/api/dashboard/spending/subcategories?category=${encodeURIComponent(apiCategory)}&month=${month}`,
+        `/api/dashboard/spending/subcategories?category=${encodeURIComponent(apiCategory)}&month=${month}${pidQs}`,
       );
     },
-    [api, month],
+    [api, month, portfolioId],
   );
 
   if (loading) {
@@ -409,10 +414,12 @@ function BalanceImpactTab({
   month,
   flowApi,
   accounts,
+  portfolioId,
 }: {
   month: string;
   flowApi: ReturnType<typeof createFlowApi>;
   accounts: Account[];
+  portfolioId: string | null;
 }) {
   const [selectedOverride, setSelectedOverride] = useState<string | null>(null);
   const [waterfallData, setWaterfallData] = useState<WaterfallData | null>(null);
@@ -430,7 +437,7 @@ function BalanceImpactTab({
     let ignore = false;
     (async () => {
       try {
-        const data = await flowApi.getBalanceImpact(month, selectedAccount);
+        const data = await flowApi.getBalanceImpact(month, selectedAccount, portfolioId);
         if (!ignore) setWaterfallData(data);
       } catch {
         if (!ignore) setWaterfallData(null);
@@ -441,7 +448,7 @@ function BalanceImpactTab({
     return () => {
       ignore = true;
     };
-  }, [month, selectedAccount, flowApi]);
+  }, [month, selectedAccount, flowApi, portfolioId]);
 
   return (
     <div className="space-y-4">
@@ -484,7 +491,13 @@ function BalanceImpactTab({
 
 // ── Flow Groups Tab ─────────────────────────────────────────────────
 
-function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> }) {
+function FlowGroupsTab({
+  flowApi,
+  portfolioId,
+}: {
+  flowApi: ReturnType<typeof createFlowApi>;
+  portfolioId: string | null;
+}) {
   const [groups, setGroups] = useState<FlowGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -494,20 +507,20 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
 
   const loadGroups = useCallback(async () => {
     try {
-      const data = await flowApi.listFlowGroups();
+      const data = await flowApi.listFlowGroups(portfolioId);
       setGroups(data);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [flowApi]);
+  }, [flowApi, portfolioId]);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const data = await flowApi.listFlowGroups();
+        const data = await flowApi.listFlowGroups(portfolioId);
         if (!ignore) setGroups(data);
       } catch {
         // ignore
@@ -518,19 +531,19 @@ function FlowGroupsTab({ flowApi }: { flowApi: ReturnType<typeof createFlowApi> 
     return () => {
       ignore = true;
     };
-  }, [flowApi]);
+  }, [flowApi, portfolioId]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
     try {
-      await flowApi.createFlowGroup(newName.trim());
+      await flowApi.createFlowGroup(newName.trim(), portfolioId);
       setShowCreate(false);
       setNewName('');
       await loadGroups();
     } catch {
       // ignore
     }
-  }, [newName, flowApi, loadGroups]);
+  }, [newName, flowApi, loadGroups, portfolioId]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -728,7 +741,7 @@ export function FlowsPage() {
     setDetecting(true);
     setDetectResult(null);
     try {
-      const result = await flowApi.detectFlows(month);
+      const result = await flowApi.detectFlows(month, activePortfolioId);
       setDetectResult(`Detected ${result.detected} flows, created ${result.created} new.`);
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -736,7 +749,7 @@ export function FlowsPage() {
     } finally {
       setDetecting(false);
     }
-  }, [flowApi, month]);
+  }, [flowApi, month, activePortfolioId]);
 
   // Fetch accounts for the active portfolio.
   useEffect(() => {
@@ -825,12 +838,12 @@ export function FlowsPage() {
           id="tabpanel-detected-flows"
           aria-labelledby="tab-detected-flows"
         >
-          <DetectedFlowsTab month={month} flowApi={flowApi} />
+          <DetectedFlowsTab month={month} flowApi={flowApi} portfolioId={activePortfolioId} />
         </div>
       )}
       {activeTab === 'sankey' && (
         <div key={refreshKey} role="tabpanel" id="tabpanel-sankey" aria-labelledby="tab-sankey">
-          <SankeyTab month={month} flowApi={flowApi} api={api} />
+          <SankeyTab month={month} flowApi={flowApi} api={api} portfolioId={activePortfolioId} />
         </div>
       )}
       {activeTab === 'balance-impact' && (
@@ -840,12 +853,17 @@ export function FlowsPage() {
           id="tabpanel-balance-impact"
           aria-labelledby="tab-balance-impact"
         >
-          <BalanceImpactTab month={month} flowApi={flowApi} accounts={accounts} />
+          <BalanceImpactTab
+            month={month}
+            flowApi={flowApi}
+            accounts={accounts}
+            portfolioId={activePortfolioId}
+          />
         </div>
       )}
       {activeTab === 'flow-groups' && (
         <div role="tabpanel" id="tabpanel-flow-groups" aria-labelledby="tab-flow-groups">
-          <FlowGroupsTab flowApi={flowApi} />
+          <FlowGroupsTab flowApi={flowApi} portfolioId={activePortfolioId} />
         </div>
       )}
     </div>

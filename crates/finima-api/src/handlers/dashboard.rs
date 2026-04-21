@@ -5,6 +5,7 @@ use chrono::{Months, NaiveDate, Utc};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use finima_analysis::{
     compute_health_score, compute_monthly_cashflow, compute_net_worth_series, AccountSnapshot,
@@ -17,16 +18,24 @@ use finima_core::{next_month_start, AppError};
 
 use crate::state::AppState;
 
-use super::helpers::{first_portfolio_id, parse_month, to_analysis};
+use super::helpers::{parse_month, resolve_portfolio_id, to_analysis};
 
 // ---------------------------------------------------------------------------
 // Request / response types
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
+pub struct PortfolioQuery {
+    /// Portfolio to scope the response to. When absent, the user's first
+    /// portfolio is used.
+    pub portfolio_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct MonthsQuery {
     #[serde(default = "default_months")]
     pub months: usize,
+    pub portfolio_id: Option<Uuid>,
 }
 
 fn default_months() -> usize {
@@ -37,6 +46,7 @@ fn default_months() -> usize {
 pub struct MonthQuery {
     /// Month in YYYY-MM format; defaults to current month.
     pub month: Option<String>,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -86,6 +96,7 @@ pub struct SubcategorySpendEntry {
 pub struct SubcategorySpendQuery {
     pub category: String,
     pub month: Option<String>,
+    pub portfolio_id: Option<Uuid>,
 }
 
 // ---------------------------------------------------------------------------
@@ -96,8 +107,9 @@ pub struct SubcategorySpendQuery {
 pub async fn get_summary(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<PortfolioQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     // Fetch all accounts and transactions for analysis.
     let accounts = state.account_repo().list_by_portfolio(portfolio_id).await?;
@@ -185,7 +197,7 @@ pub async fn get_net_worth(
     State(state): State<AppState>,
     Query(params): Query<MonthsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let accounts = state.account_repo().list_by_portfolio(portfolio_id).await?;
     let txn_rows = state
@@ -229,7 +241,7 @@ pub async fn get_cashflow(
     State(state): State<AppState>,
     Query(params): Query<MonthsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let txn_rows = state
         .transaction_repo()
@@ -255,8 +267,9 @@ pub async fn get_cashflow(
 pub async fn get_health_score(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<PortfolioQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let accounts = state.account_repo().list_by_portfolio(portfolio_id).await?;
     let txn_rows = state
@@ -320,7 +333,7 @@ pub async fn get_spending(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let txn_rows = if let Some(ref month_str) = params.month {
         let month = parse_month(&Some(month_str.clone()))?;
@@ -382,7 +395,7 @@ pub async fn get_subcategory_spending(
     State(state): State<AppState>,
     Query(params): Query<SubcategorySpendQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let txn_rows = if let Some(ref month_str) = params.month {
         let month = parse_month(&Some(month_str.clone()))?;

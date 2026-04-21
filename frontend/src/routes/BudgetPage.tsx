@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { createBudgetApi } from '@/api/budgets';
 import { createSavingsGoalApi } from '@/api/savingsGoals';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
 import { BudgetProgress } from '@/components/charts/BudgetProgress';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -27,6 +28,7 @@ export function BudgetPage() {
   const api = useApi();
   const budgetApi = useMemo(() => createBudgetApi(api), [api]);
   const goalsApi = useMemo(() => createSavingsGoalApi(api), [api]);
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
 
   const [month, setMonth] = useState(getCurrentMonth);
   const [budgetData, setBudgetData] = useState<BudgetVsActual[]>([]);
@@ -54,9 +56,9 @@ export function BudgetPage() {
   const loadData = useCallback(async () => {
     try {
       const [budgetRes, budgetListRes, goalsRes] = await Promise.allSettled([
-        budgetApi.getBudgetVsActual(month),
-        budgetApi.listBudgets(month),
-        goalsApi.listGoals(),
+        budgetApi.getBudgetVsActual(month, activePortfolioId),
+        budgetApi.listBudgets(month, activePortfolioId),
+        goalsApi.listGoals(activePortfolioId),
       ]);
       if (budgetRes.status === 'fulfilled') setBudgetData(budgetRes.value);
       if (budgetListRes.status === 'fulfilled') setBudgets(budgetListRes.value);
@@ -66,16 +68,16 @@ export function BudgetPage() {
     } finally {
       setLoading(false);
     }
-  }, [budgetApi, goalsApi, month]);
+  }, [budgetApi, goalsApi, month, activePortfolioId]);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
         const [budgetRes, budgetListRes, goalsRes] = await Promise.allSettled([
-          budgetApi.getBudgetVsActual(month),
-          budgetApi.listBudgets(month),
-          goalsApi.listGoals(),
+          budgetApi.getBudgetVsActual(month, activePortfolioId),
+          budgetApi.listBudgets(month, activePortfolioId),
+          goalsApi.listGoals(activePortfolioId),
         ]);
         if (ignore) return;
         if (budgetRes.status === 'fulfilled') setBudgetData(budgetRes.value);
@@ -88,23 +90,23 @@ export function BudgetPage() {
     return () => {
       ignore = true;
     };
-  }, [budgetApi, goalsApi, month]);
+  }, [budgetApi, goalsApi, month, activePortfolioId]);
 
   const handleAutoSuggest = useCallback(async () => {
     try {
-      const result = await budgetApi.autoSuggestBudgets();
+      const result = await budgetApi.autoSuggestBudgets(activePortfolioId);
       setSuggestions(result);
       setShowSuggestions(true);
     } catch {
       // ignore
     }
-  }, [budgetApi]);
+  }, [budgetApi, activePortfolioId]);
 
   const handleApplySuggestion = useCallback(
     async (suggestion: BudgetSuggestion) => {
       try {
         await budgetApi.createBudget({
-          portfolio_id: '',
+          portfolio_id: activePortfolioId,
           category: suggestion.category,
           amount: suggestion.suggested_limit,
           month,
@@ -115,7 +117,7 @@ export function BudgetPage() {
         // ignore
       }
     },
-    [budgetApi, month, loadData],
+    [budgetApi, month, loadData, activePortfolioId],
   );
 
   const handleSaveEdit = useCallback(
@@ -128,7 +130,7 @@ export function BudgetPage() {
           await budgetApi.updateBudget(existing.id, { amount: val });
         } else {
           await budgetApi.createBudget({
-            portfolio_id: '',
+            portfolio_id: activePortfolioId,
             category,
             amount: val,
             month,
@@ -140,7 +142,7 @@ export function BudgetPage() {
         // ignore
       }
     },
-    [editLimit, budgetApi, budgets, month, loadData],
+    [editLimit, budgetApi, budgets, month, loadData, activePortfolioId],
   );
 
   const handleCreateBudget = useCallback(async () => {
@@ -148,7 +150,7 @@ export function BudgetPage() {
     if (!newCategory.trim() || isNaN(val)) return;
     try {
       await budgetApi.createBudget({
-        portfolio_id: '',
+        portfolio_id: activePortfolioId,
         category: newCategory.trim(),
         amount: val,
         month,
@@ -160,7 +162,7 @@ export function BudgetPage() {
     } catch {
       // ignore
     }
-  }, [newCategory, newLimit, budgetApi, month, loadData]);
+  }, [newCategory, newLimit, budgetApi, month, loadData, activePortfolioId]);
 
   const handleCreateGoal = useCallback(async () => {
     const target = parseFloat(goalTarget);
@@ -170,6 +172,7 @@ export function BudgetPage() {
         name: goalName.trim(),
         target_amount: target,
         target_date: goalDate || undefined,
+        portfolio_id: activePortfolioId,
       });
       setShowGoalModal(false);
       setGoalName('');
@@ -179,7 +182,7 @@ export function BudgetPage() {
     } catch {
       // ignore
     }
-  }, [goalName, goalTarget, goalDate, goalsApi, loadData]);
+  }, [goalName, goalTarget, goalDate, goalsApi, loadData, activePortfolioId]);
 
   const budgetGoalModalRef = useFocusTrap<HTMLDivElement>(showGoalModal, () =>
     setShowGoalModal(false),

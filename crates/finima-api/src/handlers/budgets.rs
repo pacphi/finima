@@ -3,6 +3,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use finima_analysis::{auto_suggest_budgets, compute_budget_vs_actual, BudgetEntry};
 use finima_auth::middleware::AuthUser;
@@ -10,7 +11,7 @@ use finima_core::AppError;
 
 use crate::state::AppState;
 
-use super::helpers::{first_portfolio_id, parse_month, to_analysis};
+use super::helpers::{parse_month, resolve_portfolio_id, to_analysis};
 
 // ---------------------------------------------------------------------------
 // Request / response types
@@ -19,6 +20,12 @@ use super::helpers::{first_portfolio_id, parse_month, to_analysis};
 #[derive(Debug, Deserialize)]
 pub struct MonthQuery {
     pub month: Option<String>,
+    pub portfolio_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PortfolioQuery {
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +36,7 @@ pub struct CreateBudgetRequest {
     pub rollover: bool,
     /// Month in YYYY-MM format.
     pub month: String,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,7 +58,7 @@ pub async fn list_budgets(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let budgets = state
@@ -67,7 +75,7 @@ pub async fn create_budget(
     State(state): State<AppState>,
     Json(body): Json<CreateBudgetRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, body.portfolio_id).await?;
 
     // Parse month string to NaiveDate (first of month).
     let month = parse_month(&Some(body.month.clone()))?;
@@ -92,7 +100,7 @@ pub async fn budget_vs_actual(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     // Get budgets for the month.
@@ -136,8 +144,9 @@ pub async fn budget_vs_actual(
 pub async fn auto_suggest(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<PortfolioQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     // Get last 3 months of transactions.
     let txn_rows = state

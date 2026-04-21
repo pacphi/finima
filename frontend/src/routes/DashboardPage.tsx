@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '@/hooks/useApi';
 import { useConfigStore } from '@/stores/configStore';
+import { usePortfolioStore } from '@/stores/portfolioStore';
 import { createDashboardApi } from '@/api/dashboard';
 import { createBudgetApi } from '@/api/budgets';
 import { formatCurrencyCompact as formatCurrency, toTitleCase } from '@/utils/format';
@@ -242,6 +243,7 @@ export function DashboardPage() {
   const dashboardApi = useMemo(() => createDashboardApi(api), [api]);
   const budgetApi = useMemo(() => createBudgetApi(api), [api]);
   const upcomingWindowDays = useConfigStore((s) => s.dashboard.upcomingWindowDays);
+  const activePortfolioId = usePortfolioStore((s) => s.activePortfolioId);
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [netWorthData, setNetWorthData] = useState<NetWorthPoint[]>([]);
@@ -261,15 +263,21 @@ export function DashboardPage() {
       setLoading(true);
       try {
         const month = getCurrentMonth();
+        const pid = activePortfolioId;
+        const recurringQs = new URLSearchParams({
+          upcoming: 'true',
+          days: String(upcomingWindowDays),
+        });
+        if (pid) recurringQs.set('portfolio_id', pid);
         const [summaryRes, netWorthRes, cashflowRes, spendingRes, budgetRes, healthRes, billsRes] =
           await Promise.allSettled([
-            dashboardApi.getDashboardSummary(),
-            dashboardApi.getNetWorth(12),
-            dashboardApi.getCashflow(12),
-            dashboardApi.getSpending(month),
-            budgetApi.getBudgetVsActual(month),
-            dashboardApi.getHealthScore(),
-            api.get<RecurringGroup[]>(`/api/recurring?upcoming=true&days=${upcomingWindowDays}`),
+            dashboardApi.getDashboardSummary(pid),
+            dashboardApi.getNetWorth(12, pid),
+            dashboardApi.getCashflow(12, pid),
+            dashboardApi.getSpending(month, pid),
+            budgetApi.getBudgetVsActual(month, pid),
+            dashboardApi.getHealthScore(pid),
+            api.get<RecurringGroup[]>(`/api/recurring?${recurringQs.toString()}`),
           ]);
 
         if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
@@ -287,13 +295,13 @@ export function DashboardPage() {
     }
 
     void loadData();
-  }, [dashboardApi, budgetApi, api, upcomingWindowDays]);
+  }, [dashboardApi, budgetApi, api, upcomingWindowDays, activePortfolioId]);
 
   useEffect(() => {
     async function loadSpending() {
       try {
         const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
-        const data = await dashboardApi.getSpending(month);
+        const data = await dashboardApi.getSpending(month, activePortfolioId);
         setSpendingData(data);
         setSelectedSpendingCategory(null);
         setSubcategorySpending(null);
@@ -302,7 +310,7 @@ export function DashboardPage() {
       }
     }
     if (!loading) void loadSpending();
-  }, [spendingMode, dashboardApi, loading]);
+  }, [spendingMode, dashboardApi, loading, activePortfolioId]);
 
   const handleCategoryClick = useCallback(
     async (category: string) => {
@@ -333,13 +341,13 @@ export function DashboardPage() {
       setSelectedSpendingCategory(category);
       try {
         const month = spendingMode === 'month' ? getCurrentMonth() : undefined;
-        const data = await dashboardApi.getSubcategorySpending(category, month);
+        const data = await dashboardApi.getSubcategorySpending(category, month, activePortfolioId);
         setSubcategorySpending(data);
       } catch {
         setSubcategorySpending(null);
       }
     },
-    [dashboardApi, navigate, spendingMode, spendingData],
+    [dashboardApi, navigate, spendingMode, spendingData, activePortfolioId],
   );
 
   const handleDismissSubcategory = useCallback(() => {

@@ -18,7 +18,7 @@ use finima_db::NewAccountFlow;
 
 use crate::state::AppState;
 
-use super::helpers::{first_portfolio_id, parse_month, to_analysis};
+use super::helpers::{parse_month, resolve_portfolio_id, to_analysis};
 
 // ---------------------------------------------------------------------------
 // Request / response types
@@ -27,18 +27,26 @@ use super::helpers::{first_portfolio_id, parse_month, to_analysis};
 #[derive(Debug, Deserialize)]
 pub struct MonthQuery {
     pub month: Option<String>,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct BalanceImpactQuery {
     pub month: Option<String>,
     pub account_id: Uuid,
+    pub portfolio_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PortfolioQuery {
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateFlowRequest {
     pub source_transaction_id: Uuid,
     pub target_transaction_id: Uuid,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,6 +58,7 @@ pub struct FlowActionRequest {
 #[derive(Debug, Deserialize)]
 pub struct CreateFlowGroupRequest {
     pub name: String,
+    pub portfolio_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,7 +162,7 @@ pub async fn list_flows(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let flows = state
@@ -222,7 +231,7 @@ pub async fn create_flow(
     State(state): State<AppState>,
     Json(body): Json<CreateFlowRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, body.portfolio_id).await?;
 
     // Fetch both transactions to determine accounts and amount.
     let source_txn = state
@@ -443,7 +452,7 @@ pub async fn get_sankey(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let db_flows = state
@@ -521,7 +530,7 @@ pub async fn get_full_sankey(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let db_flows = state
@@ -867,7 +876,7 @@ pub async fn get_outflow_ranking(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let db_flows = state
@@ -1010,7 +1019,7 @@ pub async fn get_balance_impact(
     State(state): State<AppState>,
     Query(params): Query<BalanceImpactQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     let account = state.account_repo().find_by_id(params.account_id).await?;
@@ -1082,7 +1091,7 @@ pub async fn detect_flows_handler(
     State(state): State<AppState>,
     Query(params): Query<MonthQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
     let month = parse_month(&params.month)?;
 
     // Load all accounts, identify primary ones.
@@ -1276,8 +1285,9 @@ async fn flow_group_portfolio_id(state: &AppState, group_id: Uuid) -> Result<Uui
 pub async fn list_flow_groups(
     user: AuthUser,
     State(state): State<AppState>,
+    Query(params): Query<PortfolioQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, params.portfolio_id).await?;
 
     let groups = state
         .flow_group_repo()
@@ -1293,7 +1303,7 @@ pub async fn create_flow_group(
     State(state): State<AppState>,
     Json(body): Json<CreateFlowGroupRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let portfolio_id = first_portfolio_id(&user, &state).await?;
+    let portfolio_id = resolve_portfolio_id(&user, &state, body.portfolio_id).await?;
 
     let group = state
         .flow_group_repo()

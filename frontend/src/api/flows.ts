@@ -6,6 +6,12 @@ import type {
   WaterfallData,
 } from '@/types/models';
 
+function withPortfolio(path: string, portfolioId: string | null): string {
+  if (!portfolioId) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}portfolio_id=${encodeURIComponent(portfolioId)}`;
+}
+
 export function createFlowApi(api: {
   get: <T>(path: string) => Promise<T>;
   post: <T>(path: string, body?: unknown) => Promise<T>;
@@ -13,7 +19,8 @@ export function createFlowApi(api: {
   del: <T>(path: string) => Promise<T>;
 }) {
   return {
-    listFlows: (month: string) => api.get<AccountFlow[]>(`/api/flows?month=${month}`),
+    listFlows: (month: string, portfolioId: string | null = null) =>
+      api.get<AccountFlow[]>(withPortfolio(`/api/flows?month=${month}`, portfolioId)),
 
     createFlow: (data: {
       source_account_id: string;
@@ -22,7 +29,12 @@ export function createFlowApi(api: {
       date: string;
       source_transaction_id?: string;
       destination_transaction_id?: string;
-    }) => api.post<AccountFlow>('/api/flows', data),
+      portfolio_id?: string | null;
+    }) => {
+      const body: Record<string, unknown> = { ...data };
+      if (!body.portfolio_id) delete body.portfolio_id;
+      return api.post<AccountFlow>('/api/flows', body);
+    },
 
     confirmFlow: (id: string) => api.put<AccountFlow>(`/api/flows/${id}`, { action: 'confirm' }),
 
@@ -30,23 +42,38 @@ export function createFlowApi(api: {
 
     deleteFlow: (id: string) => api.del<void>(`/api/flows/${id}`),
 
-    detectFlows: (month: string) =>
-      api.post<{ detected: number; created: number }>(`/api/flows/detect?month=${month}`),
+    detectFlows: (month: string, portfolioId: string | null = null) =>
+      api.post<{ detected: number; created: number }>(
+        withPortfolio(`/api/flows/detect?month=${month}`, portfolioId),
+      ),
 
-    getSankeyData: (month: string) => api.get<SankeyData>(`/api/flows/sankey?month=${month}`),
+    getSankeyData: (month: string, portfolioId: string | null = null) =>
+      api.get<SankeyData>(withPortfolio(`/api/flows/sankey?month=${month}`, portfolioId)),
 
-    getFullSankeyData: (month: string) =>
-      api.get<SankeyData>(`/api/flows/sankey-full?month=${month}`),
+    getFullSankeyData: (month: string, portfolioId: string | null = null) =>
+      api.get<SankeyData>(withPortfolio(`/api/flows/sankey-full?month=${month}`, portfolioId)),
 
-    getOutflowRanking: (month: string) =>
-      api.get<OutflowRank[]>(`/api/flows/outflow-ranking?month=${month}`),
+    getOutflowRanking: (month: string, portfolioId: string | null = null) =>
+      api.get<OutflowRank[]>(
+        withPortfolio(`/api/flows/outflow-ranking?month=${month}`, portfolioId),
+      ),
 
-    getBalanceImpact: (month: string, accountId: string) =>
-      api.get<WaterfallData>(`/api/flows/balance-impact?month=${month}&account_id=${accountId}`),
+    getBalanceImpact: (month: string, accountId: string, portfolioId: string | null = null) =>
+      api.get<WaterfallData>(
+        withPortfolio(
+          `/api/flows/balance-impact?month=${month}&account_id=${accountId}`,
+          portfolioId,
+        ),
+      ),
 
-    listFlowGroups: () => api.get<FlowGroup[]>('/api/flow-groups'),
+    listFlowGroups: (portfolioId: string | null = null) =>
+      api.get<FlowGroup[]>(withPortfolio('/api/flow-groups', portfolioId)),
 
-    createFlowGroup: (name: string) => api.post<FlowGroup>('/api/flow-groups', { name }),
+    createFlowGroup: (name: string, portfolioId: string | null = null) => {
+      const body: Record<string, unknown> = { name };
+      if (portfolioId) body.portfolio_id = portfolioId;
+      return api.post<FlowGroup>('/api/flow-groups', body);
+    },
 
     updateFlowGroup: (id: string, name: string) =>
       api.put<FlowGroup>(`/api/flow-groups/${id}`, { name }),
