@@ -52,6 +52,7 @@ See [docs/guides/quick-start.md](docs/guides/quick-start.md) for the full setup 
 | Guide                                                 | Description                    |
 | ----------------------------------------------------- | ------------------------------ |
 | [Quick Start](docs/guides/quick-start.md)             | Getting started                |
+| [UI Overview](docs/guides/user-interface-overview.md) | Visual tour of the UI          |
 | [User Guide](docs/guides/user-guide.md)               | End-user walkthrough           |
 | [Maintainer Guide](docs/guides/maintainer-guide.md)   | Contributing and development   |
 | [Deployment](docs/guides/deployment.md)               | Production deployment          |
