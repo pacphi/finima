@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHealthStore, type LlmStatus } from '@/stores/healthStore';
+import { APP_VERSION } from '@/utils/version';
 
 interface NavItem {
   to: string;
@@ -363,6 +364,12 @@ export function Sidebar() {
             </svg>
           </div>
           <span className="text-lg font-bold text-white tracking-tight">Finima</span>
+          <span
+            className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/70 tracking-wide"
+            title={`Version ${APP_VERSION}`}
+          >
+            v{APP_VERSION}
+          </span>
         </div>
 
         <nav

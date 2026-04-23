@@ -1,0 +1,27 @@
+# Build artifacts
+node_modules/
+dist/
+coverage/
+.vite/
+.turbo/
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Test output
+playwright-report/
+test-results/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Not needed inside the build context
+Dockerfile.frontend
+.dockerignore

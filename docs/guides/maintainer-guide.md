@@ -496,6 +496,64 @@ Docker images are published to `ghcr.io/pacphi/finima-backend` and
 make docker-build
 ```
 
+#### Cutting a release
+
+A release is a single command. It bumps every version in lockstep, regenerates
+`CHANGELOG.md` from Conventional Commits, commits, tags, and pushes. The
+tag-triggered workflow (`.github/workflows/release.yml`) then verifies version
+match, builds and pushes images, and creates a GitHub Release whose notes come
+from the new `CHANGELOG.md` section.
+
+**One-time setup:**
+
+```sh
+cargo install cargo-edit   # provides `cargo set-version`
+cargo install git-cliff    # conventional-commit changelog generator
+```
+
+**Happy path:**
+
+```sh
+make release VERSION=0.2.0
+```
+
+This runs `scripts/release.sh`, which:
+
+1. Confirms you're on `main`, clean, and in sync with `origin/main`.
+2. Bumps the Rust workspace (`[workspace.package].version` in root `Cargo.toml`
+   — all crates inherit via `version.workspace = true`).
+3. Bumps the frontend with `pnpm version` (never `npm`/`yarn`; the lockfile is
+   `frontend/pnpm-lock.yaml` and `packageManager` pins pnpm).
+4. Runs `cargo check` so `Cargo.lock` picks up the new version.
+5. Regenerates `CHANGELOG.md` via `git-cliff` using `cliff.toml` (groups commits
+   as Features / Bug Fixes / Performance / Dependencies / Documentation /
+   Refactors / Security; drops `chore`, `ci`, `style`, `test`, `build` noise).
+6. Prompts to commit the `chore(release): vX.Y.Z` commit and tag `vX.Y.Z`.
+7. Prompts again to push `main` and the tag.
+
+**What CI does on the tag:** verifies the tag equals the Cargo workspace and
+frontend versions, runs `git-cliff --latest` to generate release notes, builds
+and pushes backend + frontend images to GHCR with `:latest` and `:X.Y.Z` tags,
+and creates the GitHub Release using the generated notes as the body.
+
+**Runtime version display:** the sidebar title shows a small `vX.Y.Z` pill next
+to "Finima" (injected at build time via Vite `define` from
+`frontend/package.json`). The backend's `GET /health` returns the same version
+string via `env!("CARGO_PKG_VERSION")`.
+
+**Rollback:** delete the release tag locally and on the remote, delete the
+matching GHCR image tags if needed, and revert the release commit:
+
+```sh
+git tag -d v0.2.0
+git push origin :refs/tags/v0.2.0
+git revert <release-commit-sha>
+git push origin main
+```
+
+Previously published `:latest` images are not automatically restored — push a
+new patch release (`v0.2.1`) to replace them.
+
 ## Configuration
 
 ### Config Layering
