@@ -1,7 +1,7 @@
 # Multi-stage Node build for finima-frontend
 
 # Stage 1: Development dependencies
-FROM node:25-alpine AS dev
+FROM node:24-alpine AS dev
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
