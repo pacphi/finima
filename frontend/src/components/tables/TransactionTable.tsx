@@ -300,6 +300,7 @@ export function TransactionTable({
     handleCancelPending,
   ]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- already opted out of React Compiler via `use no memo` above
   const table = useReactTable({
     data: transactions,
     columns,

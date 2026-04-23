@@ -615,6 +615,19 @@ docker-build-no-cache: ## Build Docker images without cache
 	docker build --no-cache -t finima-frontend -f frontend/Dockerfile.frontend frontend/
 
 # ═══════════════════════════════════════════════════════════════
+#  Release
+# ═══════════════════════════════════════════════════════════════
+
+.PHONY: release changelog
+
+release: ## Cut a release (bumps versions, updates CHANGELOG, commits, tags, pushes). Usage: make release VERSION=0.2.0
+	@[ -n "$(VERSION)" ] || (echo "usage: make release VERSION=X.Y.Z" >&2; exit 1)
+	@./scripts/release.sh $(VERSION)
+
+changelog: ## Regenerate CHANGELOG.md from git history using git-cliff
+	git-cliff --output CHANGELOG.md
+
+# ═══════════════════════════════════════════════════════════════
 #  Docker — Testing
 # ═══════════════════════════════════════════════════════════════
 

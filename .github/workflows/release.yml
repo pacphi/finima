@@ -15,6 +15,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Verify version match
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          CARGO_VERSION=$(awk '
+            /^\[workspace\.package\]/ { in_ws = 1; next }
+            /^\[/ { in_ws = 0 }
+            in_ws && /^version[[:space:]]*=/ {
+              gsub(/"/, "", $3); print $3; exit
+            }' Cargo.toml)
+          FRONTEND_VERSION=$(node -p "require('./frontend/package.json').version")
+          echo "tag=$VERSION  cargo=$CARGO_VERSION  frontend=$FRONTEND_VERSION"
+          if [ "$VERSION" != "$CARGO_VERSION" ] || [ "$VERSION" != "$FRONTEND_VERSION" ]; then
+            echo "::error::tag $VERSION does not match Cargo workspace ($CARGO_VERSION) or frontend ($FRONTEND_VERSION)"
+            exit 1
+          fi
+
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: RELEASE_NOTES.md
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -25,10 +57,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Build and push backend
         uses: docker/build-push-action@v7
@@ -58,4 +86,4 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
