@@ -1,16 +1,32 @@
 # Cargo audit configuration
 # See https://github.com/rustsec/rustsec/tree/main/cargo-audit
+#
+# Non-actionable transitive advisory exceptions — reviewed by maintainers.
+# See each entry in /audit-ignore for full rationale. Mirrored here so
+# `cargo audit` picks them up directly (.cargo/audit.toml is the canonical
+# config path searched from the Cargo.lock directory).
 
 [advisories]
-# RUSTSEC-2023-0071: Marvin Attack timing sidechannel in `rsa` crate.
-# Transitive dependency via sqlx-mysql — no fixed upgrade available.
-# sqlx does not use RSA for anything security-sensitive in our context
-# (PostgreSQL-only deployment). Ignore until upstream provides a fix.
 ignore = [
+    # rsa Marvin attack — reachable only via sqlx-mysql (unused at runtime)
     "RUSTSEC-2023-0071",
-    # RUSTSEC-2026-0097: rand unsoundness with custom logger calling rand::rng().
-    # Not applicable: the `log` feature is not enabled on our transitive rand 0.8.5,
-    # and we have no custom logger that calls rand. The vulnerable code path is
-    # compiled out entirely. Will resolve when jsonwebtoken/sqlx upgrade to rand 0.9+.
+
+    # rand unsoundness — `log` feature not enabled; vulnerable path compiled out
     "RUSTSEC-2026-0097",
+
+    # Unmaintained informational advisories for deep transitive deps
+    "RUSTSEC-2025-0141",  # bincode
+    "RUSTSEC-2026-0105",  # core2 (yanked)
+    "RUSTSEC-2025-0057",  # fxhash
+    "RUSTSEC-2025-0119",  # number_prefix
+    "RUSTSEC-2024-0436",  # paste
 ]
+
+[yanked]
+# core2 0.4.0 (pulled via mistralrs -> image -> ravif -> rav1e -> bitstream-io)
+# has all versions yanked from crates.io. The RUSTSEC-2026-0105 advisory above
+# already covers the unmaintained status; the separate "yanked" warning has no
+# advisory ID and cannot be filtered per-crate. Disable yanked checks until
+# the upstream ML stack migrates away from core2.
+enabled = false
+

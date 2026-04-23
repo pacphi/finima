@@ -1,0 +1,37 @@
+# cargo-audit exceptions — non-actionable transitive advisories
+# Format: one RUSTSEC ID per line; lines starting with # are comments.
+# Reviewed by maintainers; remove an entry once the upstream dep is patched.
+
+# RUSTSEC-2023-0071: rsa Marvin attack (timing side-channel)
+# Pulled in by sqlx-mysql (sqlx's proc-macro compile-time dependency).
+# PostgreSQL-only deployment; the mysql path is never reachable at runtime.
+# No upstream patch exists yet.
+# Track: https://github.com/RustCrypto/RSA/issues/19
+RUSTSEC-2023-0071
+
+# RUSTSEC-2026-0097: rand unsoundness with custom logger calling rand::rng()
+# The `log` feature is not enabled on our transitive rand 0.8.5, and we have
+# no custom logger that calls rand — the vulnerable code path is compiled
+# out entirely. Will resolve when jsonwebtoken/sqlx upgrade to rand 0.9+.
+RUSTSEC-2026-0097
+
+# RUSTSEC-2025-0141: bincode 1.x/2.x unmaintained (informational, no CVE)
+# Deep transitive dep (candle / mistralrs); no drop-in replacement wired up.
+RUSTSEC-2025-0141
+
+# RUSTSEC-2026-0105: core2 unmaintained, all versions yanked
+# Transitive dep via the ML/embedding stack (candle/tokenizers chain).
+# No drop-in replacement; upstream crates must migrate first.
+RUSTSEC-2026-0105
+
+# RUSTSEC-2025-0057: fxhash unmaintained
+# Transitive dep; no drop-in replacement wired up.
+RUSTSEC-2025-0057
+
+# RUSTSEC-2025-0119: number_prefix unmaintained (informational, no CVE)
+# Transitive dep (indicatif).
+RUSTSEC-2025-0119
+
+# RUSTSEC-2024-0436: paste unmaintained (informational, no CVE)
+# Transitive dep via candle/tokenizers; no drop-in replacement used.
+RUSTSEC-2024-0436

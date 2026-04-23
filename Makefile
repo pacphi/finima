@@ -640,8 +640,9 @@ upgrade: ## Upgrade dependencies within semver
 	cargo update
 	$(MAKE) -C $(FRONTEND_DIR) upgrade
 
-audit: ## Security audit all dependencies
-	cargo audit 2>/dev/null || echo "Install: cargo install cargo-audit"
+audit: ## Security audit all dependencies (respects /audit-ignore exceptions)
+	@command -v cargo-audit >/dev/null 2>&1 || { echo "Install: cargo install cargo-audit --locked"; exit 1; }
+	bash .github/scripts/cargo-audit.sh
 	$(MAKE) -C $(FRONTEND_DIR) audit
 
 # ═══════════════════════════════════════════════════════════════
