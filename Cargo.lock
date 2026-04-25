@@ -7008,9 +7008,9 @@ dependencies = [
 
 [[package]]
 name = "ruvector-sona"
-version = "0.1.9"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f814dd0918c28831365b92135151b28233b95c2f661f0821c72c6b03b603daa6"
+checksum = "02a9465310393f43fc9ba2409cbf819c543ef16e0eb1791090351bfc4833c158"
 dependencies = [
  "crossbeam",
  "getrandom 0.2.17",
