@@ -122,6 +122,8 @@ Leave `APP__RESEND__API_KEY` empty. Magic links are printed in the
 backend terminal with a `[DEV]` prefix. Copy the URL and paste it
 into your browser.
 
+> **Did not receive the email?** See [Cannot receive magic-link email](troubleshooting.md#1-cannot-receive-magic-link-email).
+
 ## 3. Start everything
 
 ### Option A — Using Make (recommended)
@@ -245,6 +247,9 @@ You can also skip this step and create accounts later.
 ## 8. Import your first bank statement
 
 1. Navigate to **Accounts** and select the account you just created.
+
+> **How to download a statement from your bank:** Log in to your bank's website and go to the account history or transactions section. Look for a button or link labelled **Download Activity**, **Export Transactions**, or **Statement Download** — the exact wording varies by bank. If you are given a choice of file formats, choose **CSV**. Save the file to your Downloads folder.
+
 2. On the account detail page, find the upload area.
 3. Drag and drop a bank statement file, or click to browse.
 
@@ -261,6 +266,8 @@ After uploading, Finima shows a **column mapping** screen where you
 match the columns in your file to the fields Finima expects (date,
 description, amount). Confirm the mapping and Finima imports your
 transactions.
+
+> **File not uploading or column mapping looks wrong?** See the [Troubleshooting Guide](troubleshooting.md).
 
 If Ollama is running and a model has been pulled, Finima
 automatically categorizes each transaction using AI.
