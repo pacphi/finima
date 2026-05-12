@@ -38,9 +38,6 @@ max_concurrency = 8
 # Max retries per URL
 max_retries = 2
 
-# Include fragment checks (anchor links like #section)
-include_fragments = "anchor-only"
-
 # Include mail link checks (set to false to skip mailto: links)
 include_mail = false
 

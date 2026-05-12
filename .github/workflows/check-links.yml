@@ -33,10 +33,9 @@ jobs:
       - name: Check internal links
         uses: lycheeverse/lychee-action@v2
         with:
-          lycheeVersion: v0.24.2
           args: >-
             --scheme file
-            --include-fragments=anchor-only
+            --include-fragments
             --config .lychee.toml
             '**/*.md'
           fail: true
@@ -59,7 +58,6 @@ jobs:
       - name: Check external links
         uses: lycheeverse/lychee-action@v2
         with:
-          lycheeVersion: v0.24.2
           args: >-
             --scheme https
             --scheme http
