@@ -17,12 +17,12 @@ With Finima you can:
 
 **What you need before you start:**
 
-| Item | Notes |
-| ---- | ----- |
-| A computer running macOS, Windows, or Linux | Any reasonably modern machine works. |
-| An email address you can access right now | Finima uses a magic-link sign-in — no password needed. |
-| 15–20 minutes (first time) | Most of this is waiting for downloads. |
-| At least one bank statement file | You can skip this for now and add it later, but it is good to have ready. |
+| Item                                        | Notes                                                                     |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| A computer running macOS, Windows, or Linux | Any reasonably modern machine works.                                      |
+| An email address you can access right now   | Finima uses a magic-link sign-in — no password needed.                    |
+| 15–20 minutes (first time)                  | Most of this is waiting for downloads.                                    |
+| At least one bank statement file            | You can skip this for now and add it later, but it is good to have ready. |
 
 ---
 
@@ -30,11 +30,11 @@ With Finima you can:
 
 Docker is a tool that runs Finima (and everything it depends on) inside tidy, isolated containers. Think of it as a self-contained box — no database to install separately, no programming languages to set up. Docker handles all of that.
 
-| Operating system | How to install |
-| ---------------- | -------------- |
-| **Mac** | Go to [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) and download the installer for your chip (Apple silicon or Intel — check Apple menu > About This Mac if unsure). Open the downloaded `.dmg` file, drag Docker to your Applications folder, and launch it. Wait for the small whale icon in the menu bar to stop animating — that means Docker is ready. |
-| **Windows** | Go to [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) and download the Windows installer. Run it and accept the default WSL 2 backend option (this is the modern Windows subsystem that Docker needs). Restart your computer if prompted, then open Docker Desktop from the Start menu. |
-| **Linux** | Follow the instructions for your specific distribution at [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/). After installation, start the Docker service and add your user to the `docker` group so you can run Docker without `sudo`. |
+| Operating system | How to install                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mac**          | Go to [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) and download the installer for your chip (Apple silicon or Intel — check Apple menu > About This Mac if unsure). Open the downloaded `.dmg` file, drag Docker to your Applications folder, and launch it. Wait for the small whale icon in the menu bar to stop animating — that means Docker is ready. |
+| **Windows**      | Go to [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/) and download the Windows installer. Run it and accept the default WSL 2 backend option (this is the modern Windows subsystem that Docker needs). Restart your computer if prompted, then open Docker Desktop from the Start menu.                                                                       |
+| **Linux**        | Follow the instructions for your specific distribution at [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/). After installation, start the Docker service and add your user to the `docker` group so you can run Docker without `sudo`.                                                                                                                         |
 
 > **You do not need a Docker account.** Docker Desktop works without signing in. If it asks you to create an account or sign in, you can dismiss or skip that prompt.
 
@@ -44,12 +44,12 @@ Docker is a tool that runs Finima (and everything it depends on) inside tidy, is
 
 Git is a tool for downloading and managing code. You only need one command from it in this guide.
 
-| Operating system | How to install |
-| ---------------- | -------------- |
-| **Mac** | Open the **Terminal** app (search for "Terminal" in Spotlight — press `⌘ Space` and type "Terminal"). Type `git --version` and press Enter. If Git is not already installed, macOS will offer to install the Xcode Command Line Tools. Click **Install** and follow the prompts. When it finishes, Git is ready. |
-| **Windows** | Go to [https://git-scm.com/download/win](https://git-scm.com/download/win) and download the installer. Run it and accept all the default options. When it finishes you will have a program called **Git Bash** — use that whenever this guide says "open a terminal." |
-| **Linux (Debian/Ubuntu)** | Open a terminal and run `sudo apt install git`. |
-| **Linux (Fedora/RHEL)** | Open a terminal and run `sudo dnf install git`. |
+| Operating system          | How to install                                                                                                                                                                                                                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mac**                   | Open the **Terminal** app (search for "Terminal" in Spotlight — press `⌘ Space` and type "Terminal"). Type `git --version` and press Enter. If Git is not already installed, macOS will offer to install the Xcode Command Line Tools. Click **Install** and follow the prompts. When it finishes, Git is ready. |
+| **Windows**               | Go to [https://git-scm.com/download/win](https://git-scm.com/download/win) and download the installer. Run it and accept all the default options. When it finishes you will have a program called **Git Bash** — use that whenever this guide says "open a terminal."                                            |
+| **Linux (Debian/Ubuntu)** | Open a terminal and run `sudo apt install git`.                                                                                                                                                                                                                                                                  |
+| **Linux (Fedora/RHEL)**   | Open a terminal and run `sudo dnf install git`.                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -145,13 +145,13 @@ This is usually found in the account history or statements section. When given a
 
 **Where to find the export option at major US banks:**
 
-| Bank | Where to look |
-| ---- | ------------- |
-| **Chase** | Open an account, scroll to transaction history, click **Download account activity** (top-right of the transaction list), choose a date range and CSV format. |
-| **Bank of America** | Go to account activity, click **Download** (near the search/filter area), choose a date range and the "Microsoft Excel" or "CSV" format option. |
-| **Wells Fargo** | Open an account, click **Download Activity** above the transaction list, choose your date range and select "Comma-Delimited File (CSV)." |
-| **Capital One** | Go to account activity, click the **Download** icon (arrow pointing down), choose your date range and "CSV (Excel)" format. |
-| **Citi** | Go to account activity, select **Download** or **Export**, choose a date range, and pick "CSV." |
+| Bank                | Where to look                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Chase**           | Open an account, scroll to transaction history, click **Download account activity** (top-right of the transaction list), choose a date range and CSV format. |
+| **Bank of America** | Go to account activity, click **Download** (near the search/filter area), choose a date range and the "Microsoft Excel" or "CSV" format option.              |
+| **Wells Fargo**     | Open an account, click **Download Activity** above the transaction list, choose your date range and select "Comma-Delimited File (CSV)."                     |
+| **Capital One**     | Go to account activity, click the **Download** icon (arrow pointing down), choose your date range and "CSV (Excel)" format.                                  |
+| **Citi**            | Go to account activity, select **Download** or **Export**, choose a date range, and pick "CSV."                                                              |
 
 Save the downloaded file somewhere you can find it easily (your Desktop works fine).
 
@@ -170,14 +170,14 @@ Finima automatically suggests a category for each transaction (for example, "Gro
 
 Head back to the dashboard (click the Finima logo or the Home link). You will find six widgets:
 
-| Widget | What it shows |
-| ------ | ------------- |
-| **Net Worth** | Your total assets minus your total liabilities, shown as a number and a chart over time. |
+| Widget                     | What it shows                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Net Worth**              | Your total assets minus your total liabilities, shown as a number and a chart over time.                                    |
 | **Financial Health Score** | A gauge that rates your overall financial health, taking into account your savings rate, debt levels, and budget adherence. |
-| **Cash Flow** | A bar chart comparing your monthly income and expenses side by side over the past twelve months. |
-| **Spending by Category** | A donut chart breaking your spending into categories for the current month. Click a slice to see those transactions. |
-| **Upcoming Bills** | Recurring payments Finima has detected from your transaction history, shown with their expected date and amount. |
-| **Budget vs Actual** | Progress bars showing how much you have spent against each budget you have set up. |
+| **Cash Flow**              | A bar chart comparing your monthly income and expenses side by side over the past twelve months.                            |
+| **Spending by Category**   | A donut chart breaking your spending into categories for the current month. Click a slice to see those transactions.        |
+| **Upcoming Bills**         | Recurring payments Finima has detected from your transaction history, shown with their expected date and amount.            |
+| **Budget vs Actual**       | Progress bars showing how much you have spent against each budget you have set up.                                          |
 
 > **Don't worry if the charts look sparse.** One month of data is not enough to show meaningful trends. The more history you import, the more useful the dashboard becomes.
 
