@@ -105,4 +105,4 @@ candle-core = { version = "0.10", default-features = false }
 candle-nn = { version = "0.10", default-features = false }
 candle-transformers = { version = "0.10", default-features = false }
 hf-hub = { version = "0.4", default-features = false, features = ["ureq"] }
-tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }

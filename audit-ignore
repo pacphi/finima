@@ -35,3 +35,9 @@ RUSTSEC-2025-0119
 # RUSTSEC-2024-0436: paste unmaintained (informational, no CVE)
 # Transitive dep via candle/tokenizers; no drop-in replacement used.
 RUSTSEC-2024-0436
+
+# RUSTSEC-2026-0002: lru IterMut violates Stacked Borrows (unsound)
+# Transitive dep via aws-sdk-s3; we never call IterMut on the cache directly.
+# No patched lru 0.12.x release exists; lru 0.12.5 is the latest in that series.
+# Remove once aws-sdk-s3 upgrades to a lru version with the fix.
+RUSTSEC-2026-0002
