@@ -28,6 +28,17 @@ Your financial data never leaves your server. Finima combines a high-performance
 - **News feed** -- aggregated financial articles with LLM summaries
 - **Theming and preferences** -- dark/light mode, configurable currency and date formats
 
+## Documentation — choose your path
+
+| I want to… | Start here |
+|---|---|
+| **Use Finima** (no technical background) | [Getting Started Guide](docs/guides/getting-started.md) — step-by-step setup with no assumed technical knowledge |
+| **Use Finima** (developer / technical) | [Quick Start](docs/guides/quick-start.md) — concise setup for developers |
+| **Learn all the features** | [User Guide](docs/guides/user-guide.md) |
+| **Look up a term** | [Glossary](docs/guides/glossary.md) |
+| **Contribute or run locally** | [Maintainer Guide](docs/guides/maintainer-guide.md) |
+| **Deploy to production** | [Deployment Guide](docs/guides/deployment.md) |
+
 ## Quick Start
 
 ```bash
@@ -52,6 +63,8 @@ See [docs/guides/quick-start.md](docs/guides/quick-start.md) for the full setup 
 | Guide                                                 | Description                    |
 | ----------------------------------------------------- | ------------------------------ |
 | [Quick Start](docs/guides/quick-start.md)             | Getting started                |
+| [Getting Started](docs/guides/getting-started.md)     | Non-technical first-run guide   |
+| [Glossary](docs/guides/glossary.md)                   | Plain-language term definitions |
 | [UI Overview](docs/guides/user-interface-overview.md) | Visual tour of the UI          |
 | [User Guide](docs/guides/user-guide.md)               | End-user walkthrough           |
 | [Maintainer Guide](docs/guides/maintainer-guide.md)   | Contributing and development   |
