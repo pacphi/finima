@@ -89,7 +89,7 @@ make start
 
 You will see a lot of text scrolling in your terminal. That is normal — Docker and the app are printing status messages. When you see both of these lines (they may not appear one right after the other), Finima is ready:
 
-```
+```text
 finima-api listening on 0.0.0.0:3000
 Local:   http://localhost:5173/
 ```
@@ -104,7 +104,7 @@ Local:   http://localhost:5173/
 2. You will see the Finima sign-in page. Type in your email address and click **Send magic link**.
 3. Switch back to your terminal window. Look for a line that starts with `[DEV]` and contains a URL. It looks something like this:
 
-   ```
+   ```text
    [DEV] Magic link: http://localhost:5173/auth/verify?token=abc123...
    ```
 

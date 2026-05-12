@@ -92,35 +92,30 @@ terminal. Wait until you see a line like:
 
 finima-api listening on 0.0.0.0:3000
 
-```
+```text
 
 This means the backend is ready. The frontend is also ready once you
 see:
 
-```
-
+```text
 VITE ready in ...ms
 Local: http://localhost:5173/
-
 ```
 
 If you see errors before those lines, check the
-[Troubleshooting Guide](troubleshooting.md) before continuing.
+[Troubleshooting Guide](../../guides/troubleshooting.md) before continuing.
 
 ## 5. Verify the app is running
 
 Open a browser (Chrome, Firefox, Safari, or Edge) and go to:
 
-```
-
+```text
 http://localhost:5173
-
 ```
 
 You should see the Finima sign-in page. If you see a "This site can't
 be reached" error, the app is not yet ready — wait another 30 seconds
 and refresh.
-```
 
 - [ ] Verify numbering is now 1–9 with no gaps.
 
@@ -454,7 +449,6 @@ installed with Git in the previous step) and run:
 git clone https://github.com/pacphi/finima.git
 cd finima
 ```
-````
 
 This downloads Finima to a folder called `finima` on your computer.
 
@@ -474,7 +468,7 @@ scroll by — that is normal.
 
 Wait until you see:
 
-```
+```text
 finima-api listening on 0.0.0.0:3000
 Local: http://localhost:5173/
 ```

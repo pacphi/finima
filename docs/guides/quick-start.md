@@ -184,7 +184,7 @@ backend code).
 
 Watch the terminal output after running `make start` (or your chosen start command). The app is ready when you see both of these lines:
 
-```
+```text
 finima-api listening on 0.0.0.0:3000
 Local: http://localhost:5173/
 ```
