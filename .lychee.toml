@@ -20,6 +20,10 @@ exclude = [
   "^https://example\\.com",
   # GitHub rate-limits anonymous requests
   "^https://github\\.com/.*/issues/\\d+$",
+  # subaio.com restructured; specific article redirect-loops (site defunct for this path)
+  "^https://subaio\\.com/",
+  # QuickBooks Community returns HTTP/2 protocol error (Intuit CDN quirk, not a dead link)
+  "^https://quickbooks\\.intuit\\.com/",
 ]
 
 # Timeout per request

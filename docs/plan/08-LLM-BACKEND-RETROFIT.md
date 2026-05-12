@@ -816,7 +816,7 @@ The `finima-llm` crate would depend on `mistralrs` (the library crate), not the 
 
 - [GGUF Format Specification](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md)
 - [llama.cpp Quantize README](https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md)
-- [MLX vs GGUF Comparison](https://www.oreateai.com/blog/understanding-the-differences-between-gguf-and-mlx-a-comprehensive-guide/)
+- MLX vs GGUF Comparison — oreateai.com blog (link no longer available; search "MLX vs GGUF format differences" for current resources)
 
 ### Hardware Detection
 
