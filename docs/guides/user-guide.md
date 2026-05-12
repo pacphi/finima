@@ -422,33 +422,27 @@ The Settings page is organized into four tabs.
   begins for reporting purposes.
 - **Default Chart Type** -- choose between line, bar, and area charts.
 
-### LLM
+### LLM (AI categorization)
 
-This tab displays the AI configuration (set on the server) for
-reference:
+This tab shows whether the AI model that helps categorize your
+transactions is active.
 
-- **Provider** -- the active LLM backend. Possible values:
-  - **Ollama** -- HTTP-based inference using an Ollama container.
-    Easiest to set up; the container runs via `docker-compose`.
-  - **Candle** -- in-process inference via mistral.rs. Lower latency,
-    no sidecar container required. Needs the `candle` compile-time
-    feature flag (with `metal` or `cuda` for GPU acceleration).
-  - **None** -- no LLM loaded. Categorization relies on Tiers 0-2
-    (merchant lookup, pattern engine, semantic search). Transactions
-    that do not match any tier remain uncategorized until a real LLM
-    is configured or the user manually categorizes them.
-- **Model** -- the model name (for example, Gemma 4).
-- **Endpoint URL** -- the Ollama server address (shown only when
-  the provider is Ollama).
-- **Connection Status** -- whether the backend can reach the LLM
-  service (Connected, Disconnected, or Checking).
+- **Connection Status: Connected** — AI categorization is on. Finima
+  will automatically suggest categories for transactions it has not
+  seen before.
+- **Connection Status: Disabled** — No AI model is configured. Finima
+  will still categorize most transactions automatically using built-in
+  rules that recognize common merchants (groceries, streaming services,
+  payroll, and so on). Transactions that the rules cannot match will
+  stay uncategorized until you either set up an AI model or
+  [categorize them manually](#editing-categories).
+- **Connection Status: Disconnected** — AI is configured but cannot be
+  reached right now. See the
+  [Troubleshooting Guide](troubleshooting.md) for help.
 
-LLM settings are configured in `config/llm.yaml` on the server
-(or via `APP__LLM__*` environment variables in `.env`), not through
-the UI. See the
-[Maintainer Guide](maintainer-guide.md#llm-backend-configuration) for
-setup instructions and the Troubleshooting guide if the status shows
-Disconnected.
+You cannot change the AI settings from this screen — they are
+configured when the app is set up. Ask whoever installed Finima for
+help if you need to change them.
 
 ### Saving settings
 
