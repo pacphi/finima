@@ -144,11 +144,11 @@ finding that SONA was unpublished was wrong — I had searched for the crate
 name `sona` (an unrelated 2022 placeholder). The published package name is
 `ruvector-sona`.
 
-**Latest:** `ruvector-sona = "0.1.9"` (published 2026-03-25, 6.4K downloads,
+**Latest:** `ruvector-sona = "0.2.0"` (published 2026-03-25, 6.4K downloads,
 MIT/Apache-2.0).
 
 **Scratch binary:** `/tmp/ruvector-spike/src/sona_spike.rs` — builds against
-`ruvector-sona = "0.1"`, feeds 25 trajectories (20 positive, 5 dismissed),
+`ruvector-sona = "0.2"`, feeds 25 trajectories (20 positive, 5 dismissed),
 forces learning, measures micro-LoRA latency and pattern recall.
 
 ### Dep footprint
@@ -233,7 +233,7 @@ workspace-root collisions for no capability gain.
 
 **Goal:** answer "what actually survives a process restart?" before we build
 cold-start behavior into the real code. Three parts run against
-`ruvector-sona` 0.1.9 and `ruvector-core` 2.1 (memory-only).
+`ruvector-sona` 0.2.0 and `ruvector-core` 2.1 (memory-only).
 
 **Scratch binary:** `/tmp/ruvector-spike/src/persist_spike.rs`.
 
@@ -371,7 +371,7 @@ adaptation claim doesn't apply to our usage pattern.
 
 ### Source-code reading first
 
-From `ruvector-sona-0.1.9/src/loops/instant.rs` and `lora.rs`:
+From `ruvector-sona-0.2.0/src/loops/instant.rs` and `lora.rs`:
 
 1. `end_trajectory()` → `coordinator.on_inference()` → `instant.on_trajectory()`.
 2. `on_trajectory` calls `micro_lora.accumulate_gradient(&signal)` and bumps

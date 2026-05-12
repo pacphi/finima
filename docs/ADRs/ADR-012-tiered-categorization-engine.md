@@ -17,7 +17,7 @@ PR #TBD). Delivery breakdown:
 - **Tier 2 (semantic search)** — pluggable `SemanticCategorizer` trait with two backends:
   - `jaccard` (default) — character n-gram Jaccard store, no extra deps.
   - `ruvector` — HNSW via `ruvector-core` 2.1 + ReasoningBank via
-    `ruvector-sona` 0.1.9, compiled under the `sona` feature.
+    `ruvector-sona` 0.2.0, compiled under the `sona` feature.
 - **Embedder layer** — new `finima-embed` crate with `none` (Noop),
   `ollama` (local HTTP), `candle` (local BertModel) backends. No
   external / paid providers.
