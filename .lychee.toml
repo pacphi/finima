@@ -9,7 +9,6 @@ exclude_path = [
   ".claude",
   ".claude-flow",
   ".swarm",
-  "docs/superpowers",
 ]
 
 # Exclude URL patterns

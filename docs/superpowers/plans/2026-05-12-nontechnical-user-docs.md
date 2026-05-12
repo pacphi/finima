@@ -482,7 +482,7 @@ Local: http://localhost:5173/
 > **Email setup (optional):** By default, Finima prints your sign-in
 > link to the terminal instead of emailing it. This works fine for
 > personal use on your own computer. If you want real emails, see the
-> [Quick Start](quick-start.md#email-setup) for Resend configuration.
+> [Quick Start](../../guides/quick-start.md#email-setup) for Resend configuration.
 
 ---
 
@@ -499,7 +499,7 @@ Local: http://localhost:5173/
 
 > **Did not see the `[DEV]` line?** The log might have scrolled up.
 > You can scroll up in the terminal, or see
-> [Cannot receive magic-link email](troubleshooting.md#1-cannot-receive-magic-link-email).
+> [Cannot receive magic-link email](../../guides/troubleshooting.md#1-cannot-receive-magic-link-email).
 
 ---
 
@@ -582,15 +582,15 @@ month of transactions. Import more months to see trends.
 
 ## What's next?
 
-- **Set a budget** — go to the [Budgets](user-guide.md#budgets) page
+- **Set a budget** — go to the [Budgets](../../guides/user-guide.md#budgets) page
   and try **Auto-Suggest Budget** to get starting limits based on your
   spending history.
 - **Add more accounts** — repeat Step 7 for each bank account or
   credit card.
-- **Read the full [User Guide](user-guide.md)** for a complete
+- **Read the full [User Guide](../../guides/user-guide.md)** for a complete
   walkthrough of every feature.
 - **Something not working?** Check the
-  [Troubleshooting Guide](troubleshooting.md).
+  [Troubleshooting Guide](../../guides/troubleshooting.md).
 
 ---
 
@@ -613,7 +613,7 @@ time.
 
 ## Glossary
 
-Not sure what a word means? See the [Glossary](glossary.md).
+Not sure what a word means? See the [Glossary](../../guides/glossary.md).
 
 ````
 
