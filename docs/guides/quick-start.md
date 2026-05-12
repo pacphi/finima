@@ -2,6 +2,31 @@
 
 Get Finima running on your machine in about ten minutes.
 
+## Before you begin: what you're installing
+
+Finima runs inside **Docker** — a tool that packages the app and everything it needs into isolated containers. Think of it like a self-contained box that runs on your computer without interfering with anything else. You do not need to install a database, a web server, or any programming language separately; Docker handles all of that.
+
+You also need **Git** to download the Finima source code from GitHub. Git is a version-control tool, but for this guide you only need one command from it.
+
+### Install Docker Desktop
+
+| Operating system | Instructions |
+| ---------------- | ------------ |
+| **Mac**          | Download and run the installer from [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/). Open Docker Desktop after installation and wait for the whale icon in the menu bar to stop animating. |
+| **Windows**      | Download and run the installer from [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/). Accept the default WSL 2 backend option. Restart your computer if prompted, then open Docker Desktop. |
+| **Linux**        | Follow the instructions for your distribution at [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/). After installation, start the Docker service and add your user to the `docker` group so you can run Docker without `sudo`. |
+
+> **You do not need a Docker account.** Docker Desktop works without signing in. If it asks you to create an account, you can skip or dismiss that step.
+
+### Install Git
+
+| Operating system | Instructions |
+| ---------------- | ------------ |
+| **Mac**          | Open **Terminal** and run `git --version`. If Git is not installed, macOS will prompt you to install the Xcode Command Line Tools — click **Install** and follow the prompts. |
+| **Windows**      | Download and run the installer from [https://git-scm.com/download/win](https://git-scm.com/download/win). Accept all default options. |
+| **Linux (Debian/Ubuntu)** | Run `sudo apt install git` in a terminal. |
+| **Linux (Fedora/RHEL)**   | Run `sudo dnf install git` in a terminal. |
+
 ## Prerequisites
 
 Before you begin, make sure you have the following installed:
