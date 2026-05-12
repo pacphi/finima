@@ -178,6 +178,27 @@ With `make dev`, both run in the same terminal. With `make
 dev-backend`, only the backend starts (useful while working on
 backend code).
 
+## 4. Wait for the app to be ready
+
+Watch the terminal output after running `make start` (or your chosen start command). The app is ready when you see both of these lines:
+
+```
+finima-api listening on 0.0.0.0:3000
+Local: http://localhost:5173/
+```
+
+This can take a minute or two on the first run while Docker pulls images and the backend compiles. Subsequent starts are faster.
+
+> **Seeing errors instead?** Check the [Troubleshooting Guide](troubleshooting.md) before continuing.
+
+## 5. Verify the app is running
+
+Open your browser and go to **http://localhost:5173**.
+
+You should see the Finima sign-in page with an email field and a **Send Magic Link** button.
+
+If you see **"This site can't be reached"** or a connection error, the frontend has not started yet. Wait another 30 seconds and refresh. If the problem persists, confirm that `make start` (or `pnpm dev`) is still running in your terminal and check the [Troubleshooting Guide](troubleshooting.md).
+
 ## 6. Sign in
 
 1. Open your browser to `http://localhost:5173`.
