@@ -77,76 +77,108 @@ A visual tour of Finima's UI. Click any thumbnail to jump to the full-size image
 
 [![Sign in](../../images/01a-sign-in.png)](../../images/01a-sign-in.png)
 
-Passwordless magic-link sign-in. Enter your email and Finima sends a one-time link -- no passwords to remember or leak. The same screen handles first-time registration; the first account to register becomes the instance owner.
+Finima does not use passwords. Instead, enter your email address and
+Finima sends you a one-time sign-in link — click it and you are in.
+No password to remember, no password to leak.
 
 ## Sign in with token
 
 [![Sign in with token](../../images/01b-sign-in-with-token.png)](../../images/01b-sign-in-with-token.png)
 
-The second step of the magic-link flow. Finima verifies the token from the email, establishes a session, and redirects to the dashboard. Tokens are single-use and short-lived.
+After clicking the link in your email, Finima confirms your identity
+and takes you straight to the dashboard. The link works only once and
+expires quickly, so if it stops working, just request a new one.
 
 ## Dashboard
 
 [![Dashboard](../../images/02-dashboard.png)](../../images/02-dashboard.png)
 
-The at-a-glance home screen. Shows the financial health score, net worth, cash flow trend, budget vs. actual tile, top categories, and recent activity. Everything tiles are scoped to the currently selected portfolio.
+Your home screen at a glance. Shows your financial health score, net
+worth, monthly income versus spending, which categories you are
+spending the most in, and upcoming bills. Everything is scoped to
+whichever group of accounts you have selected.
 
 ## Portfolios
 
 [![Portfolios](../../images/03-portfolios.png)](../../images/03-portfolios.png)
 
-Portfolios group accounts into separate financial contexts (personal, business, household, etc.). Each portfolio has its own transactions, budgets, and goals; deleting a portfolio cascades to its owned data.
+A portfolio is like a folder that holds a set of accounts. Most people
+only ever need one — called something like "My Finances." You might
+create a second one to keep personal and business money completely
+separate. Deleting a portfolio also deletes all the accounts and
+transactions inside it, so be sure before you do.
 
 ## Accounts
 
 [![Accounts](../../images/04-accounts.png)](../../images/04-accounts.png)
 
-Manage bank, credit, loan, and investment accounts. Import transactions from CSV, OFX, QIF, or XLSX with a column-mapping UI. Balances and activity are recomputed as data lands.
+Add and manage your bank accounts, credit cards, loans, and other
+financial accounts here. You can import transaction history from a
+file downloaded from your bank.
 
 ## Transactions
 
 [![Transactions](../../images/05-transactions.png)](../../images/05-transactions.png)
 
-The full ledger view: filter by account, category, date range, or free-text search; bulk-edit categories; split transactions; and review AI-suggested categorizations before accepting them.
+The full list of every transaction across all your accounts. Search,
+filter by date or category, correct any category that was wrongly
+assigned, and export to a spreadsheet.
 
 ## Payee rules
 
 [![Payee rules](../../images/06-payee-rules.png)](../../images/06-payee-rules.png)
 
-Pattern-based rules that auto-categorize transactions by payee. Rules run on import and can be previewed against existing data before saving, so you can see exactly what will change.
+Rules that tell Finima how to automatically label transactions from a
+specific merchant or payee. You can preview exactly which existing
+transactions a new rule would affect before saving it.
 
 ## Recurring
 
 [![Recurring](../../images/07-recurring.png)](../../images/07-recurring.png)
 
-Finima detects subscriptions and regular payments from your transaction history and surfaces them here. Useful for spotting forgotten subscriptions and forecasting upcoming cash outflows.
+Finima automatically spots subscriptions and regular payments — like
+Netflix, rent, or a gym membership — from patterns in your
+transactions. Useful for finding forgotten subscriptions and seeing
+what bills are coming up.
 
 ## Money flow
 
 [![Money flow](../../images/08-money-flow.png)](../../images/08-money-flow.png)
 
-A Sankey diagram visualizing inter-account movement over a time range: where income arrives, how it splits across spending categories, and what lands in savings or investment accounts.
+A visual diagram showing where your money comes from and where it
+goes in a given month. Income arrives on the left, flows through your
+accounts in the middle, and fans out to spending categories on the
+right. Thicker lines mean more money.
 
 ## Budget
 
 [![Budget](../../images/09-budget.png)](../../images/09-budget.png)
 
-Set monthly budgets by category and track progress in real time. The view highlights over-budget categories and shows pace-of-spend against the month's elapsed days.
+Set a monthly spending limit for each category and track how you are
+doing in real time. Categories that are on pace to go over their limit
+are highlighted.
 
 ## Goals
 
 [![Goals](../../images/10-goals.png)](../../images/10-goals.png)
 
-Define savings goals with target amounts and dates. Finima tracks contributions automatically from linked accounts and projects completion based on current pace.
+Set savings targets — like an emergency fund or a vacation — with an
+amount and a target date. Finima tracks how close you are and
+estimates when you will reach your goal based on how much you are
+saving each month.
 
 ## News
 
 [![News](../../images/11-news.png)](../../images/11-news.png)
 
-Aggregated financial news feed with on-device LLM summaries. Articles are fetched from configured sources; summaries are generated locally via Ollama so nothing about your reading habits leaves the machine.
+A feed of financial news articles from sources like Investopedia and
+NerdWallet. Articles are summarized by the on-device AI — nothing
+about what you read is sent to any outside service.
 
 ## Settings
 
 [![Settings](../../images/12-settings.png)](../../images/12-settings.png)
 
-Theme (light/dark), currency, date format, LLM model selection, notification preferences, and account/session management. Instance-level settings are separated from per-user preferences.
+Change your display theme (light or dark), currency, date format, and
+dashboard layout. The AI status indicator is also here so you can
+check whether automatic categorization is active.
