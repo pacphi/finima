@@ -129,6 +129,12 @@ The maximum file size is 50 MB.
 
 ### How to import
 
+> **Getting a statement from your bank:** Log in to your bank's
+> website and look for "Download Activity," "Export Transactions," or
+> "Statement Download" (usually in the account history or statements
+> area). Choose **CSV** if given a choice. Save the file to your
+> computer, then follow the steps below to bring it into Finima.
+
 1. Go to the account detail page for the target account.
 2. Drag a file into the upload area, or click to browse your computer.
 3. Finima detects the file format automatically from the extension.
