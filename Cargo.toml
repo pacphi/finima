@@ -46,7 +46,7 @@ reqwest = { version = "0.13", features = ["json"] }
 # File parsing
 calamine = { version = "0.34", features = ["dates"] }
 csv = "1"
-quick-xml = "0.39"
+quick-xml = "0.40"
 
 # Logging
 tracing = "0.1"
