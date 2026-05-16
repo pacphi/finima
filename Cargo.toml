@@ -96,7 +96,7 @@ thiserror = "2"
 async-trait = "0.1"
 
 # Hardware detection
-sysinfo = "0.38"
+sysinfo = "0.39"
 
 # Candle sentence-transformer stack (used by finima-embed and finima-llm).
 # Pinned to the 0.10 family that the workspace already pulls in
