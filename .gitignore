@@ -28,6 +28,9 @@ docker-compose.override.yml
 *~
 .DS_Store
 
+# Lychee link-checker cache
+.lycheecache
+
 # Runtime data / logs
 data/logs
 
