@@ -217,7 +217,7 @@ finima/
 | Crate                            | Purpose                               | Used In                              |
 | -------------------------------- | ------------------------------------- | ------------------------------------ |
 | `axum` 0.8+                      | HTTP framework                        | finima-api                           |
-| `sqlx` 0.8+                      | Async PostgreSQL driver + migrations  | finima-db                            |
+| `sqlx` 0.9+                      | Async PostgreSQL driver + migrations  | finima-db                            |
 | `serde` / `serde_json`           | Serialization                         | all crates                           |
 | `jsonwebtoken`                   | JWT encoding/decoding                 | finima-auth                          |
 | `reqwest`                        | HTTP client (Resend API, Ollama API)  | finima-auth, finima-llm, finima-feed |

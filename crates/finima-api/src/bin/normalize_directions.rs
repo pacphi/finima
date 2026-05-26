@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           AND ($2::uuid IS NULL OR t.account_id = $2)
         "#
     );
-    let rows = sqlx::query(&query_sql)
+    let rows = sqlx::query(sqlx::AssertSqlSafe(query_sql))
         .bind(args.institution.as_deref())
         .bind(args.account_id)
         .fetch_all(&pool)
