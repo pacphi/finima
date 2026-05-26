@@ -246,7 +246,7 @@ impl PgTransactionRepo {
 
         // Build the query dynamically but with parameterized values.
         // We use a common base WHERE clause that both count and data queries share.
-        let rows = sqlx::query_as::<_, Transaction>(&format!(
+        let rows = sqlx::query_as::<_, Transaction>(sqlx::AssertSqlSafe(format!(
             r#"
                 SELECT t.id, t.account_id, t.date, t.amount, t.description,
                        t.original_description, t.category, t.subcategory,
@@ -267,7 +267,7 @@ impl PgTransactionRepo {
                 LIMIT $9 OFFSET $10
                 "#,
             sort_column, sort_dir
-        ))
+        )))
         .bind(filters.account_id)
         .bind(filters.portfolio_id)
         .bind(filters.date_from)
