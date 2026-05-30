@@ -419,7 +419,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2791,7 +2791,7 @@ dependencies = [
  "serde_json",
  "siphasher",
  "url",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2840,7 +2840,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2885,7 +2885,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2908,7 +2908,7 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2926,7 +2926,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2943,7 +2943,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2959,7 +2959,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -2997,7 +2997,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -3016,7 +3016,7 @@ dependencies = [
  "sha2 0.11.0",
  "thiserror 2.0.18",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -3038,7 +3038,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -4979,7 +4979,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "urlencoding",
- "uuid 1.23.1",
+ "uuid 1.23.2",
  "variantly",
  "vob",
 ]
@@ -5014,7 +5014,7 @@ dependencies = [
  "tokio-tungstenite 0.28.0",
  "tracing",
  "utoipa",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -6746,7 +6746,7 @@ dependencies = [
  "rkyv_derive 0.7.46",
  "seahash",
  "tinyvec",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -6765,7 +6765,7 @@ dependencies = [
  "rend 0.5.3",
  "rkyv_derive 0.8.16",
  "tinyvec",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -7046,7 +7046,7 @@ dependencies = [
  "simsimd",
  "thiserror 2.0.18",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -7807,7 +7807,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
- "uuid 1.23.1",
+ "uuid 1.23.2",
  "webpki-roots 1.0.7",
 ]
 
@@ -7876,7 +7876,7 @@ dependencies = [
  "sqlx-core",
  "thiserror 2.0.18",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -7913,7 +7913,7 @@ dependencies = [
  "stringprep",
  "thiserror 2.0.18",
  "tracing",
- "uuid 1.23.1",
+ "uuid 1.23.2",
  "whoami",
 ]
 
@@ -7940,7 +7940,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "url",
- "uuid 1.23.1",
+ "uuid 1.23.2",
 ]
 
 [[package]]
@@ -8316,7 +8316,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -9287,9 +9287,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.23.1"
+version = "1.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddd74a9687298c6858e9b88ec8935ec45d22e8fd5e6394fa1bd4e99a87789c76"
+checksum = "d258b83ceec21034727ecee8c382cfa6c3e133699b0742c64571814fb420c9f7"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",
