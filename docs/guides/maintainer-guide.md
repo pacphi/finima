@@ -8,9 +8,9 @@ This guide covers the day-to-day workflow for developers contributing to Finima.
 
 | Tool             | Version        | Purpose                        |
 | ---------------- | -------------- | ------------------------------ |
-| Rust             | stable (1.95+) | Backend compilation            |
+| Rust             | stable (1.96+) | Backend compilation            |
 | Node.js          | 26+            | Frontend tooling               |
-| pnpm             | 10+            | Frontend package manager       |
+| pnpm             | 11+            | Frontend package manager       |
 | Docker & Compose | latest         | PostgreSQL, Ollama, MinIO      |
 | sqlx-cli         | latest         | Database migrations            |
 | Ollama           | latest         | Local LLM inference (optional) |

@@ -1,0 +1,16 @@
+# pnpm 11 settings. `overrides` moved here from package.json's `pnpm` field,
+# which pnpm 11 no longer reads (https://pnpm.io/settings).
+
+# pnpm 11 enables a 24h minimum-release-age supply-chain delay by default, which
+# blocks frozen installs (and CI) on dependency versions published <24h ago —
+# e.g. same-day Dependabot bumps. Disable it to keep the pnpm 10 install
+# behavior and deterministic CI. Raise to a minute count to re-enable.
+minimumReleaseAge: 0
+
+# Security pins for transitive advisories — remove an entry once the parent
+# dependency ships the patched version on its own.
+overrides:
+  # GHSA-jxxr-4gwj-5jf2 — brace-expansion DoS (transitive: eslint > minimatch)
+  brace-expansion@>=5.0.0 <5.0.6: ">=5.0.6"
+  # GHSA-4x5r-pxfx-6jf8 — @babel/core arbitrary file read (transitive: eslint-plugin-react-hooks)
+  "@babel/core@<7.29.6": ">=7.29.6"

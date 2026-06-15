@@ -122,7 +122,7 @@ make docker-infra   # Start PostgreSQL + MinIO (+ Ollama when LLM=ollama)
 make dev            # Start backend (port 3000) + frontend (port 5173)
 ```
 
-**Prerequisites:** Docker, Rust 1.85+, Node.js 24+, pnpm 10+ — or just Docker for infrastructure.
+**Prerequisites:** Docker, Rust 1.85+, Node.js 24+, pnpm 11+ — or just Docker for infrastructure.
 See [Quick Start](docs/guides/quick-start.md) for the full setup guide, or [Getting Started](docs/guides/getting-started.md) if you prefer a step-by-step walkthrough with no assumed technical knowledge.
 
 ## 🏗️ Architecture

@@ -177,7 +177,7 @@ volumes:
 
 ```dockerfile
 # Dockerfile.backend
-FROM rust:1.95-bookworm AS builder
+FROM rust:1.96-bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
