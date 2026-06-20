@@ -89,7 +89,7 @@ aws-credential-types = "1"
 bytes = "1"
 
 # Metrics
-prometheus-client = "0.24"
+prometheus-client = "0.25"
 
 # Misc
 thiserror = "2"
