@@ -130,7 +130,7 @@ jobs:
         with:
           node-version: 26
       - run: corepack enable pnpm
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
@@ -154,7 +154,7 @@ jobs:
         with:
           node-version: 26
       - run: corepack enable pnpm
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
@@ -205,7 +205,7 @@ jobs:
         with:
           node-version: 26
       - run: corepack enable pnpm
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
