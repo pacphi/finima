@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use finima_analysis::sona::FlowPattern;
+#[cfg(feature = "sona")]
+use finima_analysis::sona::FlowPatternMatcher;
 use finima_analysis::{build_sankey_data, build_waterfall, detect_flows, FlowRecord};
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
@@ -369,6 +371,11 @@ pub async fn update_flow(
                                 },
                                 vec,
                             );
+                            if let Some(m) = state.metrics() {
+                                m.metrics()
+                                    .flow_pattern_index_size
+                                    .set(matcher.pattern_count() as i64);
+                            }
                         }
                     } else if let Ok(mut matcher) = state.flow_matcher().write() {
                         matcher.store_pattern(FlowPattern {
@@ -378,6 +385,11 @@ pub async fn update_flow(
                             confidence: 1.0,
                             match_count: 1,
                         });
+                        if let Some(m) = state.metrics() {
+                            m.metrics()
+                                .flow_pattern_index_size
+                                .set(matcher.pattern_count() as i64);
+                        }
                     }
                 }
                 #[cfg(not(feature = "sona"))]
@@ -391,6 +403,11 @@ pub async fn update_flow(
                             confidence: 1.0,
                             match_count: 1,
                         });
+                        if let Some(m) = state.metrics() {
+                            m.metrics()
+                                .flow_pattern_index_size
+                                .set(matcher.pattern_count() as i64);
+                        }
                     }
                 }
             }

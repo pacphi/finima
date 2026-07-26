@@ -535,7 +535,28 @@ impl AppState {
 
     /// Install a metrics registry for handler-level instrumentation.
     /// Called once from `main` after the registry is constructed.
+    ///
+    /// Also seeds the `tier2_index_size` / `flow_pattern_index_size` gauges
+    /// from the freshly-built in-memory stores so they reflect real values
+    /// immediately rather than sitting at the Prometheus default of 0 until
+    /// the next mutation.
     pub fn set_metrics(&self, registry: MetricsRegistry) {
+        let metrics = registry.metrics();
+        metrics.tier2_index_size.set(
+            self.inner
+                .semantic_tier2
+                .read()
+                .expect("semantic_tier2 lock poisoned")
+                .index_size() as i64,
+        );
+        metrics.flow_pattern_index_size.set(
+            self.inner
+                .flow_matcher
+                .read()
+                .expect("flow_matcher lock poisoned")
+                .pattern_count() as i64,
+        );
+
         *self.inner.metrics.write().expect("metrics lock poisoned") = Some(registry);
     }
 

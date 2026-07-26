@@ -102,6 +102,8 @@ struct TestInnerState {
     savings_goal_repo: finima_db::PgSavingsGoalRepo,
     flow_repo: finima_db::PgFlowRepo,
     flow_group_repo: finima_db::PgFlowGroupRepo,
+    flow_pattern_repo: finima_db::repos::FlowPatternRepo,
+    embedding_index_repo: finima_db::repos::EmbeddingIndexRepo,
     llm_client: Arc<dyn finima_llm::LlmClient>,
 }
 
@@ -121,6 +123,8 @@ impl TestAppState {
                 savings_goal_repo: finima_db::PgSavingsGoalRepo::new(pool.clone()),
                 flow_repo: finima_db::PgFlowRepo::new(pool.clone()),
                 flow_group_repo: finima_db::PgFlowGroupRepo::new(pool.clone()),
+                flow_pattern_repo: finima_db::repos::FlowPatternRepo::new(pool.clone()),
+                embedding_index_repo: finima_db::repos::EmbeddingIndexRepo::new(pool.clone()),
                 email_sender: Box::new(LoggingEmailSender),
                 jwt_secret: TEST_JWT_SECRET.to_string(),
                 llm_client: Arc::new(NoOpLlmClient),
@@ -155,6 +159,22 @@ impl TestAppState {
 
     pub fn savings_goal_repo(&self) -> &finima_db::PgSavingsGoalRepo {
         &self.inner.savings_goal_repo
+    }
+
+    pub fn transaction_repo(&self) -> &finima_db::PgTransactionRepo {
+        &self.inner.transaction_repo
+    }
+
+    pub fn flow_repo(&self) -> &finima_db::PgFlowRepo {
+        &self.inner.flow_repo
+    }
+
+    pub fn flow_pattern_repo(&self) -> &finima_db::repos::FlowPatternRepo {
+        &self.inner.flow_pattern_repo
+    }
+
+    pub fn embedding_index_repo(&self) -> &finima_db::repos::EmbeddingIndexRepo {
+        &self.inner.embedding_index_repo
     }
 }
 
