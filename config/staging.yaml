@@ -1,0 +1,51 @@
+# Staging overrides
+# Inherits from config section files (server.yaml, database.yaml, etc.);
+# only override what differs. This overlay is loaded when APP_ENV=staging
+# (see load_config_from in crates/finima-api/src/config.rs).
+#
+# ---------------------------------------------------------------------------
+# Issue #31 rollout: categorize.tier2.backend=ruvector in non-prod.
+#
+# READ THIS BEFORE DEPLOYING: this file alone does NOT switch Tier 2 to
+# RuVector. Two conditions must BOTH hold:
+#
+#   1. APP_ENV=staging is set on the running process, so this overlay is
+#      actually loaded.
+#   2. finima-api was compiled with the `sona` Cargo feature
+#      (`--features sona`, defined in crates/finima-api/Cargo.toml).
+#
+# If (2) is not true, `Tier2Config::resolved_backend()`
+# (crates/finima-categorize/src/config.rs) SILENTLY falls back to
+# `jaccard` and only logs a `tracing::warn!` at startup — the API will
+# start normally and look healthy, but Tier 2 will quietly keep running
+# Jaccard instead of RuVector. There is no hard failure to catch this
+# mistake; watching the startup logs (or the resolved backend it reports)
+# is the only signal.
+#
+# Full copy-pasteable rollout runbook, including the build command and
+# the post-deploy bootstrap steps: see
+# docs/guides/embedder.md → "Staging rollout runbook (issue #31)".
+# ---------------------------------------------------------------------------
+
+categorize:
+  tier2:
+    backend: ruvector
+    # dim / hnsw_* / bootstrap_* are inherited unchanged from
+    # config/categorize.yaml's base defaults (384-dim, matching the
+    # embedder choice below) — no need to repeat them here.
+
+# Embedder backend: `candle` (in-process BertModel, MiniLM-L6-v2).
+#
+# Picked over `ollama` for this overlay because MiniLM-L6-v2's native
+# output dimension (384) already matches config/categorize.yaml's base
+# `categorize.tier2.dim` / `embedder.dim` defaults with zero further
+# overrides needed. `ollama`'s configured model (nomic-embed-text,
+# config/categorize.yaml embedder.ollama.model) outputs 768-dim vectors,
+# which would additionally require overriding both `categorize.tier2.dim`
+# and `embedder.dim` here to avoid a DimMismatch (see
+# docs/guides/embedder.md "Dimension matching") — more moving parts than
+# a first non-prod rollout should need. Switch to `ollama` later if
+# desired, but raise both dim fields to 768 (or whatever the chosen
+# Ollama model actually outputs) if you do.
+embedder:
+  backend: candle

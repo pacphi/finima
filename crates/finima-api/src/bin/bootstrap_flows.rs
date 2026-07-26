@@ -51,10 +51,17 @@ fn build_embedder_for_bin(
         "candle" => {
             #[cfg(feature = "embedder-candle")]
             {
-                std::sync::Arc::new(finima_embed::CandleEmbedder::new(
-                    cfg.candle.model_id.clone(),
-                    cfg.dim,
-                )) as std::sync::Arc<dyn EmbeddingProvider>
+                match finima_embed::CandleEmbedder::load(cfg.candle.model_id.clone(), cfg.dim) {
+                    Ok(e) => std::sync::Arc::new(e) as std::sync::Arc<dyn EmbeddingProvider>,
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            model_id = %cfg.candle.model_id,
+                            "CandleEmbedder load failed; falling back to NoopEmbedder"
+                        );
+                        std::sync::Arc::new(NoopEmbedder::new(cfg.dim))
+                    }
+                }
             }
             #[cfg(not(feature = "embedder-candle"))]
             std::sync::Arc::new(NoopEmbedder::new(cfg.dim))

@@ -165,7 +165,18 @@ pub struct Metrics {
     pub tier2_bootstrap_inserted_total: Counter,
     /// Labeled examples rejected during Tier 2 bootstrap.
     pub tier2_bootstrap_rejected_total: Counter,
-    /// Current Tier 2 store size in entries.
+    /// Tier 2 store size in entries, as observed once at process boot.
+    ///
+    /// CAVEAT: this does **not** update at runtime. The live server's
+    /// request path is query-only for Tier 2 — there is no `.learn()` /
+    /// `.learn_with_vector()` call site anywhere in it — so this gauge is
+    /// set exactly once, from the freshly-constructed (and therefore
+    /// empty) in-memory store, before the router builds or the listener
+    /// binds (see `AppState::set_metrics`). It will read 0 for the
+    /// lifetime of every real deployment. The `bootstrap_tier2` binary
+    /// that populates a Tier 2 store runs as a separate, throwaway-store
+    /// process and cannot mutate this gauge. Do not build dashboards or
+    /// alerts that expect this value to grow.
     pub tier2_index_size: Gauge<i64, std::sync::atomic::AtomicI64>,
 
     // -- Flow-pattern matcher (ADR-017) ---------------------------------------
@@ -362,7 +373,9 @@ impl MetricsRegistry {
         let tier2_index_size = Gauge::<i64, std::sync::atomic::AtomicI64>::default();
         registry.register(
             "tier2_index_size",
-            "Current Tier 2 store size in entries.",
+            "Tier 2 store size in entries, set once at boot from the (always-empty) \
+             freshly-constructed store. Does NOT update at runtime — Tier 2 has no \
+             live-mutation path in the request-serving process. Do not alert on growth.",
             tier2_index_size.clone(),
         );
 

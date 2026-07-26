@@ -10,6 +10,7 @@
 //! reconstruct the router from the public library crates (`finima-db`,
 //! `finima-auth`, `finima-core`, etc.) rather than importing from `finima-api`.
 
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -102,7 +103,24 @@ struct TestInnerState {
     savings_goal_repo: finima_db::PgSavingsGoalRepo,
     flow_repo: finima_db::PgFlowRepo,
     flow_group_repo: finima_db::PgFlowGroupRepo,
+    flow_pattern_repo: finima_db::repos::FlowPatternRepo,
+    embedding_index_repo: finima_db::repos::EmbeddingIndexRepo,
     llm_client: Arc<dyn finima_llm::LlmClient>,
+    /// Test-local stand-in for the `flow_pattern_index_size` gauge.
+    ///
+    /// The real gauge lives on `finima_api::metrics::MetricsRegistry`, which
+    /// is NOT reachable from this integration-test crate: `finima-api` is a
+    /// binary crate with no `lib.rs`, and `mod metrics;` in `main.rs` is
+    /// private to that binary. This field is NOT the real Prometheus
+    /// registry and nothing here talks to `prometheus-client` — it exists
+    /// purely so `tier2_flow_persistence_test.rs`'s test-local
+    /// `confirm_flow_handler` can record the same gauge VALUE the real
+    /// `handlers::flows::resolve_flow_pattern_index_size` would compute
+    /// (preferring the RuVector matcher's real pattern count when
+    /// available, falling back to 0 otherwise), so a test can assert on it
+    /// after a confirm. See that file's module doc comment for the full
+    /// picture of what is and isn't exercised.
+    flow_pattern_index_size: AtomicI64,
 }
 
 impl TestAppState {
@@ -121,9 +139,12 @@ impl TestAppState {
                 savings_goal_repo: finima_db::PgSavingsGoalRepo::new(pool.clone()),
                 flow_repo: finima_db::PgFlowRepo::new(pool.clone()),
                 flow_group_repo: finima_db::PgFlowGroupRepo::new(pool.clone()),
+                flow_pattern_repo: finima_db::repos::FlowPatternRepo::new(pool.clone()),
+                embedding_index_repo: finima_db::repos::EmbeddingIndexRepo::new(pool.clone()),
                 email_sender: Box::new(LoggingEmailSender),
                 jwt_secret: TEST_JWT_SECRET.to_string(),
                 llm_client: Arc::new(NoOpLlmClient),
+                flow_pattern_index_size: AtomicI64::new(0),
                 pool,
             }),
         }
@@ -155,6 +176,40 @@ impl TestAppState {
 
     pub fn savings_goal_repo(&self) -> &finima_db::PgSavingsGoalRepo {
         &self.inner.savings_goal_repo
+    }
+
+    pub fn transaction_repo(&self) -> &finima_db::PgTransactionRepo {
+        &self.inner.transaction_repo
+    }
+
+    pub fn flow_repo(&self) -> &finima_db::PgFlowRepo {
+        &self.inner.flow_repo
+    }
+
+    pub fn flow_pattern_repo(&self) -> &finima_db::repos::FlowPatternRepo {
+        &self.inner.flow_pattern_repo
+    }
+
+    pub fn embedding_index_repo(&self) -> &finima_db::repos::EmbeddingIndexRepo {
+        &self.inner.embedding_index_repo
+    }
+
+    /// Read the test-local `flow_pattern_index_size` stand-in. See the
+    /// field doc comment on `TestInnerState::flow_pattern_index_size` for
+    /// what this is (and, importantly, isn't).
+    pub fn flow_pattern_index_size(&self) -> i64 {
+        self.inner.flow_pattern_index_size.load(Ordering::SeqCst)
+    }
+
+    /// Set the test-local `flow_pattern_index_size` stand-in. Called by
+    /// `tier2_flow_persistence_test.rs`'s test-local `confirm_flow_handler`
+    /// after updating the in-process RuVector flow-pattern matcher, using
+    /// the same resolution logic as the real
+    /// `handlers::flows::resolve_flow_pattern_index_size`.
+    pub fn set_flow_pattern_index_size(&self, value: i64) {
+        self.inner
+            .flow_pattern_index_size
+            .store(value, Ordering::SeqCst);
     }
 }
 

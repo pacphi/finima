@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use finima_analysis::sona::FlowPattern;
+#[cfg(feature = "sona")]
+use finima_analysis::sona::FlowPatternMatcher;
 use finima_analysis::{build_sankey_data, build_waterfall, detect_flows, FlowRecord};
 use finima_auth::middleware::AuthUser;
 use finima_core::traits::{AccountRepo, PortfolioRepo};
@@ -259,6 +261,48 @@ pub async fn create_flow(
     Ok(Json(flow))
 }
 
+/// Resolve the authoritative value for the `flow_pattern_index_size` gauge.
+///
+/// `AppState` exposes two matcher handles: the trait-object `flow_matcher`
+/// (always a permanently-inert `StubPatternMatcher`, even in a successful
+/// `sona` + RuVector build — see `state.rs`) and, only under the `sona`
+/// feature, the concrete `flow_matcher_ruvector` handle, which is the
+/// *real* matcher whenever RuVector construction succeeded at startup.
+///
+/// Reading `pattern_count()` off of whichever local matcher a given
+/// request happened to write-lock (the old behavior) makes the gauge
+/// flip-flop: any request that falls through to the stub branch (embed
+/// failure, noop embedder, etc.) clobbers the correct RuVector count with
+/// 0 via last-write-wins `Gauge::set`. Instead, always resolve through a
+/// single authoritative source: the RuVector handle's count when it is
+/// available, falling back to the stub's count (always 0) otherwise.
+///
+/// Callers MUST NOT hold a lock on `flow_matcher` or `flow_matcher_ruvector`
+/// when calling this — it acquires its own read lock and would deadlock
+/// against an already-held write lock on the same `RwLock`.
+#[cfg(feature = "sona")]
+fn resolve_flow_pattern_index_size(state: &AppState) -> i64 {
+    if let Some(rv) = state.flow_matcher_ruvector() {
+        if let Ok(guard) = rv.read() {
+            return guard.pattern_count() as i64;
+        }
+    }
+    state
+        .flow_matcher()
+        .read()
+        .map(|guard| guard.pattern_count() as i64)
+        .unwrap_or(0)
+}
+
+#[cfg(not(feature = "sona"))]
+fn resolve_flow_pattern_index_size(state: &AppState) -> i64 {
+    state
+        .flow_matcher()
+        .read()
+        .map(|guard| guard.pattern_count() as i64)
+        .unwrap_or(0)
+}
+
 /// PUT /api/flows/:id — confirm or dismiss a flow.
 pub async fn update_flow(
     user: AuthUser,
@@ -369,6 +413,16 @@ pub async fn update_flow(
                                 },
                                 vec,
                             );
+                            // Drop the write guard before resolving the
+                            // gauge value — the helper acquires its own
+                            // read lock on the same `RwLock` and would
+                            // deadlock otherwise.
+                            drop(matcher);
+                            if let Some(m) = state.metrics() {
+                                m.metrics()
+                                    .flow_pattern_index_size
+                                    .set(resolve_flow_pattern_index_size(&state));
+                            }
                         }
                     } else if let Ok(mut matcher) = state.flow_matcher().write() {
                         matcher.store_pattern(FlowPattern {
@@ -378,6 +432,12 @@ pub async fn update_flow(
                             confidence: 1.0,
                             match_count: 1,
                         });
+                        drop(matcher);
+                        if let Some(m) = state.metrics() {
+                            m.metrics()
+                                .flow_pattern_index_size
+                                .set(resolve_flow_pattern_index_size(&state));
+                        }
                     }
                 }
                 #[cfg(not(feature = "sona"))]
@@ -391,6 +451,12 @@ pub async fn update_flow(
                             confidence: 1.0,
                             match_count: 1,
                         });
+                        drop(matcher);
+                        if let Some(m) = state.metrics() {
+                            m.metrics()
+                                .flow_pattern_index_size
+                                .set(resolve_flow_pattern_index_size(&state));
+                        }
                     }
                 }
             }
@@ -417,6 +483,15 @@ pub async fn update_flow(
 
                 if let Ok(mut matcher) = state.flow_matcher().write() {
                     matcher.record_dismissal(desc, flow.source_account_id);
+                }
+                // `record_dismissal` is currently a no-op on pattern count
+                // for both matcher types, but wire the gauge update here
+                // too so it's automatically correct if that ever changes,
+                // and for consistency with the confirm branch.
+                if let Some(m) = state.metrics() {
+                    m.metrics()
+                        .flow_pattern_index_size
+                        .set(resolve_flow_pattern_index_size(&state));
                 }
             }
 

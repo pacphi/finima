@@ -128,6 +128,156 @@ Request-time counters and histograms surface under `/metrics`:
 Bootstrap bins emit tracing logs only; they do not mutate the API
 process's metric registry.
 
+## Staging rollout runbook (issue #31)
+
+Enabling `categorize.tier2.backend=ruvector` (ADR-012) in a non-prod
+environment for a live lift measurement against the Jaccard baseline.
+`config/staging.yaml` provides the environment overlay; this section is
+the operational procedure for using it.
+
+### The footgun: two conditions must BOTH hold
+
+`config/staging.yaml` sets `categorize.tier2.backend: ruvector`, but that
+value only takes effect if **both** of these are true at once:
+
+1. **`APP_ENV=staging`** is set on the running process, so the
+   `config/{APP_ENV}.yaml` overlay mechanism (`load_config_from`,
+   `crates/finima-api/src/config.rs`) actually loads
+   `config/staging.yaml` on top of the section files.
+2. **The binary was compiled with the `sona` Cargo feature**
+   (`finima-api`'s `sona = ["finima-categorize/sona",
+   "finima-analysis/sona"]`, `crates/finima-api/Cargo.toml:74`).
+
+If either is missing — most likely (2), since it's easy to deploy a
+binary built without `--features sona` while still setting
+`APP_ENV=staging` — `Tier2Config::resolved_backend()`
+(`crates/finima-categorize/src/config.rs`) **silently downgrades
+`ruvector` back to `jaccard`** and only logs a `tracing::warn!` at
+startup. The API starts normally, `/health` is green, requests succeed
+— and Tier 2 is quietly still running Jaccard. There is no hard failure;
+the only signal is that startup log line (or explicitly checking the
+resolved backend), so treat step 1 below as mandatory, not optional.
+
+### Steps
+
+1. **Build with the `sona` feature enabled.** The Makefile's
+   `build-release` target does not currently expose a `SONA=` flag (only
+   `LLM=` / `EMBEDDER=` are wired to Cargo features), so add `sona`
+   directly to the feature list. `config/staging.yaml` pairs
+   `categorize.tier2.backend=ruvector` with `embedder.backend=candle`
+   (see the comments in that file for why `candle` over `ollama`), which
+   needs the `embedder-candle` feature:
+
+   ```bash
+   cargo build --release -p finima-api --features sona,embedder-candle
+   ```
+
+   `finima-api` has no CLI argument parsing today (no `clap`, no
+   `env::args` handling in `main.rs`), so there is no lightweight
+   `--version`-style flag to verify the build with — running the binary
+   with `-- --version` silently ignores the argument and attempts a full
+   server startup instead (which will panic without a live DB connection).
+   To confirm the build succeeded, check the compile exit code and that
+   the binary was produced:
+
+   ```bash
+   ls -la target/release/finima-api
+   ```
+
+   then confirm the *feature selection* took effect by watching the
+   startup logs in step 2 for the resolved backend.
+
+2. **Deploy with `APP_ENV=staging`** so the `config/staging.yaml`
+   overlay applies:
+
+   ```bash
+   APP_ENV=staging ./target/release/finima-api
+   ```
+
+   Confirm the startup logs report `backend=ruvector` (not a
+   `resolved_backend` fallback warning) for Tier 2, and
+   `backend=candle` for the embedder.
+
+3. **Bootstrap the semantic stores** for each active staging portfolio.
+   Both bootstrap bins exist and mirror each other (ADR-012 / ADR-017
+   Phase 2.C). Build them with the **same `--features sona,embedder-candle`
+   flag from step 1** — `cargo run` compiles a fresh binary for
+   `--bin <name>` using whatever `--features` you pass it, independently of
+   the release binary you already built, so omitting the flag here silently
+   downgrades the bootstrap run back to the stub matcher / Noop embedder
+   even though step 1's build was correct:
+
+   ```bash
+   # Tier 2 semantic categorizer (ADR-012)
+   cargo run -p finima-api --features sona,embedder-candle \
+     --bin bootstrap_tier2 -- --portfolio-id <PORTFOLIO_ID>
+
+   # Flow-pattern matcher (ADR-017)
+   cargo run -p finima-api --features sona,embedder-candle \
+     --bin bootstrap_flows -- --portfolio-id <PORTFOLIO_ID>
+   ```
+
+   Both support `--dry-run` and `--limit N`; both log
+   `offered / inserted / rejected / elapsed_ms` summaries — check for
+   `rejected` counts, which usually mean a dimension mismatch (see
+   "Dimension matching" above).
+
+4. **Observe metrics at `/metrics`.** The meaningfully observable series
+   for this rollout are `tier2_queries_total{backend, outcome}` and
+   `tier2_search_latency_seconds{backend}` — compare the `ruvector` series
+   against the `jaccard` baseline from before the rollout.
+
+   `tier2_index_size` is **not** part of that comparison and should not be
+   watched for growth: it is a one-time boot snapshot
+   (`AppState::set_metrics` in `crates/finima-api/src/state.rs`), read
+   once from the freshly-constructed (and therefore empty) `semantic_tier2`
+   store before the router builds or the listener binds. There is no
+   runtime `.learn()` / `.learn_with_vector()` call anywhere in the live
+   request path — Tier 2 is query-only at runtime — and `bootstrap_tier2`
+   populates a separate, throwaway-store OS process that cannot mutate the
+   live server's `AppState`. So this gauge reads 0 at startup and will read
+   0 for the lifetime of the process, in every real deployment; do not
+   build a dashboard or alert around it growing.
+
+   `flow_pattern_index_size` does **not** share that limitation and is
+   worth watching alongside the query/latency series: it is resolved on
+   every confirm/dismiss request via
+   `resolve_flow_pattern_index_size` in `handlers/flows.rs`, which reads
+   the real, live `flow_matcher_ruvector` pattern count whenever a
+   `sona`-enabled build's RuVector matcher constructed successfully at
+   startup (falling back to the always-zero stub matcher's count
+   otherwise), so it will meaningfully reflect confirmed flow patterns as
+   staging traffic accumulates.
+
+   The integration test at
+   `crates/finima-api/tests/tier2_flow_persistence_test.rs` exercises the
+   bootstrap → persist → query path and the vector-dispatch / gauge-
+   resolution logic against real library calls (`bootstrap_semantic`,
+   `EmbeddingIndexRepo`, `FlowPatternRepo::upsert_confirmed`,
+   `resolve_one_sided_flows_with_vectors`, and the RuVector
+   `categorize_with_vector` dispatch), which reduces (but does not
+   eliminate) the risk of a silent regression in that logic. It does
+   **not** exercise the real HTTP handlers
+   (`handlers::flows::update_flow`,
+   `handlers::categorization::categorize_transaction_with_vector`)
+   end-to-end — `finima-api` is a binary crate with no `lib.rs`, so the
+   test file uses hand-written, kept-in-sync-by-hand reimplementations of
+   the handler glue instead of calling the real handlers. See that file's
+   own header comment for the full breakdown of what is and isn't covered.
+
+5. **Follow-up (operational, not code) — NOT done by this change:**
+   the issue's acceptance criteria call for observing the metrics in
+   step 4 for roughly a week of live staging traffic, then writing a
+   lift comparison (RuVector vs. the Jaccard baseline) under
+   `docs/reports/`. That observation window and write-up require a
+   reachable staging environment and real elapsed time, neither of
+   which is available in this change — this PR ships the config
+   overlay, the build/deploy procedure, and the bootstrap steps needed
+   to *start* that observation, but the observation itself and the
+   resulting report are still open. Whoever runs staging should follow
+   steps 1–4 above, let it soak, and produce the lift write-up as a
+   separate follow-up.
+
 ## References
 
 - [ADR-012](../ADRs/ADR-012-tiered-categorization-engine.md) — Tier 2 architecture

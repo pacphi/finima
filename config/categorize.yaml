@@ -15,6 +15,12 @@
 #   * 384 matches all-MiniLM-L6-v2 and similar small sentence-transformers.
 #   * 768 matches most base-size models.
 # Jaccard ignores this field.
+#
+# The base default below stays `jaccard` for every environment. For the
+# non-prod `ruvector` rollout (requires the `sona` build feature — see
+# config/staging.yaml and docs/guides/embedder.md "Staging rollout
+# runbook"), APP_ENV=staging overlays config/staging.yaml on top of this
+# file rather than changing the default here.
 
 categorize:
   fuzzy_threshold: 0.88
