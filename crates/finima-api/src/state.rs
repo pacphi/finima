@@ -534,12 +534,29 @@ impl AppState {
     }
 
     /// Install a metrics registry for handler-level instrumentation.
-    /// Called once from `main` after the registry is constructed.
+    /// Called once from `main` after the registry is constructed, before
+    /// the router is built or the listener binds — i.e. before any request
+    /// could have mutated anything.
     ///
-    /// Also seeds the `tier2_index_size` / `flow_pattern_index_size` gauges
-    /// from the freshly-built in-memory stores so they reflect real values
-    /// immediately rather than sitting at the Prometheus default of 0 until
-    /// the next mutation.
+    /// Seeds the `tier2_index_size` / `flow_pattern_index_size` gauges from
+    /// the freshly-built in-memory stores.
+    ///
+    /// IMPORTANT — `tier2_index_size` specifically: this is a **one-time,
+    /// boot-time snapshot, not a live gauge**. `semantic_tier2` is always
+    /// freshly constructed (and therefore empty) at this point, and the
+    /// live server's request path has no `.learn()` / `.learn_with_vector()`
+    /// call site anywhere — Tier 2 is query-only at runtime. So this value
+    /// is architecturally guaranteed to read 0 for the lifetime of the
+    /// process in every real deployment; it does not reflect meaningful
+    /// runtime state and will never grow from here. (The `bootstrap_tier2`
+    /// binary that populates a Tier 2 store does so in a separate,
+    /// throwaway-store OS process and cannot mutate this `AppState`.) See
+    /// the doc comment on `MetricsRegistry::tier2_index_size` for the same
+    /// caveat at the metric's definition.
+    ///
+    /// `flow_pattern_index_size` does not have this limitation — see
+    /// `resolve_flow_pattern_index_size` in `handlers/flows.rs`, which is
+    /// updated on every confirm/dismiss request via the real, live matcher.
     pub fn set_metrics(&self, registry: MetricsRegistry) {
         let metrics = registry.metrics();
         metrics.tier2_index_size.set(
@@ -615,10 +632,17 @@ fn build_embedder(config: &AppConfig) -> Arc<dyn EmbeddingProvider> {
                     dim = cfg.dim,
                     "Embedder: CandleEmbedder (stub)"
                 );
-                Arc::new(finima_embed::CandleEmbedder::new(
-                    cfg.candle.model_id.clone(),
-                    cfg.dim,
-                )) as Arc<dyn EmbeddingProvider>
+                match finima_embed::CandleEmbedder::load(cfg.candle.model_id.clone(), cfg.dim) {
+                    Ok(e) => Arc::new(e) as Arc<dyn EmbeddingProvider>,
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            model_id = %cfg.candle.model_id,
+                            "CandleEmbedder load failed; falling back to NoopEmbedder"
+                        );
+                        Arc::new(NoopEmbedder::new(cfg.dim))
+                    }
+                }
             }
             #[cfg(not(feature = "embedder-candle"))]
             {

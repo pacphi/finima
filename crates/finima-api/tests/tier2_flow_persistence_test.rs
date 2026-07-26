@@ -23,26 +23,70 @@
 //!  2. Calling the vector-aware categorization endpoint contract
 //!     (`POST /api/categorize/with-vector`) with a fake, deterministic
 //!     vector -- no live embedder/LLM required -- and asserting the
-//!     seeded category/subcategory comes back.
+//!     seeded category/subcategory comes back via the Jaccard backend.
+//!     A `sona`-gated companion test additionally seeds a RuVector store
+//!     and proves the real `finima_categorize::tier2::ruvector_store::
+//!     categorize_with_vector` vector-search path is what answers the
+//!     request, not the Jaccard fallback (see test 2b below).
 //!
 //!  3. Confirming a flow via the flow-confirm endpoint contract
-//!     (`PUT /api/flows/:id`), persisting a `flow_patterns` row, then
-//!     rebuilding a `RuVectorPatternMatcher` and calling
+//!     (`PUT /api/flows/:id`), persisting a `flow_patterns` row, updating
+//!     an in-process `RuVectorPatternMatcher` and its derived
+//!     `flow_pattern_index_size` gauge stand-in (see (ii) below), then
+//!     rebuilding a fresh `RuVectorPatternMatcher` from the persisted
+//!     vector and calling
 //!     `finima_analysis::flows::resolve_one_sided_flows_with_vectors` to
 //!     confirm the stored target account comes back correctly.
 //!     `sona`-feature-gated, mirroring the gate this function's own unit
 //!     tests already use in `finima-analysis/src/flows.rs`.
 //!
+//! ## What this file honestly does and doesn't cover
+//!
 //! `finima-api` is a binary crate (no `lib.rs`), so its real Axum handlers
 //! (`handlers::categorization::categorize_transaction_with_vector`,
-//! `handlers::flows::update_flow`) and `AppState` are not visible from this
-//! integration test crate -- see `tests/common/mod.rs`'s own doc comment on
-//! why the existing test suite takes the same approach. The two HTTP
-//! routes below are test-local handlers that mirror those handlers' logic
-//! using the same underlying library/repo calls (`finima_categorize::tier2`,
-//! `finima_db::repos::{FlowPatternRepo, EmbeddingIndexRepo}`), so the
-//! assertions exercise real production code paths end-to-end even though
-//! the route glue itself is reimplemented here for testability.
+//! `handlers::flows::update_flow`) and `AppState` are not constructible
+//! from this integration-test crate -- see `tests/common/mod.rs`'s own doc
+//! comment, and `auth_test.rs` / `authorization_test.rs`, which hit the
+//! exact same structural wall. This is a known, pre-existing gap shared by
+//! every integration test in this crate, not something specific to this
+//! file, and it is NOT closed here. A `finima-api` `lib.rs` extraction
+//! (moving the router/handlers/`AppState` into a library target with a
+//! thin `main.rs` binary shim) would close it for every integration test
+//! in this crate at once and is recommended as separate, dedicated
+//! follow-up work -- it is out of scope for this file and has not been
+//! attempted here.
+//!
+//! Given that constraint, this file draws an explicit line between two
+//! different kinds of "real":
+//!
+//!  (i) **Library-level logic exercised via real library calls -- genuine,
+//!      meaningful coverage:** `bootstrap_semantic`, `EmbeddingIndexRepo`,
+//!      `FlowPatternRepo::upsert_confirmed`,
+//!      `resolve_one_sided_flows_with_vectors`, and (as of this revision)
+//!      the vector-path dispatch logic in
+//!      `finima_categorize::tier2::ruvector_store::categorize_with_vector`
+//!      and the `flow_pattern_index_size` gauge-resolution logic
+//!      (mirroring `handlers::flows::resolve_flow_pattern_index_size`) are
+//!      all called directly against real, unmocked implementations from
+//!      the `finima-categorize` / `finima-analysis` / `finima-db` library
+//!      crates. A regression in any of that logic will fail these tests.
+//!
+//!  (ii) **HTTP-handler-level glue -- NOT exercised, known gap:** the exact
+//!      sequence of operations *inside* the real
+//!      `handlers::flows::update_flow` and
+//!      `handlers::categorization::categorize_transaction_with_vector`
+//!      functions (routing, extractor wiring, the precise order handler
+//!      code calls the library functions in, error-status mapping, and
+//!      metrics recording against the real `finima_api::metrics::
+//!      MetricsRegistry`, which this crate cannot even import) is
+//!      reimplemented by hand below (`confirm_flow_handler`,
+//!      `categorize_with_vector_handler`) rather than called. Where this
+//!      revision duplicates a fix made to the real handler (the
+//!      `flow_pattern_index_size` gauge-resolution logic, and the
+//!      vector-vs-Jaccard dispatch), the test-local copy is kept in sync
+//!      by hand and can drift from the real handler without either
+//!      failing -- that is inherent to hand-duplicated glue and is exactly
+//!      the gap a `lib.rs` extraction would close.
 //!
 //! No `#[ignore]` gate: mirrors `auth_test.rs` / `authorization_test.rs`,
 //! which run unconditionally against the required test database rather
@@ -53,7 +97,7 @@
 //!   TEST_DATABASE_URL=postgres://finima:test@localhost:5433/finima_test \
 //!     APP_ENV=test cargo test -p finima-api --test tier2_flow_persistence_test
 //!
-//!   # Additionally, for the SONA flow-matcher test:
+//!   # Additionally, for the SONA flow-matcher + RuVector-categorization tests:
 //!   TEST_DATABASE_URL=postgres://finima:test@localhost:5433/finima_test \
 //!     APP_ENV=test cargo test -p finima-api --features sona \
 //!     --test tier2_flow_persistence_test
@@ -82,6 +126,17 @@ use finima_categorize::tier2::{
 };
 use finima_categorize::UncategorizedTransaction;
 use finima_core::traits::{PortfolioRepo, UserRepo};
+
+#[cfg(feature = "sona")]
+use finima_analysis::sona::{
+    FlowPattern, FlowPatternMatcher, RuVectorPatternMatcher, RuVectorPatternMatcherConfig,
+};
+#[cfg(feature = "sona")]
+use finima_categorize::config::Tier2Config;
+#[cfg(feature = "sona")]
+use finima_categorize::tier2::ruvector_store::categorize_with_vector as ruvector_categorize_with_vector;
+#[cfg(feature = "sona")]
+use finima_categorize::tier2::{RuVectorEmbeddingStore, SemanticVectorIngest};
 
 use common::{access_token_for, setup_test_db, TestAppState, TestClient};
 
@@ -123,6 +178,19 @@ const FLOW_VECTOR_DIM: usize = 32;
 struct Tier2RouterState {
     app: TestAppState,
     tier2: Arc<RwLock<EmbeddingStore>>,
+    /// Mirrors `AppState::semantic_tier2_ruvector()`: `Some` only when a
+    /// test explicitly seeds a RuVector store via
+    /// `build_tier2_router_with_ruvector`. `None` reproduces the
+    /// production fallback path (no RuVector backend configured / `sona`
+    /// off), which `categorize_with_vector_handler` also handles below.
+    #[cfg(feature = "sona")]
+    tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>>,
+    /// Mirrors `AppState::flow_matcher_ruvector()`. Always present (as
+    /// `Some` would be in production) so `confirm_flow_handler` can
+    /// exercise the same "prefer the RuVector matcher's real count"
+    /// resolution logic as `handlers::flows::resolve_flow_pattern_index_size`.
+    #[cfg(feature = "sona")]
+    flow_matcher_ruvector: Arc<RwLock<RuVectorPatternMatcher>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,10 +201,20 @@ struct CategorizeWithVectorRequest {
     date: NaiveDate,
     #[serde(default)]
     mcc: Option<u16>,
-    /// Accepted to mirror the production request shape; the Jaccard
-    /// backend under test ignores it (see handler doc comment below).
+    /// Mirrors the production request shape. Under the `sona` feature,
+    /// when `Tier2RouterState::tier2_ruvector` is seeded (see
+    /// `build_tier2_router_with_ruvector`), this vector drives the real
+    /// `finima_categorize::tier2::ruvector_store::categorize_with_vector`
+    /// query path -- see `categorize_with_vector_handler` below. Otherwise
+    /// (no `sona` feature, or no RuVector store present) it is ignored and
+    /// the Jaccard `EmbeddingStore::categorize` text-only fallback is used,
+    /// matching the real handler's own fallback behavior.
+    ///
+    /// `#[allow(dead_code)]` is scoped to non-`sona` builds only: on a
+    /// `sona` build this field is genuinely read (see
+    /// `categorize_with_vector_endpoint_uses_ruvector_path_when_seeded`).
     #[serde(default)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(feature = "sona"), allow(dead_code))]
     precomputed_vector: Option<Vec<f32>>,
 }
 
@@ -166,10 +244,16 @@ async fn inject_test_jwt_secret(mut request: Request<Body>, next: Next) -> Respo
 }
 
 /// Test-local mirror of
-/// `categorization::categorize_transaction_with_vector`'s Jaccard-backend
-/// fallback path (`finima-api/src/handlers/categorization.rs`) -- the code
-/// path taken when the `sona` feature is off (the default) or no vector is
-/// usable. See module doc comment for why this isn't the real handler.
+/// `categorization::categorize_transaction_with_vector`
+/// (`finima-api/src/handlers/categorization.rs`). Under the `sona`
+/// feature, when the caller supplies a vector AND
+/// `Tier2RouterState::tier2_ruvector` is seeded, this dispatches to the
+/// real `finima_categorize::tier2::ruvector_store::categorize_with_vector`
+/// vector-search path -- matching the real handler's own
+/// `#[cfg(feature = "sona")]` branch. Otherwise it falls back to the
+/// Jaccard `EmbeddingStore::categorize` text-only path, also matching the
+/// real handler. See module doc comment for why this is a hand-written
+/// mirror rather than a call into the real handler.
 async fn categorize_with_vector_handler(
     _user: AuthUser,
     State(rstate): State<Tier2RouterState>,
@@ -184,8 +268,27 @@ async fn categorize_with_vector_handler(
     };
 
     let assignment = {
-        let guard = rstate.tier2.read().expect("tier2 store lock poisoned");
-        guard.categorize(&txn)
+        #[cfg(feature = "sona")]
+        {
+            match (
+                body.precomputed_vector.as_deref(),
+                rstate.tier2_ruvector.as_ref(),
+            ) {
+                (Some(v), Some(store)) => {
+                    let guard = store.read().expect("tier2_ruvector lock poisoned");
+                    ruvector_categorize_with_vector(&guard, &txn, v)
+                }
+                _ => {
+                    let guard = rstate.tier2.read().expect("tier2 store lock poisoned");
+                    guard.categorize(&txn)
+                }
+            }
+        }
+        #[cfg(not(feature = "sona"))]
+        {
+            let guard = rstate.tier2.read().expect("tier2 store lock poisoned");
+            guard.categorize(&txn)
+        }
     };
 
     let response = match assignment {
@@ -211,7 +314,12 @@ async fn categorize_with_vector_handler(
 /// Test-local mirror of `flows::update_flow`'s "confirm" branch
 /// (`finima-api/src/handlers/flows.rs`): verifies ownership, confirms the
 /// flow, then upserts a `flow_patterns` row. Uses the deterministic
-/// `fake_vector` in place of `AppState::embedder()`.
+/// `fake_vector` in place of `AppState::embedder()`. Under `sona`, also
+/// updates the in-process RuVector flow-pattern matcher and the
+/// `flow_pattern_index_size` gauge stand-in (`TestAppState::
+/// set_flow_pattern_index_size`), duplicating the resolution logic in
+/// `handlers::flows::resolve_flow_pattern_index_size` (prefer the RuVector
+/// matcher's real count; fall back to 0 otherwise).
 async fn confirm_flow_handler(
     user: AuthUser,
     State(rstate): State<Tier2RouterState>,
@@ -264,11 +372,85 @@ async fn confirm_flow_handler(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // In-memory matcher update + gauge resolution, mirroring
+    // `handlers::flows::update_flow`'s confirm branch and
+    // `resolve_flow_pattern_index_size`.
+    #[cfg(feature = "sona")]
+    {
+        {
+            let mut matcher = rstate
+                .flow_matcher_ruvector
+                .write()
+                .expect("flow_matcher_ruvector lock poisoned");
+            matcher.store_pattern_with_vector(
+                FlowPattern {
+                    description: source_txn.description.clone(),
+                    source_account_id: flow.source_account_id,
+                    target_account_id: flow.target_account_id,
+                    confidence: 1.0,
+                    match_count: 1,
+                },
+                &vector,
+            );
+            // Drop the write guard before reading `pattern_count()` below
+            // -- std `RwLock` isn't reentrant, matching the real handler's
+            // own `drop(matcher)` before calling
+            // `resolve_flow_pattern_index_size`.
+        }
+        let count = rstate
+            .flow_matcher_ruvector
+            .read()
+            .expect("flow_matcher_ruvector lock poisoned")
+            .pattern_count() as i64;
+        app.set_flow_pattern_index_size(count);
+    }
+
     Ok((StatusCode::OK, Json(json!({"status": "confirmed"}))))
 }
 
 fn build_tier2_router(state: TestAppState, tier2: Arc<RwLock<EmbeddingStore>>) -> Router {
-    let rstate = Tier2RouterState { app: state, tier2 };
+    #[cfg(feature = "sona")]
+    {
+        build_tier2_router_with_ruvector(state, tier2, None)
+    }
+    #[cfg(not(feature = "sona"))]
+    {
+        let rstate = Tier2RouterState { app: state, tier2 };
+        Router::new()
+            .route(
+                "/api/categorize/with-vector",
+                post(categorize_with_vector_handler),
+            )
+            .route("/api/flows/{id}", put(confirm_flow_handler))
+            .layer(middleware::from_fn(inject_test_jwt_secret))
+            .with_state(rstate)
+    }
+}
+
+/// Like `build_tier2_router`, but additionally accepts a RuVector Tier 2
+/// store (`tier2_ruvector`), mirroring `AppState::semantic_tier2_ruvector()`
+/// being `Some`. Always builds a fresh `RuVectorPatternMatcher` for the
+/// flow-pattern side, mirroring a successful RuVector construction at
+/// startup (see `AppState::new`).
+#[cfg(feature = "sona")]
+fn build_tier2_router_with_ruvector(
+    state: TestAppState,
+    tier2: Arc<RwLock<EmbeddingStore>>,
+    tier2_ruvector: Option<Arc<RwLock<RuVectorEmbeddingStore>>>,
+) -> Router {
+    let flow_matcher_ruvector = Arc::new(RwLock::new(
+        RuVectorPatternMatcher::new(RuVectorPatternMatcherConfig {
+            dim: FLOW_VECTOR_DIM,
+            ..RuVectorPatternMatcherConfig::default()
+        })
+        .expect("build RuVectorPatternMatcher for test router"),
+    ));
+    let rstate = Tier2RouterState {
+        app: state,
+        tier2,
+        tier2_ruvector,
+        flow_matcher_ruvector,
+    };
     Router::new()
         .route(
             "/api/categorize/with-vector",
@@ -502,6 +684,91 @@ async fn categorize_with_vector_endpoint_matches_seeded_category() {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. POST /api/categorize/with-vector -- proves the RuVector vector-search
+//     path is actually exercised, not just that a category comes back
+//     (sona-gated; see module doc comment (i)/(ii)).
+// ---------------------------------------------------------------------------
+
+/// Seeds a Jaccard `EmbeddingStore` and a RuVector `RuVectorEmbeddingStore`
+/// with the SAME description text but DIFFERENT (mutually exclusive)
+/// category/subcategory labels, then asserts the response matches the
+/// RuVector label. If `categorize_with_vector_handler` ever regressed to
+/// unconditionally calling `EmbeddingStore::categorize` (as it did before
+/// this fix, and as the pre-existing Test 2 above cannot detect, since it
+/// never seeds a RuVector store at all), this test would get the WRONG
+/// (Jaccard) answer and fail -- it cannot pass "by accident" the way a test
+/// that only checks `matched == true` could.
+#[cfg(feature = "sona")]
+#[tokio::test]
+async fn categorize_with_vector_endpoint_uses_ruvector_path_when_seeded() {
+    let pool = setup_test_db().await;
+    let state = TestAppState::new(pool.clone());
+    let email = format!("tier2-ruvector-{}@finima.local", Uuid::new_v4());
+    let user = state
+        .user_repo()
+        .create_user(&email, "Tier2 RuVector")
+        .await
+        .expect("create user");
+
+    let description = "AUTOPAY UTILITY BILL XYZ";
+    let dim = 32;
+    let vector = fake_vector(description, dim);
+
+    // Jaccard store: exact-text entry tagged with a WRONG category. Jaccard
+    // n-gram similarity against an identical (normalized) description is
+    // 1.0, so if the handler fell through to this store despite a vector +
+    // RuVector store both being available, it would confidently return
+    // this WRONG label.
+    let mut jaccard = EmbeddingStore::new(0.5);
+    jaccard.insert(description, "entertainment", "streaming_services", 0.99);
+    let tier2_store = Arc::new(RwLock::new(jaccard));
+
+    // RuVector store: the SAME description's vector tagged with the
+    // CORRECT category. Only reachable via `categorize_with_vector`.
+    let mut ruvector = RuVectorEmbeddingStore::new(
+        Tier2Config {
+            dim,
+            ..Tier2Config::default()
+        },
+        0.0,
+    )
+    .expect("build RuVectorEmbeddingStore");
+    assert!(
+        ruvector.learn_with_vector(description, "utilities", "bill_pay", 0.95, Some(&vector)),
+        "seeding the RuVector store should succeed"
+    );
+    let ruvector_store = Arc::new(RwLock::new(ruvector));
+
+    let token = access_token_for(user.id, &user.email);
+    let router = build_tier2_router_with_ruvector(
+        state.clone(),
+        tier2_store.clone(),
+        Some(ruvector_store.clone()),
+    );
+    let client = TestClient::new(router).with_auth(&token);
+
+    let body = json!({
+        "transaction_id": Uuid::new_v4(),
+        "description": description,
+        "amount": -120.00,
+        "date": "2026-01-15",
+        "mcc": null,
+        "precomputed_vector": vector,
+    });
+
+    let (status, resp) = client.post("/api/categorize/with-vector", &body).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(resp["matched"], true);
+    // The load-bearing assertions: these prove the RuVector path answered
+    // the request. Getting "entertainment"/"streaming_services" here would
+    // mean the Jaccard fallback ran instead -- see the sabotage-test
+    // verification in the fix's report for empirical proof this actually
+    // fails when the RuVector dispatch is broken.
+    assert_eq!(resp["category"], "utilities");
+    assert_eq!(resp["subcategory"], "bill_pay");
+}
+
+// ---------------------------------------------------------------------------
 // 3. PUT /api/flows/:id -> flow_patterns persistence -> resolve via vector
 //    matcher (sona-gated, matching the gate on
 //    `resolve_one_sided_flows_with_vectors` itself)
@@ -510,9 +777,8 @@ async fn categorize_with_vector_endpoint_matches_seeded_category() {
 #[cfg(feature = "sona")]
 #[tokio::test]
 async fn confirm_flow_pattern_resolves_via_vector_matcher() {
-    use finima_analysis::sona::{
-        FlowPattern, RuVectorPatternMatcher, RuVectorPatternMatcherConfig,
-    };
+    // `FlowPattern` / `RuVectorPatternMatcher` / `RuVectorPatternMatcherConfig`
+    // come from the module-level `#[cfg(feature = "sona")]` imports.
     use finima_analysis::FlowCandidate;
 
     let pool = setup_test_db().await;
@@ -589,6 +855,20 @@ async fn confirm_flow_pattern_resolves_via_vector_matcher() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(resp["status"], "confirmed");
+
+    // --- The confirm updated the flow_pattern_index_size gauge stand-in -
+    // Exercises the same "prefer the RuVector matcher's real count" logic
+    // as `handlers::flows::resolve_flow_pattern_index_size` (duplicated in
+    // `confirm_flow_handler` above, since the real private helper lives in
+    // the `finima-api` binary crate and isn't callable from here). One
+    // pattern was stored by the confirm above, so the count must be 1 --
+    // not 0 (the stub/no-op value) and not left over from a previous test,
+    // since each test builds its own fresh router/matcher.
+    assert_eq!(
+        state.flow_pattern_index_size(),
+        1,
+        "flow_pattern_index_size should reflect the one pattern stored by confirm"
+    );
 
     // --- The confirm persisted a flow_patterns row ---------------------
     let patterns = state
