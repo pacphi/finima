@@ -48,6 +48,7 @@ pub struct ConfirmRequest {
     pub date_format: Option<String>,
 }
 
+#[allow(dead_code)]
 fn default_true() -> bool {
     true
 }
