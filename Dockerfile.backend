@@ -1,6 +1,6 @@
 # Multi-stage Rust build for finima-api
 # Stage 1: Build the release binary
-FROM rust:1.96-bookworm AS builder
+FROM rust:1.97-bookworm AS builder
 WORKDIR /app
 
 # Copy manifests and source
