@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 
 interface ConfigState {
   apiBaseUrl: string;
@@ -60,7 +60,7 @@ export const useConfigStore = create<ConfigState>()((set) => ({
     try {
       const response = await fetch('/config.yaml');
       const text = await response.text();
-      const raw = yaml.load(text) as RawConfig;
+      const raw = load(text) as RawConfig;
 
       set({
         apiBaseUrl: raw.api?.base_url ?? 'http://localhost:3000',

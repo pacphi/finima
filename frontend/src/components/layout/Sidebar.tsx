@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHealthStore, type LlmStatus } from '@/stores/healthStore';
 import { APP_VERSION } from '@/utils/version';

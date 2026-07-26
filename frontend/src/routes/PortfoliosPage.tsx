@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useApi } from '@/hooks/useApi';
 import { createPortfolioApi } from '@/api/portfolios';
 import { createAccountApi } from '@/api/accounts';

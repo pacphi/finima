@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/authStore';
 import { usePortfolioStore } from '@/stores/portfolioStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { logout as logoutApi } from '@/api/auth';
 
 export function Header() {
