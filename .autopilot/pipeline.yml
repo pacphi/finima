@@ -7,16 +7,16 @@ goal: "Apply the rust-optimizer CI/CD audit findings (A1, C2, A3, A4, A6, C1, D2
 spec: "OPTIMIZATION_SPEC.md"
 
 references:
-  prd:     ""
-  plan:    "OPTIMIZATION_SPEC.md"
+  prd: ""
+  plan: "OPTIMIZATION_SPEC.md"
   adr_dir: "docs/ADRs"
   ddd_dir: "docs/DDDs"
-  extra:   [".optimizer/baseline.json"]
+  extra: [".optimizer/baseline.json"]
 
 trunk: main
-base:  chore/rust-ci-optimization
+base: chore/rust-ci-optimization
 
-autonomy: reviewed   # per OPTIMIZATION_SPEC.md's own recommendation for the first pass
+autonomy: reviewed # per OPTIMIZATION_SPEC.md's own recommendation for the first pass
 
 fix_budget: 5
 max_parallel: 1
@@ -112,7 +112,7 @@ phases:
     track: "ci-cd"
     deliverables:
       - "`needs: backend-lint` removed from backend-test and llm-test in .github/workflows/ci.yml."
-      - "A ci-success aggregation job added that `needs:` all required jobs (backend-lint, backend-test, backend-audit, frontend-lint, frontend-test, validate-markdown, validate-yaml) so branch protection can point at one check."
+      - "A ci-success aggregation job added that `needs:` every required job (lint/test/audit, frontend lint/test, doc validation) so branch protection can point at one check."
     definition_of_done:
       - "grep:absent: needs: backend-lint in .github/workflows/ci.yml"
       - "grep: ci-success in .github/workflows/ci.yml"
@@ -135,7 +135,7 @@ phases:
       - "grep: archive-file in .github/workflows/ci.yml"
       - "cmd: make test"
       - "cmd: make test-integration"
-    conventions: "This is the riskiest phase in the pipeline — it restructures the job graph C2 just parallelized. Verify the archive approach preserves the postgres service container each consuming job needs (services: are per-job, not shared by an archive)."
+    conventions: "Riskiest phase — restructures the job graph C2 parallelized. Verify the archive preserves the postgres service container each consumer needs (services: are per-job, not shared)."
     depends_on: [5]
     touches: [".github/workflows/ci.yml"]
     adrs: []
@@ -145,12 +145,13 @@ phases:
     goal: "Every cargo-machete hit is either removed (compiler-verified dead weight) or documented as a false positive — no blind deletions."
     track: "dependencies"
     deliverables:
-      - "Each of the 13 candidate unused deps (finima-feed: serde_json, uuid; finima-api: aws-config, axum-extra, base64, bytes; finima-ingest: serde_json, tracing; finima-db: tokio, tracing; finima-llm: finima-core, tokenizers; finima-auth: serde_json) is either removed from its crate's Cargo.toml, or added to that crate's [package.metadata.cargo-machete] ignored list with a one-line rationale comment."
+      - "Each of the 13 candidate unused deps across finima-feed/api/ingest/db/llm/auth is resolved — removed, or ignored in that crate's Cargo.toml with a one-line rationale."
+      - "See OPTIMIZATION_SPEC.md finding F1 for the full per-crate hit list and the false-positive caveats."
     definition_of_done:
       - "cmd: cargo machete"
       - "cmd: cargo build --workspace"
       - "cmd: make test"
-    conventions: "cargo-machete has known false positives for macro-only/re-exported/feature-enabling deps — verify each hit against actual usage before removing; the compiler and test suite are the arbiter, not the grep hit alone."
+    conventions: "cargo-machete has known false positives (macro-only/re-exported/feature-enabling deps) — verify each hit; the compiler and test suite are the arbiter, not the grep hit alone."
     depends_on: []
     touches: ["crates/*/Cargo.toml"]
     adrs: ["ADR-001-rust-multi-crate-workspace"]

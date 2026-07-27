@@ -148,7 +148,7 @@ LYCHEE := $(shell command -v lychee 2>/dev/null)
 
 PRUNE_DIRS := \( -name node_modules -o -name target -o -name .claude \
 	-o -name .claude-flow -o -name .git -o -name .swarm \
-	-o -name dist -o -name coverage \) -prune
+	-o -name dist -o -name coverage -o -name .agents \) -prune
 
 # Colors
 BOLD   := $(shell tput bold 2>/dev/null || echo '')

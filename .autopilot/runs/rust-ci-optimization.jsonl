@@ -80,3 +80,4 @@
   ],
   "at": "2026-07-26T19:03:45-07:00"
 }
+{"phase":0,"mode":"reviewed","verdict":"BLOCKED","skipped":[],"failed":[],"ci_attempts":0,"pr":null,"accelerators":["beads"],"marker":null,"at":"2026-07-26T19:06:26-07:00","summary":"A3 env vars added + verified via grep. build/lint/test green. format_check red on 9 pre-existing unrelated md files -- blocker blk-fmt0 recorded, phase stopped."}
