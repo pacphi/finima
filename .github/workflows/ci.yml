@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
   # ── Documentation Quality Gates ──────────────────────────────
@@ -43,14 +49,35 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - name: Install lld
+        run: sudo apt-get update && sudo apt-get install -y lld
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
+  backend-test-archive:
+    name: Backend Test Archive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install lld
+        run: sudo apt-get update && sudo apt-get install -y lld
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.140
+      - uses: Swatinem/rust-cache@v2
+      - name: Build nextest archive
+        run: cargo nextest archive --workspace --archive-file nextest.tar.zst
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nextest-archive
+          path: nextest.tar.zst
+
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    needs: backend-lint
+    needs: backend-test-archive
     services:
       postgres:
         image: postgres:16-alpine
@@ -70,16 +97,23 @@ jobs:
       TEST_DATABASE_URL: postgres://finima:test@localhost:5432/finima_test
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Run all tests (unit + integration)
-        run: cargo test --workspace
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.140
+      - uses: actions/download-artifact@v7
+        with:
+          name: nextest-archive
+      - name: Run all tests (unit + integration) from the prebuilt archive
+        run: cargo nextest run --archive-file nextest.tar.zst --workspace-remap .
+      - name: Run doctests
+        # cargo-nextest doesn't execute doctests (upstream limitation) — the
+        # archive can't cover these, so they run the old way, separately.
+        run: cargo test --workspace --doc
 
   llm-test:
     name: LLM Integration Tests
     if: vars.LLM_TESTS_ENABLED == 'true'
     runs-on: ubuntu-latest
-    needs: backend-lint
     services:
       ollama:
         image: ollama/ollama:latest
@@ -97,6 +131,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install lld
+        run: sudo apt-get update && sudo apt-get install -y lld
       - uses: Swatinem/rust-cache@v2
       - name: Pull test model
         run: |
@@ -112,8 +148,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
       - name: Run security audit
         run: bash .github/scripts/cargo-audit.sh
 
@@ -200,6 +237,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install lld
+        run: sudo apt-get update && sudo apt-get install -y lld
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v7
         with:
@@ -260,9 +299,27 @@ jobs:
         with:
           name: playwright-report
           path: frontend/playwright-report/
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-traces
           path: frontend/test-results/
+          if-no-files-found: ignore
+
+  # ── CI status aggregation ────────────────────────────────────
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs:
+      - validate-markdown
+      - validate-yaml
+      - backend-lint
+      - backend-test-archive
+      - backend-test
+      - backend-audit
+      - frontend-lint
+      - frontend-test
+    steps:
+      - run: echo "All required CI checks passed"

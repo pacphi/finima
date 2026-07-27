@@ -8,16 +8,16 @@ This crate handles the full file-import pipeline: detecting the file format, par
 
 ## Key Types / Modules
 
-| Module          | Description                                                                                              |
+| Module | Description |
 | --------------- | -------------------------------------------------------------------------------------------------------- | --- | ------ | --- | ------------------------------------ |
-| `lib.rs`        | Core types: `RawTransaction`, `ColumnMapping`, `ParsePreview`, `IngestError`, and the `FileParser` trait |
-| `detect.rs`     | `detect_format()` -- infers `FileFormat` from file extension and content heuristics                      |
-| `csv_parser.rs` | `CsvParser` -- handles CSV and TSV with BOM stripping and encoding normalization                         |
-| `ofx.rs`        | `OfxParser` -- parses OFX, QFX, and QBO formats (SGML-based financial interchange)                       |
-| `qif.rs`        | `QifParser` -- parses Quicken Interchange Format files                                                   |
-| `xlsx.rs`       | `XlsxParser` -- parses XLS and XLSX spreadsheets via the `calamine` crate                                |
-| `preview.rs`    | `generate_preview()` -- produces a `ParsePreview` with headers, sample rows, and inferred column mapping |
-| `dedup.rs`      | `compute_dedup_hash()` -- SHA-256 hash of `date                                                          |     | amount |     | description` for duplicate detection |
+| `lib.rs` | Core types: `RawTransaction`, `ColumnMapping`, `ParsePreview`, `IngestError`, and the `FileParser` trait |
+| `detect.rs` | `detect_format()` -- infers `FileFormat` from file extension and content heuristics |
+| `csv_parser.rs` | `CsvParser` -- handles CSV and TSV with BOM stripping and encoding normalization |
+| `ofx.rs` | `OfxParser` -- parses OFX, QFX, and QBO formats (SGML-based financial interchange) |
+| `qif.rs` | `QifParser` -- parses Quicken Interchange Format files |
+| `xlsx.rs` | `XlsxParser` -- parses XLS and XLSX spreadsheets via the `calamine` crate |
+| `preview.rs` | `generate_preview()` -- produces a `ParsePreview` with headers, sample rows, and inferred column mapping |
+| `dedup.rs` | `compute_dedup_hash()` -- SHA-256 hash of `date                                                          |     | amount |     | description` for duplicate detection |
 
 ## Dependencies
 

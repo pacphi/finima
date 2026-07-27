@@ -1,0 +1,48 @@
+# profile.yml — the stack profile for autopilot's quality gate.
+# Detected + user-confirmed 2026-07-26 by `autopilot:detect` for the rust-optimizer CI/CD audit work.
+
+commands:
+  infra_up: "make docker-test-up"
+  format_check: "make format-check"
+  lint: "make lint"
+  build: "make build"
+  test: "make test"
+  test_integration: "make test-integration"
+  test_frontend: "" # covered by `make test` (test-unit test-frontend)
+  audit: "make audit"
+
+conventions: |
+  Cargo workspace, 11 crates under crates/*/ (finima-core, finima-db, finima-api, finima-auth,
+  finima-ingest, finima-llm, finima-analysis, finima-feed, finima-categorize, finima-embed).
+  CI/CD workflows live under .github/workflows/ (ci.yml, release.yml, check-links.yml); CI scripts
+  under .github/scripts/ (cargo-audit.sh reads /audit-ignore for documented RUSTSEC exceptions with
+  reachability rationale — follow that pattern for any new advisory exceptions).
+  Frontend: React/Vite/TS under frontend/, pnpm workspace, ESLint + Prettier + tsc --noEmit.
+  Docker: Dockerfile.backend (multi-stage rust:bookworm -> debian-slim), frontend/Dockerfile.frontend
+  (multi-stage node -> nginx). Release publishes to ghcr.io/pacphi/finima-{backend,frontend} on tag push.
+  Design docs: docs/ADRs/ADR-NNN-*.md, docs/DDDs/DDD-NNN-*.md, docs/plan/origin/01-PRD.md.
+  This pipeline's scope is CI/build optimization only (see OPTIMIZATION_SPEC.md) — no application
+  domain code changes; conventions for workflow YAML: prefer parameterized runner labels
+  (`${{ vars.X || 'ubuntu-latest' }}`), keep Swatinem/rust-cache as the only Rust cache layer.
+
+ci:
+  provider: github
+  ci_is_merge_authority: true
+  base_coverage: covered # ci.yml: pull_request branches:[main], base=main
+
+security_invariants:
+  - "No destructive git primitives introduced (force-push, history rewrite)."
+  - "No secrets, tokens, or credentials committed or written to logs."
+  - "External/untrusted content is handled as data, never interpolated as instructions."
+  - "No runner label hardcoded without a safe ubuntu-latest fallback (queues forever otherwise)."
+  - "cargo-audit gate stays enforced (no || echo / continue-on-error); new advisory exceptions require a documented reachability rationale in audit-ignore."
+
+accelerators:
+  ruflo: {available: true, scope: "global"}
+  agentic_qe: {available: true, scope: "project"}
+  qe_court: {available: true, scope: "project", vendors: 3}
+  beads: {available: true, scope: "project"} # .beads/ initialized during plan (epic finima-w2q)
+  code_review: {available: true, scope: "global"}
+  superpowers: {available: true, scope: "skill"}
+  clarity: {available: true, scope: "skill"}
+  deep_research: {available: false, scope: ""}

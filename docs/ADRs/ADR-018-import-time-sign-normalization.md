@@ -31,7 +31,7 @@ The defect was a **business-logic-in-presentation-layer** bug. There
 is no algorithmic way to detect an institution's sign convention from
 the sign of `amount` alone; it requires either configuration or
 inspection of the row's surrounding context (e.g. category
-=`debt_payment`).
+\=`debt_payment`).
 
 ## Decision
 

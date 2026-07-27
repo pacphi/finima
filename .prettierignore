@@ -10,6 +10,10 @@ dist/
 .claude/
 .claude-flow/
 .swarm/
+# autopilot's own YAML config — its brace-spacing conflicts with yamllint's
+# default (the tool CI actually enforces for YAML); excluded here rather than
+# fighting the two tools' incompatible defaults.
+.autopilot/
 
 # Coverage & reports
 coverage/
