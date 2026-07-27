@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "finima",
+  "project_id": "d218b2a0-5aca-4c56-8373-091e62a7ad2b"
+}
