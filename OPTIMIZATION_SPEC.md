@@ -16,7 +16,7 @@ correctness risk, not a slow pipeline.
 
 ---
 
-### A1 — Same workspace rebuilt 3× under different profiles, serially
+## A1 — Same workspace rebuilt 3× under different profiles, serially
 
 - **severity:** high
 - **evidence:** .github/workflows/ci.yml:48 (`cargo clippy --workspace --all-targets`),
@@ -37,7 +37,7 @@ correctness risk, not a slow pipeline.
 - **risk:** low
 - **depends_on:** []
 
-### C2 — `backend-test` and `llm-test` serialize behind `backend-lint`
+## C2 — `backend-test` and `llm-test` serialize behind `backend-lint`
 
 - **severity:** medium
 - **evidence:** .github/workflows/ci.yml:57 (`needs: backend-lint` on `backend-test`),
@@ -55,7 +55,7 @@ correctness risk, not a slow pipeline.
 - **risk:** low
 - **depends_on:** []
 
-### A3 — `CARGO_INCREMENTAL` / `CARGO_PROFILE_TEST_DEBUG` not set
+## A3 — `CARGO_INCREMENTAL` / `CARGO_PROFILE_TEST_DEBUG` not set
 
 - **severity:** medium
 - **evidence:** .github/workflows/ci.yml:8-10 (top-level `env:` block has `CARGO_TERM_COLOR` and
@@ -72,7 +72,7 @@ correctness risk, not a slow pipeline.
 - **risk:** none
 - **depends_on:** []
 
-### A4 — No fast linker (lld) configured
+## A4 — No fast linker (lld) configured
 
 - **severity:** medium
 - **evidence:** no `.cargo/config.toml` in the repo; no `RUSTFLAGS`/`fuse-ld=lld` in
@@ -89,7 +89,7 @@ correctness risk, not a slow pipeline.
 - **risk:** low
 - **depends_on:** []
 
-### A6 — `cargo-audit` compiled from source every run
+## A6 — `cargo-audit` compiled from source every run
 
 - **severity:** medium
 - **evidence:** .github/workflows/ci.yml:116 (`cargo install cargo-audit --locked`)
@@ -104,7 +104,7 @@ correctness risk, not a slow pipeline.
 - **risk:** none
 - **depends_on:** []
 
-### C1 — No `concurrency:` group in any workflow
+## C1 — No `concurrency:` group in any workflow
 
 - **severity:** medium
 - **evidence:** no `concurrency:` key in .github/workflows/ci.yml, .github/workflows/release.yml, or
@@ -121,7 +121,7 @@ cancel-in-progress: true }` block to `ci.yml` (PR runs should cancel superseded 
 - **risk:** none
 - **depends_on:** []
 
-### D2 — `upload-artifact` steps can fail the job on a missing path
+## D2 — `upload-artifact` steps can fail the job on a missing path
 
 - **severity:** low
 - **evidence:** .github/workflows/ci.yml:258 (`playwright-report` upload, `if: always()`),
@@ -136,7 +136,7 @@ cancel-in-progress: true }` block to `ci.yml` (PR runs should cancel superseded 
 - **risk:** none
 - **depends_on:** []
 
-### F1 — 13 candidate unused dependencies (`cargo machete`)
+## F1 — 13 candidate unused dependencies (`cargo machete`)
 
 - **severity:** medium
 - **evidence:** `cargo machete` output — finima-feed (`serde_json`, `uuid`), finima-api
