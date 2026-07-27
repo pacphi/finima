@@ -19,7 +19,7 @@ This crate provides a trait-based abstraction over LLM backends (Candle and Olla
 
 ## Dependencies
 
-Depends on **finima-core** for `AppError` conversion. Uses `reqwest` for HTTP calls to the Ollama API, `serde`/`serde_json` for request/response serialization, and `async-trait` for the `LlmClient` trait.
+Uses `reqwest` for HTTP calls to the Ollama API, `serde`/`serde_json` for request/response serialization, and `async-trait` for the `LlmClient` trait.
 
 ## Developer Top-of-Mind
 
