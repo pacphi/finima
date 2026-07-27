@@ -1,1 +1,2 @@
 {"id":"int-3642192b","kind":"field_change","created_at":"2026-07-27T02:21:50.243685Z","actor":"Chris Phillipson","issue_id":"finima-w2q.9","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"gate PASSED — commit 9c51e26"}}
+{"id":"int-6cb2cd41","kind":"field_change","created_at":"2026-07-27T02:31:33.841057Z","actor":"Chris Phillipson","issue_id":"finima-w2q.1","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"gate PASSED — commit b8b7e98"}}
