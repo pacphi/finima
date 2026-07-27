@@ -2691,7 +2691,7 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "finima-analysis"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "finima-core",
@@ -2708,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "finima-api"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "aws-credential-types",
@@ -2749,7 +2749,7 @@ dependencies = [
 
 [[package]]
 name = "finima-auth"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2771,7 +2771,7 @@ dependencies = [
 
 [[package]]
 name = "finima-categorize"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "regex",
@@ -2789,7 +2789,7 @@ dependencies = [
 
 [[package]]
 name = "finima-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2806,7 +2806,7 @@ dependencies = [
 
 [[package]]
 name = "finima-db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2821,7 +2821,7 @@ dependencies = [
 
 [[package]]
 name = "finima-embed"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "candle-core",
@@ -2839,7 +2839,7 @@ dependencies = [
 
 [[package]]
 name = "finima-feed"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2857,7 +2857,7 @@ dependencies = [
 
 [[package]]
 name = "finima-ingest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "calamine",
  "chrono",
@@ -2874,7 +2874,7 @@ dependencies = [
 
 [[package]]
 name = "finima-llm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
