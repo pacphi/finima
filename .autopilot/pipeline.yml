@@ -22,19 +22,48 @@ fix_budget: 5
 max_parallel: 1
 requeue_budget: 2
 
-risk_phases: [6, 7]   # A1 (build-once restructuring) and F1 (dependency removal) — human checkpoint
+risk_phases: [7, 8] # A1 (build-once restructuring) and F1 (dependency removal) — human checkpoint
 
 court: auto
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PHASES — one per OPTIMIZATION_SPEC.md finding, in the spec's own suggested_sequence:
-# [A3, A6, D2, C1, A4, C2, A1, F1]. Mirrored 1:1 as beads issues finima-w2q.1..8
-# (epic finima-w2q), with finima-w2q.7 (A1) blocked on finima-w2q.6 (C2) — same edge as
-# phase 6's depends_on: [5] below (both touch the same ci.yml job block; C2's restructuring
-# must land first so A1 isn't racing it).
+# PHASES. Phase 0 was folded in to resolve blocker blk-fmt0 (see
+# .autopilot/discovered/rust-ci-optimization.jsonl): make format-check is a Tier-1
+# check on EVERY phase's gate, so pre-existing markdown-formatting debt unrelated to
+# any A-F finding was blocking phase 0 (and would have blocked every phase after it).
+# Phases 1-8 are the original A-F findings in the spec's own suggested_sequence
+# [A3, A6, D2, C1, A4, C2, A1, F1], each now depends_on: [0] so nothing runs ahead of
+# the format_check fix. Mirrored 1:1 as beads issues finima-w2q.1..8 (epic finima-w2q,
+# suffix N == phase id N — unchanged by this renumbering), plus a new bead for phase 0
+# that blocks all eight. finima-w2q.7 (A1) stays additionally blocked on finima-w2q.6
+# (C2) — phase 7's depends_on: [0, 6] — since both touch the same ci.yml job block.
 # ─────────────────────────────────────────────────────────────────────────────
 phases:
   - id: 0
+    goal: "Pre-existing markdown-formatting debt is resolved so make format-check (a Tier-1 check on every phase's gate) is green — unblocking blk-fmt0."
+    track: "docs-hygiene"
+    deliverables:
+      - "prettier --write applied to the 9 files flagged by `make format-check`: CLAUDE.md, AGENTS.md, README.md, crates/finima-ingest/README.md, .beads/README.md, docs/guides/embedder.md, docs/ADRs/ADR-018-import-time-sign-normalization.md, docs/DDDs/DDD-003-transaction-ingestion.md, docs/superpowers/plans/2026-05-12-nontechnical-user-docs.md."
+    definition_of_done:
+      - "cmd: make format-check"
+    conventions: "Formatting-only — prettier --write, no content/wording changes. Out of scope for this pipeline to touch these files' actual content."
+    depends_on: []
+    touches:
+      [
+        "CLAUDE.md",
+        "AGENTS.md",
+        "README.md",
+        "crates/finima-ingest/README.md",
+        ".beads/README.md",
+        "docs/guides/embedder.md",
+        "docs/ADRs/ADR-018-import-time-sign-normalization.md",
+        "docs/DDDs/DDD-003-transaction-ingestion.md",
+        "docs/superpowers/plans/2026-05-12-nontechnical-user-docs.md",
+      ]
+    adrs: []
+    ddd: []
+
+  - id: 1
     goal: "CI env carries the two flags that shrink target/ and relieve disk pressure (root cause of the B1 disk-hack smell, which this repo doesn't have — kept that way)."
     track: "ci-cd"
     deliverables:
@@ -45,12 +74,12 @@ phases:
       - "cmd: make lint"
       - "cmd: make test"
     conventions: "Keep alongside the existing CARGO_TERM_COLOR/RUST_BACKTRACE env vars; no new job needed."
-    depends_on: []
+    depends_on: [0]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 1
+  - id: 2
     goal: "cargo-audit installs from a prebuilt binary instead of compiling from source every run."
     track: "ci-cd"
     deliverables:
@@ -60,12 +89,12 @@ phases:
       - "grep:absent: cargo install cargo-audit in .github/workflows/ci.yml"
       - "cmd: make audit"
     conventions: "Keep .github/scripts/cargo-audit.sh and audit-ignore untouched — only the install step changes."
-    depends_on: []
+    depends_on: [0]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 2
+  - id: 3
     goal: "E2E artifact uploads no longer fail the job when Playwright produces no report/traces."
     track: "ci-cd"
     deliverables:
@@ -73,12 +102,12 @@ phases:
     definition_of_done:
       - "grep: if-no-files-found: ignore in .github/workflows/ci.yml"
     conventions: ""
-    depends_on: []
+    depends_on: [0]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 3
+  - id: 4
     goal: "Superseded PR pushes cancel in-flight runs instead of piling up."
     track: "ci-cd"
     deliverables:
@@ -86,12 +115,12 @@ phases:
     definition_of_done:
       - "grep: cancel-in-progress:.*true in .github/workflows/ci.yml"
     conventions: "Scope the group to workflow+ref so main pushes and PR runs don't cancel each other incorrectly."
-    depends_on: []
+    depends_on: [0]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 4
+  - id: 5
     goal: "Link step uses lld instead of the default linker."
     track: "ci-cd"
     deliverables:
@@ -102,12 +131,12 @@ phases:
       - "cmd: make build"
       - "cmd: make test"
     conventions: "Runner is ubuntu-latest — installed via apt (apt-get install -y lld) or a maintained action; don't hardcode a specialty runner label."
-    depends_on: []
+    depends_on: [0]
     touches: [".cargo/config.toml", ".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 5
+  - id: 6
     goal: "backend-lint and backend-test run in parallel; a single ci-success job still requires both (and every other required job) before merge."
     track: "ci-cd"
     deliverables:
@@ -119,12 +148,12 @@ phases:
       - "cmd: make lint"
       - "cmd: make test"
     conventions: "e2e-test and llm-test stay conditional (vars.E2E_ENABLED / vars.LLM_TESTS_ENABLED) — don't fold them into the required ci-success set unless the vars are on."
-    depends_on: []
+    depends_on: [0]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 6
+  - id: 7
     goal: "The workspace is compiled once for the debug/test profile and the result is reused, instead of clippy and cargo test each paying a full compile."
     track: "ci-cd"
     deliverables:
@@ -136,12 +165,12 @@ phases:
       - "cmd: make test"
       - "cmd: make test-integration"
     conventions: "Riskiest phase — restructures the job graph C2 parallelized. Verify the archive preserves the postgres service container each consumer needs (services: are per-job, not shared)."
-    depends_on: [5]
+    depends_on: [0, 6]
     touches: [".github/workflows/ci.yml"]
     adrs: []
     ddd: []
 
-  - id: 7
+  - id: 8
     goal: "Every cargo-machete hit is either removed (compiler-verified dead weight) or documented as a false positive — no blind deletions."
     track: "dependencies"
     deliverables:
@@ -152,7 +181,7 @@ phases:
       - "cmd: cargo build --workspace"
       - "cmd: make test"
     conventions: "cargo-machete has known false positives (macro-only/re-exported/feature-enabling deps) — verify each hit; the compiler and test suite are the arbiter, not the grep hit alone."
-    depends_on: []
+    depends_on: [0]
     touches: ["crates/*/Cargo.toml"]
     adrs: ["ADR-001-rust-multi-crate-workspace"]
     ddd: []
