@@ -43,7 +43,7 @@ phases:
     goal: "Pre-existing markdown-formatting debt is resolved so make format-check (a Tier-1 check on every phase's gate) is green — unblocking blk-fmt0."
     track: "docs-hygiene"
     deliverables:
-      - "prettier --write applied to the 9 files flagged by `make format-check`: CLAUDE.md, AGENTS.md, README.md, crates/finima-ingest/README.md, .beads/README.md, docs/guides/embedder.md, docs/ADRs/ADR-018-import-time-sign-normalization.md, docs/DDDs/DDD-003-transaction-ingestion.md, docs/superpowers/plans/2026-05-12-nontechnical-user-docs.md."
+      - "prettier --write applied to the 9 files flagged by `make format-check` (see `touches:` below for the full list)."
     definition_of_done:
       - "cmd: make format-check"
     conventions: "Formatting-only — prettier --write, no content/wording changes. Out of scope for this pipeline to touch these files' actual content."
