@@ -146,7 +146,7 @@ value only takes effect if **both** of these are true at once:
    `config/staging.yaml` on top of the section files.
 2. **The binary was compiled with the `sona` Cargo feature**
    (`finima-api`'s `sona = ["finima-categorize/sona",
-   "finima-analysis/sona"]`, `crates/finima-api/Cargo.toml:74`).
+"finima-analysis/sona"]`, `crates/finima-api/Cargo.toml:74`).
 
 If either is missing — most likely (2), since it's easy to deploy a
 binary built without `--features sona` while still setting
@@ -184,7 +184,7 @@ resolved backend), so treat step 1 below as mandatory, not optional.
    ls -la target/release/finima-api
    ```
 
-   then confirm the *feature selection* took effect by watching the
+   then confirm the _feature selection_ took effect by watching the
    startup logs in step 2 for the resolved backend.
 
 2. **Deploy with `APP_ENV=staging`** so the `config/staging.yaml`
@@ -273,7 +273,7 @@ resolved backend), so treat step 1 below as mandatory, not optional.
    reachable staging environment and real elapsed time, neither of
    which is available in this change — this PR ships the config
    overlay, the build/deploy procedure, and the bootstrap steps needed
-   to *start* that observation, but the observation itself and the
+   to _start_ that observation, but the observation itself and the
    resulting report are still open. Whoever runs staging should follow
    steps 1–4 above, let it soak, and produce the lift write-up as a
    separate follow-up.

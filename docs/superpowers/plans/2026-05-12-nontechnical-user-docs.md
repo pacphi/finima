@@ -92,7 +92,7 @@ terminal. Wait until you see a line like:
 
 finima-api listening on 0.0.0.0:3000
 
-```text
+````text
 
 This means the backend is ready. The frontend is also ready once you
 see:
@@ -100,7 +100,7 @@ see:
 ```text
 VITE ready in ...ms
 Local: http://localhost:5173/
-```
+````
 
 If you see errors before those lines, check the
 [Troubleshooting Guide](../../guides/troubleshooting.md) before continuing.
@@ -608,7 +608,6 @@ time.
 ## Glossary
 
 Not sure what a word means? See the [Glossary](../../guides/glossary.md).
-
 ````
 
 - [ ] Verify the guide reads naturally from top to bottom with no undefined jargon.
@@ -618,7 +617,7 @@ Not sure what a word means? See the [Glossary](../../guides/glossary.md).
 ```bash
 git add docs/guides/getting-started.md
 git commit -m "docs: add 'Your First Week with Finima' getting-started guide for non-technical users"
-````
+```
 
 ---
 

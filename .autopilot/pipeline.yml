@@ -67,7 +67,7 @@ phases:
     goal: "CI env carries the two flags that shrink target/ and relieve disk pressure (root cause of the B1 disk-hack smell, which this repo doesn't have — kept that way)."
     track: "ci-cd"
     deliverables:
-      - "CARGO_INCREMENTAL: \"0\" and CARGO_PROFILE_TEST_DEBUG: \"0\" added to .github/workflows/ci.yml's top-level env: block."
+      - 'CARGO_INCREMENTAL: "0" and CARGO_PROFILE_TEST_DEBUG: "0" added to .github/workflows/ci.yml''s top-level env: block.'
     definition_of_done:
       - "grep: CARGO_INCREMENTAL:.*0 in .github/workflows/ci.yml"
       - "grep: CARGO_PROFILE_TEST_DEBUG:.*0 in .github/workflows/ci.yml"

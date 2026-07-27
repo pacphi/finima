@@ -12,21 +12,25 @@ A Claude Flow powered project
 ## Quick Start
 
 ### Installation
+
 ```bash
 npm install
 ```
 
 ### Build
+
 ```bash
 npm run build
 ```
 
 ### Test
+
 ```bash
 npm test
 ```
 
 ### Development
+
 ```bash
 npm run dev
 ```
@@ -37,16 +41,17 @@ npm run dev
 
 This project uses hierarchical swarm coordination for complex tasks:
 
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| Topology | `hierarchical` | Queen-led coordination (anti-drift) |
-| Max Agents | 8 | Optimal team size |
-| Strategy | `specialized` | Clear role boundaries |
-| Consensus | `raft` | Leader-based consistency |
+| Setting    | Value          | Purpose                             |
+| ---------- | -------------- | ----------------------------------- |
+| Topology   | `hierarchical` | Queen-led coordination (anti-drift) |
+| Max Agents | 8              | Optimal team size                   |
+| Strategy   | `specialized`  | Clear role boundaries               |
+| Consensus  | `raft`         | Leader-based consistency            |
 
 ### When to Use Swarms
 
 **Invoke swarm for:**
+
 - Multi-file changes (3+ files)
 - New feature implementation
 - Cross-module refactoring
@@ -55,6 +60,7 @@ This project uses hierarchical swarm coordination for complex tasks:
 - Performance optimization
 
 **Skip swarm for:**
+
 - Single file edits
 - Simple bug fixes (1-2 lines)
 - Documentation updates
@@ -64,22 +70,22 @@ This project uses hierarchical swarm coordination for complex tasks:
 
 Use `$skill-name` syntax to invoke:
 
-| Skill | Use Case |
-|-------|----------|
-| `$swarm-orchestration` | Multi-agent task coordination |
-| `$memory-management` | Pattern storage and retrieval |
-| `$sparc-methodology` | Structured development workflow |
-| `$security-audit` | Security scanning and CVE detection |
+| Skill                  | Use Case                            |
+| ---------------------- | ----------------------------------- |
+| `$swarm-orchestration` | Multi-agent task coordination       |
+| `$memory-management`   | Pattern storage and retrieval       |
+| `$sparc-methodology`   | Structured development workflow     |
+| `$security-audit`      | Security scanning and CVE detection |
 
 ### Agent Types
 
-| Type | Role | Use Case |
-|------|------|----------|
-| `researcher` | Requirements analysis | Understanding scope |
-| `architect` | System design | Planning structure |
-| `coder` | Implementation | Writing code |
-| `tester` | Test creation | Quality assurance |
-| `reviewer` | Code review | Security and quality |
+| Type         | Role                  | Use Case             |
+| ------------ | --------------------- | -------------------- |
+| `researcher` | Requirements analysis | Understanding scope  |
+| `architect`  | System design         | Planning structure   |
+| `coder`      | Implementation        | Writing code         |
+| `tester`     | Test creation         | Quality assurance    |
+| `reviewer`   | Code review           | Security and quality |
 
 ## Execution Model
 
@@ -92,16 +98,17 @@ Use `$skill-name` syntax to invoke:
 
 Use MCP tools for coordination, then keep coding:
 
-| Tool | Purpose | Example |
-|------|---------|---------|
-| `swarm_init` | Start coordination | `swarm_init({topology: "hierarchical"})` |
-| `memory_store` | Save patterns | `memory_store({key: "auth", value: "JWT"})` |
-| `memory_search` | Find patterns | `memory_search({query: "auth patterns"})` |
-| `task_orchestrate` | Assign work | `task_orchestrate({task: "implement"})` |
+| Tool               | Purpose            | Example                                     |
+| ------------------ | ------------------ | ------------------------------------------- |
+| `swarm_init`       | Start coordination | `swarm_init({topology: "hierarchical"})`    |
+| `memory_store`     | Save patterns      | `memory_store({key: "auth", value: "JWT"})` |
+| `memory_search`    | Find patterns      | `memory_search({query: "auth patterns"})`   |
+| `task_orchestrate` | Assign work        | `task_orchestrate({task: "implement"})`     |
 
 ## Code Standards
 
 ### File Organization
+
 - **NEVER** save to root folder
 - `/src` - Source code files
 - `/tests` - Test files
@@ -109,6 +116,7 @@ Use MCP tools for coordination, then keep coding:
 - `/config` - Configuration files
 
 ### Quality Rules
+
 - Files under 500 lines
 - No hardcoded secrets
 - Input validation at boundaries
@@ -116,6 +124,7 @@ Use MCP tools for coordination, then keep coding:
 - TDD London School (mock-first) preferred
 
 ### Commit Messages
+
 ```
 <type>(<scope>): <description>
 
@@ -129,6 +138,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
 ## Security
 
 ### Critical Rules
+
 - NEVER commit secrets, credentials, or .env files
 - NEVER hardcode API keys
 - Always validate user input
@@ -136,6 +146,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
 - Sanitize output to prevent XSS
 
 ### Path Security
+
 - Validate all file paths
 - Prevent directory traversal (../)
 - Use absolute paths internally
@@ -143,6 +154,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
 ## Memory System
 
 ### Storing Patterns
+
 ```bash
 npx @claude-flow/cli memory store \
   --key "pattern-name" \
@@ -151,6 +163,7 @@ npx @claude-flow/cli memory store \
 ```
 
 ### Searching Memory
+
 ```bash
 npx @claude-flow/cli memory search \
   --query "search terms" \
@@ -172,6 +185,7 @@ npx @claude-flow/cli hooks pre-task --description "task summary"
 - Issues: https://github.com/ruvnet/ruflo/issues
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:7510c1e2 -->
+
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -213,8 +227,10 @@ bd close <id>         # Complete work
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
 <!-- END BEADS INTEGRATION -->

@@ -75,18 +75,18 @@ Most finance apps ask you to trust them with your most sensitive data. Finima fl
 
 ## ✨ What It Does
 
-| Capability                             | How                                                                                            |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 🤖 **AI categorization**              | Local LLM labels every transaction — no cloud API calls, no data leaving your server           |
-| 📂 **Multi-format import**            | CSV, OFX, QIF, XLSX — guided column-mapping UI works with any bank export                     |
-| 💰 **Budget tracking**                | Set category budgets, watch real-time progress bars fill as you spend                         |
-| 🎯 **Savings goals**                  | Define targets, see automatic contribution tracking month by month                            |
-| 🔄 **Recurring detection**            | Surfaces every subscription, utility bill, and regular payment automatically                  |
-| 🌊 **Money flow visualization**       | Sankey diagrams reveal exactly how money moves across your accounts                           |
-| 📊 **Financial health score**         | Composite gauge of spending habits, savings rate, and debt load — all in one number           |
-| 📈 **Cash flow & net worth charts**   | Waterfall, donut, and time-series views so trends are impossible to miss                      |
-| 📰 **Financial news with AI digest**  | Aggregated articles with LLM-generated summaries, filtered to what matters to you            |
-| ⚡ **Real-time progress**             | WebSocket updates stream import and AI processing status live — no page refreshes needed      |
+| Capability                           | How                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| 🤖 **AI categorization**             | Local LLM labels every transaction — no cloud API calls, no data leaving your server     |
+| 📂 **Multi-format import**           | CSV, OFX, QIF, XLSX — guided column-mapping UI works with any bank export                |
+| 💰 **Budget tracking**               | Set category budgets, watch real-time progress bars fill as you spend                    |
+| 🎯 **Savings goals**                 | Define targets, see automatic contribution tracking month by month                       |
+| 🔄 **Recurring detection**           | Surfaces every subscription, utility bill, and regular payment automatically             |
+| 🌊 **Money flow visualization**      | Sankey diagrams reveal exactly how money moves across your accounts                      |
+| 📊 **Financial health score**        | Composite gauge of spending habits, savings rate, and debt load — all in one number      |
+| 📈 **Cash flow & net worth charts**  | Waterfall, donut, and time-series views so trends are impossible to miss                 |
+| 📰 **Financial news with AI digest** | Aggregated articles with LLM-generated summaries, filtered to what matters to you        |
+| ⚡ **Real-time progress**            | WebSocket updates stream import and AI processing status live — no page refreshes needed |
 
 ## ⚙️ How It Works
 
@@ -161,25 +161,25 @@ See [Architecture Overview](docs/guides/architecture-overview.md) for the full d
 
 ### 👥 For Everyone
 
-| Document                                                          | Description                                         |
-| ----------------------------------------------------------------- | --------------------------------------------------- |
-| [Getting Started](docs/guides/getting-started.md)                 | Step-by-step setup — no technical knowledge needed  |
-| [Quick Start](docs/guides/quick-start.md)                         | Concise setup guide for developers                  |
-| [User Guide](docs/guides/user-guide.md)                           | End-to-end walkthrough of every feature             |
-| [UI Overview](docs/guides/user-interface-overview.md)             | Visual tour of every screen                         |
-| [Glossary](docs/guides/glossary.md)                               | Plain-language definitions for every term           |
-| [Deployment](docs/guides/deployment.md)                           | Production deployment — bare metal, Docker, cloud   |
+| Document                                              | Description                                        |
+| ----------------------------------------------------- | -------------------------------------------------- |
+| [Getting Started](docs/guides/getting-started.md)     | Step-by-step setup — no technical knowledge needed |
+| [Quick Start](docs/guides/quick-start.md)             | Concise setup guide for developers                 |
+| [User Guide](docs/guides/user-guide.md)               | End-to-end walkthrough of every feature            |
+| [UI Overview](docs/guides/user-interface-overview.md) | Visual tour of every screen                        |
+| [Glossary](docs/guides/glossary.md)                   | Plain-language definitions for every term          |
+| [Deployment](docs/guides/deployment.md)               | Production deployment — bare metal, Docker, cloud  |
 
 ### 👩‍💻 For the Team
 
-| Document                                                          | Description                                         |
-| ----------------------------------------------------------------- | --------------------------------------------------- |
-| [Maintainer Guide](docs/guides/maintainer-guide.md)               | Dev setup, coding standards, PR workflow            |
-| [Architecture Overview](docs/guides/architecture-overview.md)     | System design — crates, data flow, boundaries       |
-| [Object Storage](docs/guides/object-storage-setup.md)             | MinIO / S3 configuration                            |
-| [Backup & Recovery](docs/guides/database-backup.md)               | Database backup and point-in-time restore           |
-| [Observability](docs/guides/observability.md)                     | Metrics, tracing, and dashboard setup               |
-| [Troubleshooting](docs/guides/troubleshooting.md)                 | Common issues and fixes                             |
+| Document                                                      | Description                                   |
+| ------------------------------------------------------------- | --------------------------------------------- |
+| [Maintainer Guide](docs/guides/maintainer-guide.md)           | Dev setup, coding standards, PR workflow      |
+| [Architecture Overview](docs/guides/architecture-overview.md) | System design — crates, data flow, boundaries |
+| [Object Storage](docs/guides/object-storage-setup.md)         | MinIO / S3 configuration                      |
+| [Backup & Recovery](docs/guides/database-backup.md)           | Database backup and point-in-time restore     |
+| [Observability](docs/guides/observability.md)                 | Metrics, tracing, and dashboard setup         |
+| [Troubleshooting](docs/guides/troubleshooting.md)             | Common issues and fixes                       |
 
 ### 🏛️ Architecture Decisions
 
@@ -203,13 +203,13 @@ See the [Maintainer Guide](docs/guides/maintainer-guide.md) for the full develop
 
 ## 🔧 Tech Stack
 
-| Layer          | Technology                                                                            |
-| -------------- | ------------------------------------------------------------------------------------- |
-| Backend        | Rust, Axum 0.8, PostgreSQL 16 (SQLx), Tokio, MinIO / S3                              |
-| AI             | Ollama (Gemma 4), local inference, on-device categorization and feed summarization    |
-| Frontend       | React 19, TypeScript, Vite 8, Tailwind CSS, Recharts, React Router, Zustand          |
-| Auth           | Magic-link (passwordless), JWT, SHA-2                                                 |
-| Infrastructure | Docker Compose, GitHub Actions CI, Dependabot, Prometheus-compatible metrics         |
+| Layer          | Technology                                                                         |
+| -------------- | ---------------------------------------------------------------------------------- |
+| Backend        | Rust, Axum 0.8, PostgreSQL 16 (SQLx), Tokio, MinIO / S3                            |
+| AI             | Ollama (Gemma 4), local inference, on-device categorization and feed summarization |
+| Frontend       | React 19, TypeScript, Vite 8, Tailwind CSS, Recharts, React Router, Zustand        |
+| Auth           | Magic-link (passwordless), JWT, SHA-2                                              |
+| Infrastructure | Docker Compose, GitHub Actions CI, Dependabot, Prometheus-compatible metrics       |
 
 ## 📄 License
 

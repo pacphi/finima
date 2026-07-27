@@ -28,7 +28,7 @@ conventions: |
 ci:
   provider: github
   ci_is_merge_authority: true
-  base_coverage: covered   # ci.yml: pull_request branches:[main], base=main
+  base_coverage: covered # ci.yml: pull_request branches:[main], base=main
 
 security_invariants:
   - "No destructive git primitives introduced (force-push, history rewrite)."
@@ -38,11 +38,11 @@ security_invariants:
   - "cargo-audit gate stays enforced (no || echo / continue-on-error); new advisory exceptions require a documented reachability rationale in audit-ignore."
 
 accelerators:
-  ruflo: {available: true, scope: "global"}
-  agentic_qe: {available: true, scope: "project"}
-  qe_court: {available: true, scope: "project", vendors: 3}
-  beads: {available: true, scope: "project"} # .beads/ initialized during plan (epic finima-w2q)
-  code_review: {available: true, scope: "global"}
-  superpowers: {available: true, scope: "skill"}
-  clarity: {available: true, scope: "skill"}
-  deep_research: {available: false, scope: ""}
+  ruflo: { available: true, scope: "global" }
+  agentic_qe: { available: true, scope: "project" }
+  qe_court: { available: true, scope: "project", vendors: 3 }
+  beads: { available: true, scope: "project" } # .beads/ initialized during plan (epic finima-w2q)
+  code_review: { available: true, scope: "global" }
+  superpowers: { available: true, scope: "skill" }
+  clarity: { available: true, scope: "skill" }
+  deep_research: { available: false, scope: "" }
