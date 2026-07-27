@@ -2,7 +2,8 @@
 
 # Stage 1: Development dependencies
 FROM node:26-alpine AS dev
-RUN corepack enable && corepack prepare pnpm@11.7.0 --activate
+# node:26 no longer bundles corepack — install it explicitly before enabling.
+RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@11.7.0 --activate
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
