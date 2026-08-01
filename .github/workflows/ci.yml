@@ -100,7 +100,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest@0.9.140
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: nextest-archive
       - name: Run all tests (unit + integration) from the prebuilt archive
