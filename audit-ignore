@@ -35,3 +35,12 @@ RUSTSEC-2025-0119
 # RUSTSEC-2024-0436: paste unmaintained (informational, no CVE)
 # Transitive dep via candle/tokenizers; no drop-in replacement used.
 RUSTSEC-2024-0436
+
+# RUSTSEC-2026-0235: rkyv 0.7.46 archive validation (out-of-bounds reads via Rc/Arc)
+# Pulled in only via rust_decimal's optional "rkyv" feature, which nothing in
+# this workspace enables (verified with `cargo tree -i rkyv@0.7.46 --all-features
+# --target all`, which finds no reachable path, and confirmed by a from-scratch
+# `cargo generate-lockfile`, which still retains the edge without activating it).
+# The vulnerable deserialization path is never compiled or executed. Will
+# resolve once rust_decimal ships a release depending on rkyv 0.8.17+.
+RUSTSEC-2026-0235
