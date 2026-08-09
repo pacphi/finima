@@ -63,7 +63,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install lld
         run: sudo apt-get update && sudo apt-get install -y lld
-      - uses: taiki-e/install-action@v2.85.4
+      - uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-nextest@0.9.140
       - uses: Swatinem/rust-cache@v2
@@ -97,7 +97,7 @@ jobs:
       TEST_DATABASE_URL: postgres://finima:test@localhost:5432/finima_test
     steps:
       - uses: actions/checkout@v7
-      - uses: taiki-e/install-action@v2.85.4
+      - uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-nextest@0.9.140
       - uses: actions/download-artifact@v8
@@ -148,7 +148,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@v2.85.4
+      - uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-audit
       - name: Run security audit

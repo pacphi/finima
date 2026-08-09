@@ -10,7 +10,11 @@ minimumReleaseAge: 0
 # Security pins for transitive advisories — remove an entry once the parent
 # dependency ships the patched version on its own.
 overrides:
-  # GHSA-jxxr-4gwj-5jf2 — brace-expansion DoS (transitive: eslint > minimatch)
-  brace-expansion@>=5.0.0 <5.0.6: ">=5.0.6"
+  # GHSA-rgw5-rvv9-x895 — brace-expansion DoS via unbounded intermediate arrays,
+  # bypassing the GHSA-jxxr-4gwj-5jf2 mitigation below (transitive: eslint > minimatch)
+  brace-expansion@>=4.0.0 <5.0.9: ">=5.0.9"
   # GHSA-4x5r-pxfx-6jf8 — @babel/core arbitrary file read (transitive: eslint-plugin-react-hooks)
   "@babel/core@<7.29.6": ">=7.29.6"
+  # GHSA-2v37-7h3g-55p8 — nanoid infinite loop when a custom generator's size is
+  # zero (transitive: vite > postcss > nanoid, which requires the 3.x line)
+  "nanoid@<3.3.17": ">=3.3.17 <4"
