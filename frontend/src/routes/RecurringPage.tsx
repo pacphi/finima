@@ -6,12 +6,7 @@ import { usePortfolioStore } from '@/stores/portfolioStore';
 import type { RecurringGroup } from '@/types/models';
 
 type SortField =
-  | 'merchant_name'
-  | 'category'
-  | 'frequency'
-  | 'avg_amount'
-  | 'next_expected_date'
-  | 'type';
+  'merchant_name' | 'category' | 'frequency' | 'avg_amount' | 'next_expected_date' | 'type';
 type SortDir = 'asc' | 'desc';
 type TypeFilter = 'income' | 'expense';
 

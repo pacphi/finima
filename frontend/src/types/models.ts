@@ -1,14 +1,7 @@
 // ── Enums / Union Types ──────────────────────────────────────────────
 
 export type AccountType =
-  | 'checking'
-  | 'savings'
-  | 'credit_card'
-  | 'loan'
-  | 'investment'
-  | 'retirement'
-  | 'cash'
-  | 'other';
+  'checking' | 'savings' | 'credit_card' | 'loan' | 'investment' | 'retirement' | 'cash' | 'other';
 
 /** Single source of truth for "is this account type a liability?"
  *  on the frontend. Credit cards and every loan variant count.
@@ -39,22 +32,10 @@ export function classifyBalance(
 export type FileFormat = 'csv' | 'tsv' | 'ofx' | 'qfx' | 'qbo' | 'qif' | 'xls' | 'xlsx';
 
 export type UploadStatus =
-  | 'pending'
-  | 'previewing'
-  | 'mapping'
-  | 'importing'
-  | 'categorizing'
-  | 'complete'
-  | 'error';
+  'pending' | 'previewing' | 'mapping' | 'importing' | 'categorizing' | 'complete' | 'error';
 
 export type Frequency =
-  | 'daily'
-  | 'weekly'
-  | 'biweekly'
-  | 'monthly'
-  | 'quarterly'
-  | 'semiannual'
-  | 'annual';
+  'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'annual';
 
 // ── Domain Models ────────────────────────────────────────────────────
 
