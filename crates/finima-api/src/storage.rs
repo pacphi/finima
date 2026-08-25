@@ -25,13 +25,13 @@ pub enum StorageError {
     #[error("Failed to put object '{key}': {source}")]
     PutObject {
         key: String,
-        source: aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::put_object::PutObjectError>,
+        source: Box<aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::put_object::PutObjectError>>,
     },
 
     #[error("Failed to get object '{key}': {source}")]
     GetObject {
         key: String,
-        source: aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::get_object::GetObjectError>,
+        source: Box<aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::get_object::GetObjectError>>,
     },
 
     #[error("Failed to read object body: {0}")]
@@ -40,8 +40,9 @@ pub enum StorageError {
     #[error("Failed to delete object '{key}': {source}")]
     DeleteObject {
         key: String,
-        source:
+        source: Box<
             aws_sdk_s3::error::SdkError<aws_sdk_s3::operation::delete_object::DeleteObjectError>,
+        >,
     },
 }
 
@@ -121,7 +122,7 @@ impl ObjectStorage {
             .await
             .map_err(|e| StorageError::PutObject {
                 key: key.to_string(),
-                source: e,
+                source: Box::new(e),
             })?;
 
         tracing::debug!(key = %key, bucket = %self.bucket, "Stored object in S3");
@@ -140,7 +141,7 @@ impl ObjectStorage {
             .await
             .map_err(|e| StorageError::GetObject {
                 key: key.to_string(),
-                source: e,
+                source: Box::new(e),
             })?;
 
         let bytes = resp
@@ -164,7 +165,7 @@ impl ObjectStorage {
             .await
             .map_err(|e| StorageError::DeleteObject {
                 key: key.to_string(),
-                source: e,
+                source: Box::new(e),
             })?;
 
         tracing::debug!(key = %key, bucket = %self.bucket, "Deleted object from S3");
