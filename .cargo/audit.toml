@@ -20,6 +20,12 @@ ignore = [
     "RUSTSEC-2025-0057",  # fxhash
     "RUSTSEC-2025-0119",  # number_prefix
     "RUSTSEC-2024-0436",  # paste
+
+    # rkyv 0.7.46 OOB reads — reachable only via rust_decimal's unused "rkyv" feature
+    "RUSTSEC-2026-0235",
+
+    # lru 0.16.4 use-after-free risk — hard-pinned by aws-sdk-s3 "^0.16.3"; fix is in 0.18+
+    "RUSTSEC-2026-0253",
 ]
 
 [yanked]
