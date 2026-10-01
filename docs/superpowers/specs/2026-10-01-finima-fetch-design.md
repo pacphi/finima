@@ -1,6 +1,6 @@
 # finima-fetch — Browser-Assisted Transaction Export Design
 
-**Status:** Draft for review
+**Status:** Approved (2026-10-01)
 **Date:** 2026-10-01
 **Owner:** Chris Phillipson
 **Related:** [ADR-020](../../ADRs/ADR-020-browser-automated-statement-retrieval.md) (Proposed), [ADR-005](../../ADRs/ADR-005-multi-format-file-import.md), [ADR-016](../../ADRs/ADR-016-calendar-month-time-window.md)
