@@ -1,0 +1,10 @@
+{
+  "name": "finima-fetch-spike",
+  "private": true,
+  "description": "THROWAWAY iteration-0 harness for finima-fetch (spec §3.1). Deleted by iteration 1.",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}
