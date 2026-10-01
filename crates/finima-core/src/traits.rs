@@ -7,6 +7,7 @@ use crate::models::{Account, Portfolio, User};
 
 /// Repository trait for User operations.
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait UserRepo: Send + Sync {
     async fn create_user(&self, email: &str, display_name: &str) -> Result<User, AppError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
@@ -20,6 +21,7 @@ pub trait UserRepo: Send + Sync {
 
 /// Repository trait for Portfolio operations.
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait PortfolioRepo: Send + Sync {
     async fn create(&self, user_id: Uuid, name: &str) -> Result<Portfolio, AppError>;
     async fn list_by_user(&self, user_id: Uuid) -> Result<Vec<Portfolio>, AppError>;
@@ -38,6 +40,7 @@ pub trait PortfolioRepo: Send + Sync {
 
 /// Repository trait for Account operations.
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait AccountRepo: Send + Sync {
     async fn create(&self, account: &Account) -> Result<Account, AppError>;
     async fn list_by_portfolio(&self, portfolio_id: Uuid) -> Result<Vec<Account>, AppError>;

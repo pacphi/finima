@@ -33,6 +33,7 @@ pub enum EmbedError {
 }
 
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait EmbeddingProvider: Send + Sync {
     /// Embed a single description. Output must be L2-normalized.
     async fn embed(&self, text: &str) -> Result<Vec<f32>, EmbedError>;
