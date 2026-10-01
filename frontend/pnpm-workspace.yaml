@@ -10,11 +10,24 @@ minimumReleaseAge: 0
 # Security pins for transitive advisories — remove an entry once the parent
 # dependency ships the patched version on its own.
 overrides:
-  # GHSA-rgw5-rvv9-x895 — brace-expansion DoS via unbounded intermediate arrays,
-  # bypassing the GHSA-jxxr-4gwj-5jf2 mitigation below (transitive: eslint > minimatch)
-  brace-expansion@>=4.0.0 <5.0.9: ">=5.0.9"
+  # GHSA-rgw5-rvv9-x895 / GHSA-qhr7-859c-m2p7 / GHSA-6j4f-fj2g-mc7p / GHSA-q2hr-2g5m-vwhr
+  # — brace-expansion DoS via unbounded intermediate arrays (transitive: eslint > minimatch)
+  brace-expansion@>=4.0.0 <5.0.12: ">=5.0.12"
   # GHSA-4x5r-pxfx-6jf8 — @babel/core arbitrary file read (transitive: eslint-plugin-react-hooks)
   "@babel/core@<7.29.6": ">=7.29.6"
   # GHSA-2v37-7h3g-55p8 — nanoid infinite loop when a custom generator's size is
   # zero (transitive: vite > postcss > nanoid, which requires the 3.x line)
   "nanoid@<3.3.17": ">=3.3.17 <4"
+  # GHSA-c83g-rgw3-j3cx / GHSA-73wf-gq98-2v4g — browserslist unbounded memory
+  # growth + prototype-write crash (transitive: eslint-plugin-react-hooks > @babel/core)
+  browserslist@<4.28.7: ">=4.28.7"
+  # GHSA-w5vr-8v7q-w6rv — baseline-browser-mapping DoS on invalid input
+  # (transitive: eslint-plugin-react-hooks > @babel/core > browserslist)
+  baseline-browser-mapping@<2.11.0: ">=2.11.0"
+  # GHSA-p498-v437-472g — @humanfs/node recursive copy follows symlinks out of
+  # the source tree (transitive: eslint)
+  "@humanfs/node@<0.16.8": ">=0.16.8"
+  # GHSA-3wwx-pv8p-q78v and other undici advisories below 8.10.2 (transitive:
+  # jsdom > undici, vitest > jsdom > undici) — dev/test-only, not shipped to
+  # production bundles
+  undici@<8.10.2: ">=8.10.2"

@@ -14,6 +14,7 @@ use crate::AuthError;
 /// This abstraction allows swapping between real email delivery (Resend API)
 /// and a test double that simply logs the link.
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait EmailSender: Send + Sync {
     /// Send a magic link email to the specified address.
     ///

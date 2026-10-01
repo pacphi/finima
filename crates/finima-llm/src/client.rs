@@ -74,6 +74,7 @@ pub struct RecurringEnrichment {
 
 /// Trait abstracting the LLM backend.
 #[async_trait]
+#[allow(clippy::double_must_use)]
 pub trait LlmClient: Send + Sync {
     /// Warm up the backend so the first real request doesn't pay cold-start
     /// latency. For Ollama this loads the model into GPU memory; for Candle
