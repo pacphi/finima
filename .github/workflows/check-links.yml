@@ -2,12 +2,12 @@ name: Check Links
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "**/*.md"
       - ".lychee.toml"
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "**/*.md"
       - ".lychee.toml"
