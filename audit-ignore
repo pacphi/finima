@@ -36,3 +36,40 @@ RUSTSEC-2025-0119
 # Transitive dep via candle/tokenizers; no drop-in replacement used.
 RUSTSEC-2024-0436
 
+
+# RUSTSEC-2026-0367 / RUSTSEC-2026-0368 / RUSTSEC-2026-0369: zip extraction
+# flaws (SUID/SGID bits preserved, symlink targets escaping the destination,
+# Unix permissions applied through symlinks). Patched only in zip >= 9.0.0;
+# no 7.x/8.x backport exists (RustSec + OSV both list `fixed = 9.0.0`).
+#   https://rustsec.org/advisories/RUSTSEC-2026-0367.html
+#   https://rustsec.org/advisories/RUSTSEC-2026-0368.html
+#   https://rustsec.org/advisories/RUSTSEC-2026-0369.html
+# Two copies in Cargo.lock:
+#   zip 8.6.0 <- calamine 0.36.1 <- finima-ingest (XLS/XLSX/ODS import)
+#   zip 7.2.0 <- candle-core 0.10.2 <- finima-embed / mistralrs (optional
+#               `candle` features only; not in the default build)
+# Not reachable: all three advisories are in ZipArchive::extract() /
+# ZipStreamReader::extract() (writing an archive to the filesystem). calamine
+# and candle-core only open the archive and read entries into memory
+# (ZipArchive::new + by_name); neither calls extract(), and finima has no
+# direct zip dependency.
+# Why not fixed now: calamine 0.37 (zip ^9) is a 0.x minor (breaking) bump,
+# and candle-core 0.11 still requires zip ^8.6 while mistralrs 0.8.1 (latest)
+# pins candle ^0.10.2.
+# Exit: drop once calamine >= 0.37 and a candle-core on zip >= 9 are in the
+# lockfile (`cargo tree -i zip` shows only 9.x).
+RUSTSEC-2026-0367
+RUSTSEC-2026-0368
+RUSTSEC-2026-0369
+
+# RUSTSEC-2024-0449: unsafe-libyaml unmaintained (informational, no CVE,
+# no patched version). https://rustsec.org/advisories/RUSTSEC-2024-0449.html
+# Path: unsafe-libyaml 0.2.11 <- serde_yaml 0.9.34+deprecated <- finima-api.
+# Reachable: yes. POST /api/categories/import parses user-supplied YAML
+# (authenticated, 1 MB default body limit); categories export and two config
+# tests also use serde_yaml. No known exploitable bug; the one unsoundness
+# advisory (RUSTSEC-2023-0075) is fixed in 0.2.10, and 0.2.11 is in use.
+# Why not fixed now: serde_yaml is archived; removing it means porting
+# finima-api to another YAML crate (e.g. serde_yaml_ng / serde-saphyr).
+# Exit: drop once finima-api no longer depends on serde_yaml.
+RUSTSEC-2024-0449
