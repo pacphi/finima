@@ -21,6 +21,14 @@ ignore = [
     "RUSTSEC-2025-0119",  # number_prefix
     "RUSTSEC-2024-0436",  # paste
 
+    # zip < 9.0.0 extract() flaws — zip 8.6.0 (calamine) and 7.2.0 (candle-core)
+    # never call extract(); patched only in zip 9.x (breaking upgrades upstream)
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
+
+    # unsafe-libyaml unmaintained (via serde_yaml in finima-api; no patched version)
+    "RUSTSEC-2024-0449",
 ]
 
 [yanked]
