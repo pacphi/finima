@@ -8,9 +8,6 @@
 
 [advisories]
 ignore = [
-    # rsa Marvin attack — reachable only via sqlx-mysql (unused at runtime)
-    "RUSTSEC-2023-0071",
-
     # rand unsoundness — `log` feature not enabled; vulnerable path compiled out
     "RUSTSEC-2026-0097",
 
