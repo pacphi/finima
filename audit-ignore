@@ -2,13 +2,6 @@
 # Format: one RUSTSEC ID per line; lines starting with # are comments.
 # Reviewed by maintainers; remove an entry once the upstream dep is patched.
 
-# RUSTSEC-2023-0071: rsa Marvin attack (timing side-channel)
-# Pulled in by sqlx-mysql (sqlx's proc-macro compile-time dependency).
-# PostgreSQL-only deployment; the mysql path is never reachable at runtime.
-# No upstream patch exists yet.
-# Track: https://github.com/RustCrypto/RSA/issues/19
-RUSTSEC-2023-0071
-
 # RUSTSEC-2026-0097: rand unsoundness with custom logger calling rand::rng()
 # The `log` feature is not enabled on our transitive rand 0.8.5, and we have
 # no custom logger that calls rand — the vulnerable code path is compiled
