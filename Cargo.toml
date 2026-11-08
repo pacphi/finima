@@ -47,7 +47,7 @@ rand = "0.10"
 reqwest = { version = "0.13", features = ["json"] }
 
 # File parsing
-calamine = { version = "0.36", features = ["dates"] }
+calamine = { version = "0.38", features = ["dates"] }
 csv = "1"
 quick-xml = "0.42"
 
